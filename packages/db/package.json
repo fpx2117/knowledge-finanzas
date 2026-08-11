@@ -1,0 +1,23 @@
+{
+  "name": "@know-finanzas/db",
+  "private": true,
+  "scripts": {
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config drizzle.config.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./repositories": "./src/repositories/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "dependencies": {
+    "@know-finanzas/config": "workspace:*",
+    "decimal.js": "^10.5.0",
+    "drizzle-orm": "^0.39.3",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.30.4"
+  }
+}

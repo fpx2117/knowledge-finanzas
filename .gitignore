@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.env
+.env.local
+.pnpm-store/
+test-results/
+playwright-report/
+backups/
+
+# Local tool config, not shared project source
+.claude/

@@ -1,0 +1,10 @@
+{
+  "name": "@know-finanzas/audit",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@know-finanzas/shared": "workspace:*"
+  }
+}

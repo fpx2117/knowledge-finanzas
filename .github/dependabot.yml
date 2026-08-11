@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Groups routine patch/minor bumps into one PR instead of dozens — security/major updates
+      # still get their own individual PR so they aren't buried in a batch.
+      routine-updates:
+        update-types: ["patch", "minor"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

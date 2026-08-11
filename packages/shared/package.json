@@ -1,0 +1,7 @@
+{
+  "name": "@know-finanzas/shared",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

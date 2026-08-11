@@ -1,0 +1,1 @@
+export default function TransactionDetailLoading() { return <div className="loading-stack" aria-busy="true" aria-label="Cargando movimiento"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-card" /></div>; }

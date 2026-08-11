@@ -1,0 +1,7 @@
+{
+  "name": "@know-finanzas/promotions",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -1,0 +1,1 @@
+export default function PlanningLoading() { return <div className="loading-stack" aria-busy="true" aria-label="Cargando planificación"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-card" /></div>; }

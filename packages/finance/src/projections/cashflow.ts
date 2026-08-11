@@ -1,0 +1,14 @@
+import { Money } from "../money/money";
+import { formatLocalDate } from "../dates/local-date";
+type Event = { sourceId: string; sourceType: string; date: string; direction: "INFLOW" | "OUTFLOW"; amount: Money; confidence: "EXPECTED" | "COMMITTED"; title: string };
+function addDays(date: string, days: number) { const value = new Date(`${date}T00:00:00Z`); value.setUTCDate(value.getUTCDate() + days); return formatLocalDate(value.getUTCFullYear(), value.getUTCMonth() + 1, value.getUTCDate()); }
+export function calculateCashflow(input: { currency: string; startingBalance: Money; horizonStart: string; horizonEnd: string; events: readonly Event[] }) {
+  if (input.startingBalance.currency !== input.currency) throw new Error("CURRENCY_MISMATCH");
+  const events = input.events.filter((event) => event.amount.currency === input.currency).map((event) => event.date < input.horizonStart && event.direction === "OUTFLOW" && event.confidence === "COMMITTED" ? { ...event, date: input.horizonStart, originalDueDate: event.date } : event).filter((event) => event.date >= input.horizonStart && event.date <= input.horizonEnd).sort((a, b) => a.date.localeCompare(b.date) || a.sourceId.localeCompare(b.sourceId));
+  const points: Array<{ date: string; inflow: Money; outflow: Money; netChange: Money; projectedBalance: Money; events: Event[] }> = [];
+  let balance = input.startingBalance; let date = input.horizonStart;
+  while (date <= input.horizonEnd) { const dayEvents = events.filter((event) => event.date === date); const inflow = dayEvents.filter((event) => event.direction === "INFLOW").reduce((sum, event) => sum.add(event.amount), Money.zero(input.currency)); const outflow = dayEvents.filter((event) => event.direction === "OUTFLOW").reduce((sum, event) => sum.add(event.amount), Money.zero(input.currency)); const netChange = inflow.subtract(outflow); balance = balance.add(netChange); points.push({ date, inflow, outflow, netChange, projectedBalance: balance, events: dayEvents }); date = addDays(date, 1); }
+  let minimum = input.startingBalance; let minimumDate = input.horizonStart; let firstNegativeDate: string | null = input.startingBalance.amount.isNegative() ? input.horizonStart : null;
+  for (const point of points) { if (point.projectedBalance.compareTo(minimum) < 0) { minimum = point.projectedBalance; minimumDate = point.date; } if (!firstNegativeDate && point.projectedBalance.amount.isNegative()) firstNegativeDate = point.date; }
+  return { currency: input.currency, horizonStart: input.horizonStart, horizonEnd: input.horizonEnd, horizonDays: points.length, startingBalance: input.startingBalance, projectedEndBalance: points.at(-1)?.projectedBalance ?? input.startingBalance, minimumProjectedBalance: minimum, minimumBalanceDate: minimumDate, firstNegativeDate, shortfallAmount: minimum.amount.isNegative() ? Money.zero(input.currency).subtract(minimum) : null, points };
+}

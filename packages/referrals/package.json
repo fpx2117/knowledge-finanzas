@@ -1,0 +1,7 @@
+{
+  "name": "@know-finanzas/referrals",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

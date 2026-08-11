@@ -1,0 +1,3 @@
+CREATE UNIQUE INDEX "transactions_transfer_out_unique" ON "transactions" USING btree ("transfer_id") WHERE "transactions"."type" = 'TRANSFER_OUT';--> statement-breakpoint
+CREATE UNIQUE INDEX "transactions_transfer_in_unique" ON "transactions" USING btree ("transfer_id") WHERE "transactions"."type" = 'TRANSFER_IN';--> statement-breakpoint
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_transfer_metadata_check" CHECK (("transactions"."type" in ('TRANSFER_IN', 'TRANSFER_OUT') and "transactions"."source" = 'TRANSFER' and "transactions"."transfer_id" is not null and "transactions"."category_id" is null) or ("transactions"."type" not in ('TRANSFER_IN', 'TRANSFER_OUT')));

@@ -1,0 +1,11 @@
+{
+  "name": "@know-finanzas/privacy",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@know-finanzas/finance": "workspace:*",
+    "zod": "^3.24.2"
+  }
+}

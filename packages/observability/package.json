@@ -1,0 +1,11 @@
+{
+  "name": "@know-finanzas/observability",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@know-finanzas/config": "workspace:*",
+    "decimal.js": "^10.5.0"
+  }
+}

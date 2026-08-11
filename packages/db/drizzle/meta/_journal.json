@@ -1,0 +1,195 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786235321523,
+      "tag": "0000_familiar_rictor",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786235637182,
+      "tag": "0001_deep_corsair",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786241697445,
+      "tag": "0002_low_jean_grey",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786242332102,
+      "tag": "0003_nappy_forgotten_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786242500000,
+      "tag": "0004_transfer_leg_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786244079934,
+      "tag": "0005_swift_stryfe",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786247517615,
+      "tag": "0006_nappy_stick",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786247995043,
+      "tag": "0007_narrow_jack_murdock",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786248458867,
+      "tag": "0008_flimsy_micromacro",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786251593208,
+      "tag": "0009_sloppy_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786253156952,
+      "tag": "0010_conscious_moondragon",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786254061476,
+      "tag": "0011_ordinary_wild_child",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786286685776,
+      "tag": "0012_flawless_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786301551732,
+      "tag": "0013_shallow_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786307409279,
+      "tag": "0014_lean_ultimatum",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786312478836,
+      "tag": "0015_pale_vertigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786321913262,
+      "tag": "0016_unusual_lifeguard",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786323504961,
+      "tag": "0017_volatile_gladiator",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786338306384,
+      "tag": "0018_parallel_tyger_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786369204936,
+      "tag": "0019_motionless_kulan_gath",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786370475789,
+      "tag": "0020_amusing_spiral",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786373991685,
+      "tag": "0021_hot_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1786373991686,
+      "tag": "0022_referral_reward_grant_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1786375943758,
+      "tag": "0023_real_mandrill",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786377539380,
+      "tag": "0024_fluffy_blackheart",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786394583967,
+      "tag": "0025_natural_bucky",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1786395999751,
+      "tag": "0026_supreme_vertigo",
+      "breakpoints": true
+    }
+  ]
+}

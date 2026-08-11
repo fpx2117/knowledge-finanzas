@@ -1,0 +1,1 @@
+export default function NewDebtLoading() { return <div className="loading-stack" aria-busy="true" aria-label="Cargando preview"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-form" /></div>; }

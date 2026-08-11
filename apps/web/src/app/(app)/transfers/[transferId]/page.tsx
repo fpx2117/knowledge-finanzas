@@ -1,0 +1,7 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createTransferRepository } from "@know-finanzas/db/repositories";
+import { db, accountRepository } from "@know-finanzas/db";
+import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { TransferActions } from "@/features/transfers/components/transfer-actions";
+export default async function TransferDetailPage({ params }: { params: Promise<{ transferId: string }> }) { const user = await requireCurrentUser(); const { transferId } = await params; const aggregate = await createTransferRepository(db).getAggregateForUser(transferId, user.id); if (!aggregate) notFound(); const from = await accountRepository.findByIdForUser(aggregate.transfer.fromAccountId, user.id); const to = await accountRepository.findByIdForUser(aggregate.transfer.toAccountId, user.id); const voided = aggregate.legs.length === 2 && aggregate.legs.every((leg) => leg.status === "VOIDED"); return <><Link className="back-link" href="/transactions">← Volver a movimientos</Link><header className="detail-header"><div><p className="eyebrow">Transferencia</p><h1>{from?.name ?? "Cuenta"} → {to?.name ?? "Cuenta"}</h1><p className="lede">{voided ? "Anulada" : "Publicada"} · {aggregate.transfer.occurredAt.toLocaleDateString("es-AR")}</p></div><p className="detail-balance">{aggregate.transfer.currencyCode} {aggregate.transfer.amount}</p></header><TransferActions transferId={transferId} voided={voided} /></>; }

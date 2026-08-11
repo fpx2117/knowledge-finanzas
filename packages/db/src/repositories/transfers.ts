@@ -1,0 +1,50 @@
+import { and, asc, eq, inArray } from "drizzle-orm";
+import type { Database } from "../client";
+import { accounts, transactions, transfers } from "../schema";
+
+export function createTransferRepository(database: Database) {
+  return {
+    async findAccountsForUserForUpdate(userId: string, fromAccountId: string, toAccountId: string) {
+      const rows = await database.select({ id: accounts.id, userId: accounts.userId, currencyCode: accounts.currencyCode, status: accounts.status, openingDate: accounts.openingDate })
+        .from(accounts)
+        .where(and(eq(accounts.userId, userId), inArray(accounts.id, [fromAccountId, toAccountId])))
+        .orderBy(asc(accounts.id))
+        .for("update");
+      return { fromAccount: rows.find((row) => row.id === fromAccountId), toAccount: rows.find((row) => row.id === toAccountId) };
+    },
+
+    createShell(input: { id: string; userId: string; fromAccountId: string; toAccountId: string; amount: string; currencyCode: string; occurredAt: Date; notes: string | null }) {
+      return database.insert(transfers).values(input).returning().then(([transfer]) => transfer);
+    },
+
+    createLegPair(input: { outgoing: Record<string, unknown>; incoming: Record<string, unknown> }) {
+      return database.insert(transactions).values([input.outgoing, input.incoming] as never).returning().then((rows) => {
+        const outgoing = rows.find((row) => row.type === "TRANSFER_OUT");
+        const incoming = rows.find((row) => row.type === "TRANSFER_IN");
+        if (rows.length !== 2 || !outgoing || !incoming) throw new Error("Transfer must persist exactly two legs");
+        return [outgoing, incoming] as const;
+      });
+    },
+
+    async getAggregateForUser(transferId: string, userId: string, forUpdate = false) {
+      const [transfer] = await database.select().from(transfers).where(and(eq(transfers.id, transferId), eq(transfers.userId, userId))).limit(1);
+      if (!transfer) return undefined;
+      const legsQuery = database.select().from(transactions).where(and(eq(transactions.transferId, transferId), eq(transactions.userId, userId))).orderBy(asc(transactions.type));
+      const legs = forUpdate ? await legsQuery.for("update") : await legsQuery;
+      return { transfer, legs };
+    },
+
+    listForUser(userId: string, options: { limit?: number; offset?: number } = {}) {
+      return database.select().from(transfers).where(eq(transfers.userId, userId)).orderBy(asc(transfers.occurredAt)).limit(options.limit ?? 50).offset(options.offset ?? 0);
+    },
+
+    voidLegPair(transferId: string, userId: string, voidedAt: Date) {
+      return database.update(transactions).set({ status: "VOIDED", voidedAt, updatedAt: voidedAt })
+        .where(and(eq(transactions.transferId, transferId), eq(transactions.userId, userId), eq(transactions.status, "POSTED")))
+        .returning().then((legs) => {
+          if (legs.length !== 2) throw new Error("Transfer void must update exactly two legs");
+          return legs;
+        });
+    },
+  };
+}

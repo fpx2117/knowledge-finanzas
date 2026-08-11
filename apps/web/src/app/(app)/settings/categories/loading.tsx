@@ -1,0 +1,1 @@
+export default function CategoriesLoading() { return <div className="loading-stack" aria-busy="true" aria-label="Cargando categorías"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-form" /></div>; }

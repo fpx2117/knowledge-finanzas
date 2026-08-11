@@ -1,0 +1,2 @@
+ALTER TABLE "notification_whatsapp_consent" DROP CONSTRAINT "notification_whatsapp_consent_phone_format_check";--> statement-breakpoint
+ALTER TABLE "notification_whatsapp_consent" ADD CONSTRAINT "notification_whatsapp_consent_phone_format_check" CHECK ("notification_whatsapp_consent"."phone_number" is null or "notification_whatsapp_consent"."phone_number" ~ '^\+[1-9][0-9]{6,14}$');

@@ -1,0 +1,110 @@
+name: CI
+
+# TASK-041: every push/PR runs the same four gates the repo's own Verification Commands sections
+# already declare (lint/typecheck/test/build), plus a clean-migration check and a dependency/lockfile
+# review — using GitHub's own Postgres service container each run (always fresh, never a persisted
+# volume), so "clean migration path is tested" holds on every single run, not just occasionally.
+# No live external providers are ever called here (Domain Rule: "external live integrations use
+# contract/mocks in normal CI") — BILLING_ENABLED/AI_ENABLED/NOTIFICATIONS_ENABLED all stay false,
+# matching this repo's own default-off capability-flag design (packages/config).
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  NODE_VERSION: "20"
+  # A CI-only secret, never a real one — packages/config only requires length >= 32.
+  BETTER_AUTH_SECRET: ci-only-secret-never-used-in-production-000000
+  BETTER_AUTH_URL: http://127.0.0.1:3100
+
+jobs:
+  quality:
+    name: Lint, typecheck, migrate, test, build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: finance
+          POSTGRES_PASSWORD: finance
+          POSTGRES_DB: know_finanzas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U finance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # TEST_DATABASE_URL's name must contain "test" (tests/support/test-database.ts enforces
+      # this as a safety check against ever pointing test infrastructure at a real database) —
+      # DATABASE_URL is set to the exact same fresh CI database, since nothing here has a separate
+      # "development" database to protect.
+      DATABASE_URL: postgresql://finance:finance@localhost:5432/know_finanzas_test
+      TEST_DATABASE_URL: postgresql://finance:finance@localhost:5432/know_finanzas_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Makes TASK-042's backup-artifact-readability smoke test (tests/integration/
+      # backup-artifact-readability.test.ts) actually run here instead of skipping — it shells out
+      # to pg_dump/pg_restore, which aren't preinstalled on the runner image.
+      - name: Install PostgreSQL client tools (pg_dump/pg_restore)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Detect uncommitted schema drift (drizzle-kit generate must produce no diff)
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain packages/db/drizzle)" ]; then
+            echo "::error::Drizzle schema changed but no migration was generated/committed for it. Run 'pnpm db:generate' locally and commit the result."
+            git status --porcelain packages/db/drizzle
+            exit 1
+          fi
+
+      - name: Apply migrations to a fresh database
+        run: pnpm db:migrate
+
+      - name: Unit + integration tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # E2E's own webServer runs `next start` against the build just produced above (no build
+      # step of its own — see playwright.config.ts) — must run after Build, not before.
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E tests (high-value smoke)
+        run: pnpm test:e2e
+
+  dependency-review:
+    name: Dependency and lockfile review
+    runs-on: ubuntu-latest
+    # Only meaningful on a PR (diffs the base branch's lockfile against the PR's) — a push to a
+    # branch has nothing to diff against.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

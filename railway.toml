@@ -1,0 +1,18 @@
+# Railway service configuration (docs/18-production-readiness.md §174-176) for the `web` service.
+# A second `worker` service (its own railway.toml or dashboard config) is a follow-up only when
+# recurring/reminder/reconciliation jobs actually exist — see TASK-039's task notes.
+#
+# Migrations are deliberately NOT run automatically here (docs §178: "only one instance should run
+# migrations per deploy" — Railway can run several web replicas). Run `pnpm db:migrate` as a
+# separate, explicit step before deploying new web instances; see docs/deployment-runbook.md.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node apps/web/server.js"
+healthcheckPath = "/api/health/live"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

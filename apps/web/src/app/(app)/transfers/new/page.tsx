@@ -1,0 +1,4 @@
+import { accountRepository } from "@know-finanzas/db";
+import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { TransferForm } from "@/features/transfers/components/transfer-form";
+export default async function NewTransferPage() { const user = await requireCurrentUser(); const accounts = await accountRepository.listForUser(user.id); return <><div className="form-page-header"><p className="eyebrow">Movimiento interno</p><h1>Transferí entre tus cuentas.</h1><p className="lede">La operación conserva tus activos consolidados y no se registra como ingreso o gasto.</p></div>{accounts.length < 2 ? <section className="accounts-empty" role="status"><h2>Necesitás dos cuentas activas.</h2><p>Creá otra cuenta para poder transferir dinero.</p></section> : <TransferForm accounts={accounts} />}</>; }

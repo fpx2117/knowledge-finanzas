@@ -1,0 +1,46 @@
+{
+  "name": "know-finanzas",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter web build",
+    "db:backup": "node packages/db/scripts/backup.mjs",
+    "db:generate": "pnpm --filter @know-finanzas/db db:generate",
+    "db:migrate": "pnpm --filter @know-finanzas/db db:migrate",
+    "db:restore": "node packages/db/scripts/restore.mjs",
+    "dev": "pnpm --filter web dev",
+    "finance:audit": "tsx packages/db/scripts/finance-audit.ts",
+    "lint": "pnpm --filter web lint",
+    "recovery:validate": "tsx packages/db/scripts/recovery-validate.ts",
+    "typecheck": "pnpm --filter web typecheck",
+    "test": "vitest run",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "test:watch": "vitest"
+  },
+  "packageManager": "pnpm@10.4.1",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "devDependencies": {
+    "@know-finanzas/ai": "workspace:^",
+    "@know-finanzas/analytics": "workspace:^",
+    "@know-finanzas/audit": "workspace:^",
+    "@know-finanzas/billing": "workspace:^",
+    "@know-finanzas/config": "workspace:^",
+    "@know-finanzas/finance": "workspace:^",
+    "@know-finanzas/notifications": "workspace:^",
+    "@know-finanzas/observability": "workspace:^",
+    "@know-finanzas/privacy": "workspace:^",
+    "@know-finanzas/promotions": "workspace:^",
+    "@know-finanzas/referrals": "workspace:^",
+    "@know-finanzas/shared": "workspace:^",
+    "@know-finanzas/validation": "workspace:^",
+    "@playwright/test": "^1.52.0",
+    "drizzle-orm": "^0.39.3",
+    "postgres": "^3.4.5",
+    "tsx": "^4.19.2",
+    "vitest": "^3.2.4",
+    "zod": "^3.24.2"
+  }
+}

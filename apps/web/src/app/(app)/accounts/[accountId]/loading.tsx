@@ -1,0 +1,1 @@
+export default function AccountDetailLoading() { return <div className="loading-stack" aria-busy="true" aria-label="Cargando cuenta"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-card" /></div>; }
