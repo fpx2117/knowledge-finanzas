@@ -5,7 +5,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.6.0",
+    "@better-auth/drizzle-adapter": "^1.7.2",
     "@know-finanzas/ai": "workspace:*",
     "@know-finanzas/analytics": "workspace:*",
     "@know-finanzas/billing": "workspace:*",
@@ -14,6 +14,6 @@
     "@know-finanzas/notifications": "workspace:*",
     "@know-finanzas/referrals": "workspace:*",
     "@know-finanzas/shared": "workspace:*",
-    "better-auth": "^1.6.0"
+    "better-auth": "^1.7.2"
   }
 }
