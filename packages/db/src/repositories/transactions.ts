@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lte, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
 
 import type { Database } from "../client";
@@ -111,6 +111,41 @@ export function createTransactionRepository(database: Database) {
         .orderBy(desc(transactions.occurredAt));
     },
 
+    /** Posted expenses with no category — the financial inbox's "sin categoría" list. */
+    listUncategorizedForUser(userId: string, limit = 50) {
+      return database
+        .select({
+          id: transactions.id,
+          description: transactions.description,
+          merchant: transactions.merchant,
+          amount: transactions.amount,
+          currencyCode: transactions.currencyCode,
+          occurredAt: transactions.occurredAt,
+        })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, "EXPENSE"),
+          eq(transactions.status, "POSTED"),
+          isNull(transactions.categoryId),
+        ))
+        .orderBy(desc(transactions.occurredAt))
+        .limit(limit);
+    },
+
+    countUncategorizedForUser(userId: string) {
+      return database
+        .select({ count: sql<number>`count(*)::int` })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, "EXPENSE"),
+          eq(transactions.status, "POSTED"),
+          isNull(transactions.categoryId),
+        ))
+        .then(([row]) => row?.count ?? 0);
+    },
+
     findByIdForUser(transactionId: string, userId: string) {
       return database.select().from(transactions)
         .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId)))
@@ -138,6 +173,21 @@ export function createTransactionRepository(database: Database) {
       return database.update(transactions).set({ ...input, updatedAt: new Date() })
         .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId), eq(transactions.status, "POSTED")))
         .returning().then(([transaction]) => transaction);
+    },
+
+    /** Assign (or change) a category on a posted transaction — from the inbox / manual review. */
+    setCategoryForUser(transactionId: string, userId: string, categoryId: string, taxonomyNodeId: string | null) {
+      return database
+        .update(transactions)
+        .set({
+          categoryId,
+          taxonomyNodeId,
+          classification: sql`coalesce(${transactions.classification}, '{}'::jsonb) || '{"method":"user_explicit","reviewedByUser":true,"categoryConfidence":1}'::jsonb`,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId), eq(transactions.status, "POSTED")))
+        .returning()
+        .then(([row]) => row);
     },
 
     voidForUser(transactionId: string, userId: string, voidedAt: Date) {

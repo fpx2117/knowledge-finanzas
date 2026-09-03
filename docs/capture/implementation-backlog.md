@@ -267,6 +267,22 @@ Spec §10 / §27 / §57–58.
 no per-batch "undo import"; bank-specific adapters (§11) not started; transfers/adjustments
 not inferred (every row is INCOME or EXPENSE).
 
+### Financial Inbox (`/inbox`)  ✅ DONE (v1 — hub + inline categorize)
+Spec §25/§26. Single "X cosas para revisar" surface aggregating the detection screens.
+
+- `transactionRepository.listUncategorizedForUser` / `countUncategorizedForUser` /
+  `setCategoryForUser` (category + taxonomy node, stamps `classification.reviewedByUser`). No migration.
+- `inbox-service.ts` (pure DI) + `.instance`: `getSummary` → uncategorized count + first 30
+  items + expense category options, recurring-suggestion count, active-subscription count,
+  price increases, duplicate-pair count (live scan, best-effort), `total`.
+  `categorize(txnId, categoryId)` validates + updates.
+- UI: `/inbox` — price-increase alerts, inline "Sin categoría" list (per-row `<select>`,
+  row disappears on assign), links to `/recurrentes` + `/duplicados` with counts.
+- Tests: `inbox-service.test.ts` (5).
+
+**Follow-ups:** inline resolve only for uncategorized; no keyboard shortcuts; post-hoc
+categorize doesn't feed #12 learning; duplicate scan runs on every inbox load.
+
 ### Later (from the P1–P5 roadmap, not yet started)
 - **P1** — Bank-export adapters (Galicia, BBVA, Santander, Mercado Pago, Naranja X, Ualá…), pluggable parser registry (§11, §48)
 - **P1** — Duplicate-detection engine + transaction fingerprinting + auto-merge / ask thresholds (§20, §21)
