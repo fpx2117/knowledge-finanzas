@@ -184,6 +184,30 @@ Spec §15: learn "same merchant + similar amount + regular cadence" and propose 
 feed the calendar/obligations; no auto-scan (user clicks the button); income recurrence
 (salary) not detected — expenses only. Feeds naturally into §16 Subscriptions.
 
+### Subscription detection  ✅ DONE (core)
+Spec §16: identify subscriptions (merchant-based monthly/yearly charges), track price history,
+flag price hikes with monthly/yearly impact.
+
+- **Table `subscriptions`** — migration `0036_fantastic_captain_midlands.sql`
+  (`subscriptionRepository`). `priceHistory` jsonb (oldest→newest tiers), `currentAmount`,
+  `nextExpectedOn`, `status` `ACTIVE | INACTIVE | DISMISSED`. Unique `(user, merchant, currency)`.
+- `detect-recurring.ts` refactored to export `analyzeCadence` / `cadenceDays` /
+  `addDaysToDate`; `detect-subscriptions.ts` reuses cadence analysis but keeps MONTHLY/YEARLY
+  only and its **own amount rule** (price tiers via `buildPriceHistory`, >2% change = new tier,
+  ≤1 downward tier allowed) so a legitimate price hike isn't rejected the way the recurring
+  detector's spread gate would. `priceChangeImpact(frequency, delta)` → monthly/yearly.
+- `subscription-detection-service.ts` (pure DI) + `.instance`: `refreshForUser` (800-day
+  scan; upsert ACTIVE unless DISMISSED; `deactivateMissing` → INACTIVE, keeps the row +
+  history), `listSubscriptions` (ACTIVE+INACTIVE, resolves category, computes `priceChange`),
+  `dismissSubscription`.
+- UI: `/suscripciones` — scan button, monthly-total line, list with "Subió de X a Y ·
+  +$N/año" badge, dismiss.
+- Tests: `detect-subscriptions.test.ts` (8), `subscription-detection-service.test.ts` (5).
+
+**Follow-ups:** no price-hike notification (notifications slice is quarantined); a CONFIRMED
+recurring series and a subscription aren't linked; payment-method / next-charge-amount
+projection not modelled; INACTIVE has no "reactivate" UI.
+
 ### Later (from the P1–P5 roadmap, not yet started)
 
 - **P1** — CSV / XLSX import with auto-detected column mapping + import preview (§10, §56–58)

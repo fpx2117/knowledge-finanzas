@@ -85,6 +85,39 @@ function mostCommon<T>(values: T[]): T | null {
   return best;
 }
 
+/**
+ * Cadence analysis over a date-ordered list. Returns null when the spacing isn't regular
+ * enough to call a cadence. Shared by recurring + subscription detection.
+ */
+export function analyzeCadence(datesSorted: string[]): { frequency: RecurringFrequency; regularity: number } | null {
+  if (datesSorted.length < 3) return null;
+  const intervals: number[] = [];
+  for (let i = 1; i < datesSorted.length; i++) intervals.push(daysBetween(datesSorted[i - 1], datesSorted[i]));
+  if (intervals.some((d) => d <= 0)) return null;
+
+  const intervalMean = intervals.reduce((sum, d) => sum + d, 0) / intervals.length;
+  const intervalStdev = Math.sqrt(intervals.reduce((sum, d) => sum + (d - intervalMean) ** 2, 0) / intervals.length);
+  if (intervalMean > 0 && intervalStdev / intervalMean > 0.35) return null;
+
+  const intervalMedian = median([...intervals].sort((a, b) => a - b));
+  const cadenceWindow = CADENCE_WINDOWS.find(([, lo, hi]) => intervalMedian >= lo && intervalMedian <= hi);
+  if (!cadenceWindow) return null;
+  const frequency = cadenceWindow[0];
+  const target = CADENCE_DAYS[frequency];
+
+  const regularity = intervals.filter((d) => Math.abs(d - target) <= target * 0.35).length / intervals.length;
+  if (regularity < 0.6) return null;
+  return { frequency, regularity };
+}
+
+export function cadenceDays(frequency: RecurringFrequency): number {
+  return CADENCE_DAYS[frequency];
+}
+
+export function addDaysToDate(date: string, days: number): string {
+  return addDays(date, days);
+}
+
 export function detectRecurringSeries(
   txns: RecurringTxn[],
   options: { minOccurrences?: number; minConfidence?: number; now?: string } = {},
@@ -116,23 +149,10 @@ export function detectRecurringSeries(
     const amountSpread = (Math.max(...amounts) - Math.min(...amounts)) / amountMedian;
     if (amountSpread > 0.6) continue;
 
-    const intervals: number[] = [];
-    for (let i = 1; i < sorted.length; i++) intervals.push(daysBetween(sorted[i - 1].occurredOn, sorted[i].occurredOn));
-    if (intervals.some((d) => d <= 0)) continue;
-    const intervalMedian = median([...intervals].sort((a, b) => a - b));
-
-    // Reject groups whose spacing is all over the place (one interval many times another).
-    const intervalMean = intervals.reduce((sum, d) => sum + d, 0) / intervals.length;
-    const intervalStdev = Math.sqrt(intervals.reduce((sum, d) => sum + (d - intervalMean) ** 2, 0) / intervals.length);
-    if (intervalMean > 0 && intervalStdev / intervalMean > 0.35) continue;
-
-    const cadenceWindow = CADENCE_WINDOWS.find(([, lo, hi]) => intervalMedian >= lo && intervalMedian <= hi);
-    if (!cadenceWindow) continue;
-    const frequency = cadenceWindow[0];
+    const cadence = analyzeCadence(sorted.map((r) => r.occurredOn));
+    if (!cadence) continue;
+    const { frequency, regularity: regular } = cadence;
     const target = CADENCE_DAYS[frequency];
-
-    const regular = intervals.filter((d) => Math.abs(d - target) <= target * 0.35).length / intervals.length;
-    if (regular < 0.6) continue;
 
     const lastSeenOn = sorted[sorted.length - 1].occurredOn;
     // Skip series that have clearly lapsed (no occurrence for > 2 cadences).

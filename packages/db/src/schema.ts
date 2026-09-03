@@ -507,6 +507,37 @@ export const recurringSeries = pgTable("recurring_series", {
   check("recurring_series_typical_amount_positive_check", sql`${table.typicalAmount} > 0`),
 ]);
 
+// Subscriptions (spec §16) — merchant-based recurring charges at a monthly/yearly cadence,
+// with price history so a price hike can be surfaced ("Netflix subió $3.500/mes"). Detected
+// from transactions; a DISMISSED row is never re-created, an INACTIVE one means "no charge
+// for a while" (likely cancelled) but the history is kept.
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["ACTIVE", "INACTIVE", "DISMISSED"]);
+
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  merchantId: uuid("merchant_id").notNull().references(() => merchants.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  frequency: recurringTransactionFrequencyEnum("frequency").notNull(),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  currentAmount: numeric("current_amount", { precision: 20, scale: 6 }).notNull(),
+  // Oldest→newest: [{ amount: "18499.00", from: "2025-01-04" }, …]
+  priceHistory: jsonb("price_history").$type<Array<{ amount: string; from: string }>>().notNull().default(sql`'[]'::jsonb`),
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  firstChargedOn: date("first_charged_on").notNull(),
+  lastChargedOn: date("last_charged_on").notNull(),
+  nextExpectedOn: date("next_expected_on").notNull(),
+  chargeCount: integer("charge_count").notNull(),
+  confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
+  status: subscriptionStatusEnum("status").notNull().default("ACTIVE"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("subscriptions_user_merchant_currency_unique").on(table.userId, table.merchantId, table.currencyCode),
+  index("subscriptions_user_status_idx").on(table.userId, table.status),
+  check("subscriptions_current_amount_positive_check", sql`${table.currentAmount} > 0`),
+  check("subscriptions_confidence_range_check", sql`${table.confidence} >= 0 and ${table.confidence} <= 1`),
+]);
+
 export const budgets = pgTable("budgets", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
