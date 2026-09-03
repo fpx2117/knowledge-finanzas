@@ -201,7 +201,8 @@ export async function parseQuickTextAction(text: string, operationId?: string): 
 
 export type QuickResult =
   | { ok: true; transactionId: string; type: "INCOME" | "EXPENSE"; amount: string; currencyCode: string }
-  | { ok: false; error: ReturnType<typeof mapErrorToUi> };
+  | { ok: false; error: ReturnType<typeof mapErrorToUi> }
+  | { ok: false; duplicateOf: { description: string; occurredOn: string; amount: string } };
 
 export async function quickCreateTransactionAction(
   _previous: QuickResult | null,
@@ -211,6 +212,22 @@ export async function quickCreateTransactionAction(
   try {
     const user = await requireCurrentUser();
     const raw = buildQuickTransactionInput(type, formData, `${getTodayInTimezone(user.timezone)}T12:00:00Z`);
+
+    if (formData.get("allowDuplicate") !== "1") {
+      const dup = type === "INCOME"
+        ? await (async () => {
+            const p = createIncomeTransactionSchema.parse(raw);
+            return service.findLikelyIncomeDuplicate(user.id, { accountId: p.accountId, amount: p.amount, occurredAt: p.occurredAt });
+          })()
+        : await (async () => {
+            const p = createExpenseTransactionSchema.parse(raw);
+            return service.findLikelyExpenseDuplicate(user.id, { accountId: p.accountId, amount: p.amount, merchant: p.merchant ?? null, occurredAt: p.occurredAt });
+          })();
+      if (dup) {
+        return { ok: false, duplicateOf: { description: dup.description, occurredOn: dup.occurredOn, amount: dup.amount } };
+      }
+    }
+
     const created =
       type === "INCOME"
         ? await service.createIncomeTransaction(user.id, createIncomeTransactionSchema.parse(raw), user.timezone)

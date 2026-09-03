@@ -208,6 +208,27 @@ flag price hikes with monthly/yearly impact.
 recurring series and a subscription aren't linked; payment-method / next-charge-amount
 projection not modelled; INACTIVE has no "reactivate" UI.
 
+### Duplicate detection — create-time guard  ✅ DONE (partial)
+Spec §20/§21: fingerprint + probabilistic duplicate score.
+
+- `features/transactions/lib/transaction-fingerprint.ts` — pure. `transactionFingerprint`
+  (coarse key: account | currency | amount cents | day | merchant identity) +
+  `duplicateScore(a, b)` 0–1: matching `externalId` → 1, mismatching → 0; hard-0 on
+  different account/currency or far amounts; then amount-equal 0.5 / near-equal 0.4, same-day
+  +0.3 / ≤3d +0.08, merchant overlap ±, payment method +0.05. Thresholds
+  `DUPLICATE_BLOCK_THRESHOLD 0.85`, `DUPLICATE_REVIEW_THRESHOLD 0.7`.
+- `transaction-service.findLikelyExpenseDuplicate` / `findLikelyIncomeDuplicate` — scans
+  posted income/expense on the same account ±10 days, returns the best ≥ block-threshold
+  match. New `transactionRepository.listAroundForDuplicateCheck`.
+- Wired into `quickCreateTransactionAction`: unless `allowDuplicate=1`, a strong match
+  returns `{ ok: false, duplicateOf }`; Quick Add shows an amber "Puede que ya lo tengas
+  registrado · <desc> · <fecha> · <monto>" banner with "Registrar igual".
+- Tests: `transaction-fingerprint.test.ts` (9), 4 in `transactions-service.test.ts`.
+
+**Not done:** the `/duplicados` review screen (§ spec screen 13) scanning existing pairs +
+merge/dismiss with persistence; wiring into the full `createTransactionAction` form;
+`externalId` isn't populated yet (no import pipeline); no auto-merge at ≥0.98.
+
 ### Later (from the P1–P5 roadmap, not yet started)
 
 - **P1** — CSV / XLSX import with auto-detected column mapping + import preview (§10, §56–58)

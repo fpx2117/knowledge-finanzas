@@ -66,6 +66,8 @@ export function QuickAdd({
   } | null>(null);
   const [parsing, startParse] = useTransition();
   const parsingRef = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
   const [state, action, pending] = useActionState(quickCreateTransactionAction, initial);
 
   // The category-trust hint only makes sense while a merchant is resolved.
@@ -73,10 +75,16 @@ export function QuickAdd({
     if (!selectedMerchant) setCategoryTrust(null);
   }, [selectedMerchant]);
 
+  // Editing the amount/date after a duplicate warning should re-arm the check.
+  useEffect(() => {
+    setAllowDuplicate(false);
+  }, [form.amount, form.description, form.accountId]);
+
   const resetAll = (ctx: QuickAddContext | null) => {
     setForm({ ...emptyForm, accountId: ctx?.accounts[0]?.id ?? "" });
     setTemplateId(null);
     setSelectedMerchant(null);
+    setAllowDuplicate(false);
     setAmountHints([]);
     setNlText("");
     setInterpretation(null);
@@ -202,7 +210,8 @@ export function QuickAdd({
     });
   }
 
-  const errors = state?.ok === false ? state.error.fieldErrors ?? {} : {};
+  const errors = state?.ok === false && "error" in state ? state.error.fieldErrors ?? {} : {};
+  const duplicateOf = state?.ok === false && "duplicateOf" in state ? state.duplicateOf : null;
   const isTxn = type === "EXPENSE" || type === "INCOME";
   const categoryOptions = context?.categories.filter((c) => c.type === type) ?? [];
   const templatesForType = context?.templates.filter((t) => t.type === type) ?? [];
@@ -328,14 +337,34 @@ export function QuickAdd({
                 ) : null}
               </div>
 
-              <form action={action} className="flex flex-col gap-3.5">
+              <form ref={formRef} action={action} className="flex flex-col gap-3.5">
                 <input type="hidden" name="type" value={type} />
                 {templateId ? <input type="hidden" name="templateId" value={templateId} /> : null}
+                {allowDuplicate ? <input type="hidden" name="allowDuplicate" value="1" /> : null}
 
-                {state?.ok === false && !state.error.fieldErrors ? (
+                {state?.ok === false && "error" in state && !state.error.fieldErrors ? (
                   <p role="alert" className="rounded-md bg-negative-soft px-3 py-2 text-small text-[var(--negative)]">
                     {state.error.message}
                   </p>
+                ) : null}
+
+                {duplicateOf ? (
+                  <div role="alert" className="rounded-md bg-warning-soft px-3 py-2.5 text-small text-[var(--warning)]">
+                    <p className="font-medium">Puede que ya lo tengas registrado</p>
+                    <p className="mt-0.5 text-caption">
+                      {duplicateOf.description} · {duplicateOf.occurredOn} · {Number(duplicateOf.amount).toLocaleString("es-AR")}
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-1.5 text-caption font-medium underline"
+                      onClick={() => {
+                        setAllowDuplicate(true);
+                        requestAnimationFrame(() => formRef.current?.requestSubmit());
+                      }}
+                    >
+                      Registrar igual
+                    </button>
+                  </div>
                 ) : null}
 
                 <Field label="Monto" htmlFor="qa-amount" error={errors.amount?.[0]}>

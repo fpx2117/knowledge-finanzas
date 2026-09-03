@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, notInArray, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
 
 import type { Database } from "../client";
@@ -58,6 +58,32 @@ export function createTransactionRepository(database: Database) {
           gte(transactions.occurredAt, since),
         ))
         .orderBy(transactions.occurredAt);
+    },
+
+    /** Posted INCOME/EXPENSE rows for one account within a date window — for duplicate checks (§20). */
+    listAroundForDuplicateCheck(userId: string, accountId: string, from: Date, to: Date) {
+      return database
+        .select({
+          id: transactions.id,
+          type: transactions.type,
+          description: transactions.description,
+          merchant: transactions.merchant,
+          merchantId: transactions.merchantId,
+          amount: transactions.amount,
+          currencyCode: transactions.currencyCode,
+          occurredAt: transactions.occurredAt,
+          paymentMethod: transactions.paymentMethod,
+        })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.accountId, accountId),
+          eq(transactions.status, "POSTED"),
+          inArray(transactions.type, ["INCOME", "EXPENSE"]),
+          gte(transactions.occurredAt, from),
+          lte(transactions.occurredAt, to),
+        ))
+        .orderBy(desc(transactions.occurredAt));
     },
 
     findByIdForUser(transactionId: string, userId: string) {

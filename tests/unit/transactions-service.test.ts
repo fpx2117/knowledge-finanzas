@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTransactionService } from "../../apps/web/src/features/transactions/services/transaction-service";
 
-const account = { id: "10000000-0000-0000-0000-000000000001", userId: "user-a", currencyCode: "ARS", openingDate: "2026-01-01", status: "ACTIVE" as const };
+const account = { id: "10000000-0000-0000-0000-000000000001", userId: "user-a", type: "BANK" as const, currencyCode: "ARS", openingDate: "2026-01-01", status: "ACTIVE" as const };
 const category = { id: "20000000-0000-0000-0000-000000000001", userId: "user-a", type: "EXPENSE" as const, status: "ACTIVE" as const };
 const input = { accountId: account.id, amount: "100.50", description: "Compra", categoryId: category.id, occurredAt: "2026-02-01T12:00:00Z", notes: "Nota" };
 
@@ -71,6 +71,60 @@ function learningSetup(options: {
   });
   return { created, aliasCalls, upsertCalls, service };
 }
+
+// §20 — duplicate check before a manual create.
+describe("transaction service — duplicate check (§20)", () => {
+  const existing = {
+    id: "tx-1",
+    type: "EXPENSE",
+    description: "Carrefour",
+    merchant: "Carrefour",
+    merchantId: "m-1",
+    amount: "15400.000000",
+    currencyCode: "ARS",
+    occurredAt: new Date("2026-02-01T00:00:00Z"),
+    paymentMethod: "DEBIT",
+  };
+  function dupSetup(rows = [existing]) {
+    return createTransactionService({
+      accounts: { findByIdForUser: async () => account },
+      categories: { findByIdForUser: async () => category },
+      transactions: {
+        create: async (v) => v,
+        listAroundForDuplicateCheck: async () => rows as never,
+      },
+      now: () => new Date("2026-02-02T12:00:00Z"),
+    });
+  }
+
+  it("returns the matching transaction for an identical same-day expense", async () => {
+    const dup = await dupSetup().findLikelyExpenseDuplicate("user-a", {
+      accountId: account.id,
+      amount: "15400.00",
+      merchant: "CARREFOUR SA",
+      occurredAt: "2026-02-01T12:00:00Z",
+    });
+    expect(dup).toMatchObject({ id: "tx-1", description: "Carrefour" });
+  });
+
+  it("returns null when the amount or account differs", async () => {
+    expect(await dupSetup().findLikelyExpenseDuplicate("user-a", { accountId: account.id, amount: "9999.00", occurredAt: "2026-02-01T12:00:00Z" })).toBeNull();
+  });
+
+  it("does not match an income against an expense", async () => {
+    expect(await dupSetup().findLikelyIncomeDuplicate("user-a", { accountId: account.id, amount: "15400.00", occurredAt: "2026-02-01T12:00:00Z" })).toBeNull();
+  });
+
+  it("returns null when the repo cannot check", async () => {
+    const service = createTransactionService({
+      accounts: { findByIdForUser: async () => account },
+      categories: { findByIdForUser: async () => category },
+      transactions: { create: async (v) => v },
+      now: () => new Date("2026-02-02T12:00:00Z"),
+    });
+    expect(await service.findLikelyExpenseDuplicate("user-a", { accountId: account.id, amount: "15400.00", occurredAt: "2026-02-01T12:00:00Z" })).toBeNull();
+  });
+});
 
 describe("transaction service — corrections as learning (#12)", () => {
   it("records a personal merchant→category override when the user picks a category different from the merchant global default", async () => {

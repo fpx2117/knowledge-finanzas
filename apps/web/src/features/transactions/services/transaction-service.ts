@@ -3,6 +3,7 @@ import { ApplicationError } from "@know-finanzas/shared";
 
 import { allowAllProductAccessGate, type ProductAccessGate } from "@/lib/billing/product-access-gate";
 import { matchClassificationRule, type ClassificationRule } from "@/features/transactions/lib/classification-rules";
+import { DUPLICATE_BLOCK_THRESHOLD, duplicateScore, type FingerprintInput } from "@/features/transactions/lib/transaction-fingerprint";
 
 type AccountType = "CASH" | "BANK" | "DIGITAL_WALLET" | "SAVINGS";
 type Account = { id: string; userId: string; type: AccountType; currencyCode: string; openingDate: string; status: "ACTIVE" | "ARCHIVED" };
@@ -41,6 +42,18 @@ type Dependencies = {
     voidForUser(id: string, userId: string, at: Date): Promise<unknown>;
     /** Progressive trust (#13): prior non-voided expenses for this merchant on this node. */
     countClassifiedForMerchantNode?(userId: string, merchantId: string, taxonomyNodeId: string): Promise<number>;
+    /** Duplicate check (§20): posted income/expense on one account within a date window. */
+    listAroundForDuplicateCheck?(userId: string, accountId: string, from: Date, to: Date): Promise<Array<{
+      id: string;
+      type: string;
+      description: string;
+      merchant: string | null;
+      merchantId: string | null;
+      amount: string;
+      currencyCode: string;
+      occurredAt: Date;
+      paymentMethod: string | null;
+    }>>;
   };
   /** Optional — resolves a raw merchant string to a canonical merchant. */
   merchants?: {
@@ -334,11 +347,65 @@ export function createTransactionService({
     return created;
   }
 
+  /**
+   * Is there already a posted transaction that looks like this one? (§20) Returns the best
+   * near-certain match, or null. Used to warn before a manual create — never blocks.
+   */
+  async function findLikelyDuplicate(
+    userId: string,
+    type: TxnType,
+    input: { accountId: string; amount: string; merchant?: string | null; occurredAt: string },
+  ) {
+    if (!transactions.listAroundForDuplicateCheck) return null;
+    const account = await accounts.findByIdForUser(input.accountId, userId);
+    if (!account) return null;
+
+    const occurredAt = new Date(input.occurredAt);
+    if (Number.isNaN(occurredAt.getTime())) return null;
+    const windowMs = 10 * 86_400_000;
+    const recent = await transactions
+      .listAroundForDuplicateCheck(userId, input.accountId, new Date(occurredAt.getTime() - windowMs), new Date(occurredAt.getTime() + windowMs))
+      .catch(() => []);
+
+    const paymentMethod = PAYMENT_METHOD_BY_ACCOUNT[account.type] ?? "OTHER";
+    const candidate: FingerprintInput = {
+      merchantId: null,
+      merchant: input.merchant ?? null,
+      amount: input.amount,
+      currencyCode: account.currencyCode,
+      occurredOn: occurredAt.toISOString().slice(0, 10),
+      accountId: input.accountId,
+      paymentMethod,
+    };
+
+    let best: { id: string; description: string; occurredOn: string; amount: string; score: number } | null = null;
+    for (const row of recent) {
+      if (row.type !== type) continue;
+      const score = duplicateScore(candidate, {
+        merchantId: row.merchantId,
+        merchant: row.merchant,
+        amount: row.amount,
+        currencyCode: row.currencyCode,
+        occurredOn: row.occurredAt.toISOString().slice(0, 10),
+        accountId: input.accountId,
+        paymentMethod: row.paymentMethod,
+      });
+      if (score >= DUPLICATE_BLOCK_THRESHOLD && (!best || score > best.score)) {
+        best = { id: row.id, description: row.description, occurredOn: row.occurredAt.toISOString().slice(0, 10), amount: row.amount, score };
+      }
+    }
+    return best;
+  }
+
   return {
     createIncomeTransaction: (userId: string, input: TransactionInput, timezone: string) =>
       create(userId, "INCOME", input, timezone),
     createExpenseTransaction: (userId: string, input: TransactionInput, timezone: string) =>
       create(userId, "EXPENSE", input, timezone),
+    findLikelyExpenseDuplicate: (userId: string, input: { accountId: string; amount: string; merchant?: string | null; occurredAt: string }) =>
+      findLikelyDuplicate(userId, "EXPENSE", input),
+    findLikelyIncomeDuplicate: (userId: string, input: { accountId: string; amount: string; occurredAt: string }) =>
+      findLikelyDuplicate(userId, "INCOME", input),
     async voidTransaction(userId: string, transactionId: string) {
       await gate.assertCanWrite(userId);
       const transaction = await transactions.findByIdForUser(transactionId, userId);
