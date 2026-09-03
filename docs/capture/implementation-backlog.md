@@ -244,9 +244,30 @@ populated yet (no import pipeline); no auto-merge at ≥0.98.
 catches those); no "undo" for a dismissal from the UI (`forget` exists in the repo); the
 scan is O(bucket²) — fine while buckets are small.
 
-### Later (from the P1–P5 roadmap, not yet started)
+### CSV import  ✅ DONE (core — CSV/TSV, no XLSX)
+Spec §10 / §27 / §57–58.
 
-- **P1** — CSV / XLSX import with auto-detected column mapping + import preview (§10, §56–58)
+- **Pure libs** (`features/imports/lib/`):
+  - `parse-delimited.ts` — RFC-4180-ish parser, auto-detects `,` / `;` / tab, quote + CRLF handling.
+  - `parse-cell.ts` — `parseImportedAmount` (AR `1.234,56` / US `1,234.56` / plain / `(x)` / trailing sign / DB-CR), `parseImportedDate` (DD/MM/YYYY day-first, ISO, `03 sep 2026`).
+  - `detect-columns.ts` — `detectColumns(rows)`: header detection, date column, single signed amount **or** debit/credit pair (header hints + mutual-exclusion), description = most text-heavy; confidence + warnings.
+  - `map-rows.ts` — `mapImportedRows` → `{ occurredOn, description, amount (abs), type, error }` per row.
+- `import-service.ts` — `buildImportPreview(text)` (pure) + `createImportService.commitImport`:
+  fetches existing txns in the date range, per row runs the fingerprint duplicate check
+  (against existing **and** earlier rows in the same file) → skip; otherwise creates via the
+  full `transaction-service` (so imported rows get merchant resolution + auto-categorisation
+  + rules); rows the service rejects (future/pre-opening date…) count as `failed`. Writes an
+  `import_batches` row (migration `0038_aberrant_monster_badoon.sql`, `importBatchRepository`).
+- UI: `/importar` — account select, file upload (read client-side as text) or paste, "Analizar"
+  → detected-mapping summary + preview table (parsed date/desc/amount/type, unreadable rows
+  flagged) → "Importar N movimientos" → summary (imported / skipped dupes / unreadable / failed).
+- Tests: `imports-parsing.test.ts` (20), `import-service.test.ts` (6).
+
+**Follow-ups:** no XLSX (needs a sheet lib); no manual column remap in the UI (detection only);
+no per-batch "undo import"; bank-specific adapters (§11) not started; transfers/adjustments
+not inferred (every row is INCOME or EXPENSE).
+
+### Later (from the P1–P5 roadmap, not yet started)
 - **P1** — Bank-export adapters (Galicia, BBVA, Santander, Mercado Pago, Naranja X, Ualá…), pluggable parser registry (§11, §48)
 - **P1** — Duplicate-detection engine + transaction fingerprinting + auto-merge / ask thresholds (§20, §21)
 - **P1** — Batch / exception-based review (import N, auto-accept high-confidence, review the rest) (§27)

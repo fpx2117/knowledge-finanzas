@@ -278,6 +278,22 @@ export const userClassificationRules = pgTable("user_classification_rules", {
   uniqueIndex("user_classification_rules_user_matcher_pattern_unique").on(table.userId, table.matcher, table.mode, table.pattern),
 ]);
 
+// One row per file import (spec §38 ImportSession) — for the summary screen and history.
+export const importBatches = pgTable("import_batches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  accountId: uuid("account_id").notNull().references(() => accounts.id, { onDelete: "cascade" }),
+  source: text("source").notNull().default("csv"),
+  filename: text("filename"),
+  rowCount: integer("row_count").notNull(),
+  importedCount: integer("imported_count").notNull(),
+  skippedCount: integer("skipped_count").notNull(),
+  failedCount: integer("failed_count").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("import_batches_user_idx").on(table.userId, table.createdAt),
+]);
+
 // "These two transactions are NOT the same" — remembered so the /duplicados review screen
 // stops re-surfacing a pair the user already looked at. pairKey = "<minId>:<maxId>".
 export const duplicateDismissals = pgTable("duplicate_dismissals", {
