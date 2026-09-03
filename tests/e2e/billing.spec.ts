@@ -5,6 +5,7 @@ import { billingSubscriptions, users } from "../../packages/db/src/schema";
 import { createBillingPlanRepository } from "../../packages/db/src/repositories/billing-plans";
 import { closeTestDatabase, createTestDatabase } from "../support/test-database";
 import { completeFinancialOnboarding, completeProfileOnboarding, signUp } from "./support/onboarding-flow";
+import { chooseCombobox } from "./support/selectors";
 
 test("cancelling a subscription shows an accurate immediate-access-loss confirmation and takes effect", async ({ browser, baseURL }) => {
   const context = await browser.newContext();
@@ -43,7 +44,7 @@ test("cancelling a subscription shows an accurate immediate-access-loss confirma
   await expect(page.getByText("termina de inmediato al confirmar")).toBeVisible();
   await expect(page.getByText("no es reversible cancelando de nuevo", { exact: false })).toBeVisible();
 
-  await page.getByLabel("Motivo (opcional)").selectOption("TOO_EXPENSIVE");
+  await chooseCombobox(page, "Motivo", "Es muy caro");
   await page.getByRole("button", { name: "Confirmar cancelación" }).click();
 
   await expect(page.getByRole("button", { name: "Cancelar suscripción" })).toHaveCount(0);

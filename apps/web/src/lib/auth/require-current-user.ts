@@ -13,6 +13,7 @@ export async function requireCurrentUser() {
   return {
     id: session.user.id,
     email: session.user.email,
+    name: session.user.name,
     timezone: session.user.timezone,
     baseCurrency: session.user.baseCurrency,
   };

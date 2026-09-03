@@ -1,3 +1,18 @@
-import Link from "next/link";
-import { DebtPreviewForm } from "@/features/debts/components/debt-preview-form";
-export default function NewDebtPage() { return <><Link className="back-link" href="/dashboard">← Volver al resumen</Link><div className="form-page-header"><p className="eyebrow">Nueva deuda</p><h1>Revisá tus cuotas antes de confirmar.</h1><p className="lede">Este preview no persiste nada. Podés ajustar fechas e importes y validar que el total siga siendo exacto.</p></div><DebtPreviewForm /></>; }
+import { FormPage } from "@/components/shared/form-page";
+import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { DebtForm } from "@/features/debts/components/debt-form";
+
+export default async function NewDebtPage() {
+  const user = await requireCurrentUser();
+  return (
+    <FormPage
+      backHref="/debts"
+      backLabel="Volver a obligaciones"
+      eyebrow="Nueva obligación"
+      title="Registrá una deuda o compra en cuotas"
+      description="Generamos el calendario de cuotas y te avisamos cuando cada una está por vencer."
+    >
+      <DebtForm timezone={user.timezone} baseCurrency={user.baseCurrency} />
+    </FormPage>
+  );
+}

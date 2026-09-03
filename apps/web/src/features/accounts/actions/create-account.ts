@@ -4,18 +4,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { accountRepository } from "@know-finanzas/db";
+
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createAccountService } from "../services/account-service";
 import { createAccountSchema } from "../schemas/account-schemas";
-import { productAccessGate } from "@/lib/billing/product-access-gate.instance";
-import { analyticsService, isInternalAccount } from "@/lib/analytics/analytics-service.instance";
+import { createCategoryProvisioningService } from "@/features/categories/services/category-provisioning-service";
 
-const service = createAccountService({ accounts: accountRepository, gate: productAccessGate });
+const service = createAccountService({ accounts: accountRepository });
+const categoryProvisioning = createCategoryProvisioningService();
 
-export type AccountActionState =
-  | { ok: true }
-  | { ok: false; error: ReturnType<typeof mapErrorToUi> };
+export type AccountActionState = { ok: true } | { ok: false; error: ReturnType<typeof mapErrorToUi> };
 
 export async function createAccountAction(
   _previousState: AccountActionState | null,
@@ -30,17 +29,19 @@ export async function createAccountAction(
       openingBalance: formData.get("openingBalance"),
       openingDate: formData.get("openingDate"),
     });
-
-    const account = await service.createAccount(user.id, input);
-    await analyticsService(
-      "account_created",
-      { accountType: account.type, currencyCode: account.currencyCode },
-      { eventId: `account_created:${account.id}`, userId: user.id, internal: isInternalAccount(user.email) },
-    );
+    await service.createAccount(user.id, input);
+    // Day one: give the user the starter category set so income/expense capture
+    // and budgets work immediately. For a user who already has categories this is
+    // a no-op, but we still link their existing free-text categories to the
+    // canonical taxonomy so analytics can resolve them.
+    const provisioned = await categoryProvisioning.provisionDefaultCategories(user.id).catch(() => ({ skipped: true }));
+    if (provisioned.skipped) {
+      await categoryProvisioning.backfillCategoryMap(user.id).catch(() => undefined);
+    }
     revalidatePath("/accounts");
+    revalidatePath("/dashboard");
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
-
   redirect("/accounts");
 }

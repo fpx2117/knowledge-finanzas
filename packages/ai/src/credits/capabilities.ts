@@ -1,6 +1,7 @@
 // Stable capability identifiers (docs/08.1-ai-credits-and-usage.md §18).
 export const AI_CAPABILITIES = [
   "transaction.categorize",
+  "capture.parse",
   "merchant.normalize",
   "assistant.query.simple",
   "assistant.query.complex",

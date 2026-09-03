@@ -1,2 +1,11 @@
 "use client";
-export default function TransactionDetailError({ reset }: { reset: () => void }) { return <section className="error-panel" role="alert"><h1>No pudimos cargar este movimiento.</h1><button className="secondary-button" type="button" onClick={reset}>Reintentar</button></section>; }
+
+import { ErrorState } from "@/components/shared/error-state";
+
+export default function TransactionDetailError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  return (
+    <div className="py-6">
+      <ErrorState title="No pudimos cargar este movimiento" onRetry={reset} />
+    </div>
+  );
+}

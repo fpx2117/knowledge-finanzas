@@ -33,6 +33,12 @@ export const accountStatusEnum = pgEnum("account_status", ["ACTIVE", "ARCHIVED"]
 
 export const categoryTypeEnum = pgEnum("category_type", ["INCOME", "EXPENSE"]);
 
+export const taxonomyLevelEnum = pgEnum("taxonomy_level", ["GROUP", "CATEGORY", "SUBCATEGORY"]);
+export const categoryMapSourceEnum = pgEnum("category_map_source", ["SEED", "USER", "MODEL"]);
+export const merchantAliasMatchTypeEnum = pgEnum("merchant_alias_match_type", ["EXACT", "PREFIX", "CONTAINS", "REGEX"]);
+export const merchantAliasSourceEnum = pgEnum("merchant_alias_source", ["SEED", "IMPORT", "USER", "MODEL"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["CASH", "DEBIT", "CREDIT", "TRANSFER", "WALLET", "OTHER"]);
+
 export const entityStatusEnum = pgEnum("entity_status", ["ACTIVE", "ARCHIVED"]);
 
 export const transactionTypeEnum = pgEnum("transaction_type", ["INCOME", "EXPENSE", "REFUND", "ADJUSTMENT_IN", "ADJUSTMENT_OUT", "TRANSFER_IN", "TRANSFER_OUT", "LIABILITY_PAYMENT"]);
@@ -158,6 +164,120 @@ export const categories = pgTable("categories", {
   index("categories_parent_idx").on(table.parentId),
 ]);
 
+// Canonical, KNOWLEDGE-curated taxonomy. Users never edit this; it is the stable spine every
+// aggregate metric and the classifier resolve against. `categories` (the free-text, per-user
+// table) stays as-is — `category_map` bridges the two.
+export const categoryTaxonomy = pgTable("category_taxonomy", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  parentId: uuid("parent_id").references((): AnyPgColumn => categoryTaxonomy.id, { onDelete: "restrict" }),
+  level: taxonomyLevelEnum("level").notNull(),
+  type: categoryTypeEnum("type").notNull(),
+  slug: text("slug").notNull(),
+  displayName: text("display_name").notNull(),
+  mcc: varchar("mcc", { length: 4 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  version: integer("version").notNull().default(1),
+  active: boolean("active").notNull().default(true),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("category_taxonomy_slug_unique").on(table.slug),
+  index("category_taxonomy_parent_idx").on(table.parentId),
+  index("category_taxonomy_type_level_idx").on(table.type, table.level),
+]);
+
+// Canonical merchant identities — one row per real business. Seeded and grown from imports and
+// user corrections. `merchant_aliases` holds every raw string that resolves here.
+export const merchants = pgTable("merchants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull(),
+  canonicalName: text("canonical_name").notNull(),
+  merchantGroupId: uuid("merchant_group_id").references((): AnyPgColumn => merchants.id, { onDelete: "set null" }),
+  defaultTaxonomyNodeId: uuid("default_taxonomy_node_id").references(() => categoryTaxonomy.id, { onDelete: "set null" }),
+  homeCountry: varchar("home_country", { length: 2 }),
+  active: boolean("active").notNull().default(true),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("merchants_slug_unique").on(table.slug),
+  index("merchants_group_idx").on(table.merchantGroupId),
+]);
+
+export const merchantAliases = pgTable("merchant_aliases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").notNull().references(() => merchants.id, { onDelete: "cascade" }),
+  // Normalized lookup key (lower, unaccented, collapsed whitespace) for EXACT/PREFIX/CONTAINS;
+  // a raw regex for REGEX.
+  pattern: text("pattern").notNull(),
+  matchType: merchantAliasMatchTypeEnum("match_type").notNull().default("EXACT"),
+  source: merchantAliasSourceEnum("source").notNull().default("SEED"),
+  addedByUserId: uuid("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("merchant_aliases_public_pattern_type_unique")
+    .on(table.pattern, table.matchType)
+    .where(sql`${table.addedByUserId} is null`),
+  uniqueIndex("merchant_aliases_user_pattern_type_unique")
+    .on(table.addedByUserId, table.pattern, table.matchType)
+    .where(sql`${table.addedByUserId} is not null`),
+  index("merchant_aliases_merchant_idx").on(table.merchantId),
+]);
+
+export const categoryMap = pgTable("category_map", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  userCategoryId: uuid("user_category_id").notNull().references(() => categories.id, { onDelete: "restrict" }),
+  taxonomyNodeId: uuid("taxonomy_node_id").notNull().references(() => categoryTaxonomy.id, { onDelete: "restrict" }),
+  source: categoryMapSourceEnum("source").notNull().default("MODEL"),
+  confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull().default("0.500"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("category_map_user_category_unique").on(table.userCategoryId),
+  index("category_map_user_idx").on(table.userId),
+  index("category_map_taxonomy_idx").on(table.taxonomyNodeId),
+  check("category_map_confidence_range_check", sql`${table.confidence} >= 0 and ${table.confidence} <= 1`),
+]);
+
+// Per-user "this merchant means this category for me" override, learned when a user picks a
+// category for a recognized merchant that differs from the merchant's global default.
+// Consulted before `merchants.default_taxonomy_node_id` on capture — never writes it, so one
+// user's corrections stay out of the global model. See merchant_user_default_source.
+export const merchantUserDefaultSourceEnum = pgEnum("merchant_user_default_source", ["USER_EXPLICIT", "MODEL"]);
+
+export const merchantUserDefaults = pgTable("merchant_user_defaults", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  merchantId: uuid("merchant_id").notNull().references(() => merchants.id, { onDelete: "cascade" }),
+  taxonomyNodeId: uuid("taxonomy_node_id").notNull().references(() => categoryTaxonomy.id, { onDelete: "restrict" }),
+  source: merchantUserDefaultSourceEnum("source").notNull().default("USER_EXPLICIT"),
+  confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull().default("1.000"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("merchant_user_defaults_user_merchant_unique").on(table.userId, table.merchantId),
+  index("merchant_user_defaults_merchant_idx").on(table.merchantId),
+  check("merchant_user_defaults_confidence_range_check", sql`${table.confidence} >= 0 and ${table.confidence} <= 1`),
+]);
+
+// Explicit user-authored classification rules (spec §82). Always win over inferred
+// categorization: evaluated at the top of the hierarchy in transaction-service, before any
+// merchant default or progressive-trust logic. First active rule (by priority) that matches wins.
+export const classificationRuleMatcherEnum = pgEnum("classification_rule_matcher", ["MERCHANT", "DESCRIPTION"]);
+export const classificationRuleModeEnum = pgEnum("classification_rule_mode", ["CONTAINS", "EQUALS", "STARTS_WITH"]);
+
+export const userClassificationRules = pgTable("user_classification_rules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  matcher: classificationRuleMatcherEnum("matcher").notNull(),
+  mode: classificationRuleModeEnum("mode").notNull().default("CONTAINS"),
+  // Needle, stored lower-cased and trimmed; matched against the normalized merchant/description.
+  pattern: text("pattern").notNull(),
+  categoryId: uuid("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  priority: integer("priority").notNull().default(100),
+  active: boolean("active").notNull().default(true),
+  ...timestamps,
+}, (table) => [
+  index("user_classification_rules_user_priority_idx").on(table.userId, table.priority),
+  uniqueIndex("user_classification_rules_user_matcher_pattern_unique").on(table.userId, table.matcher, table.mode, table.pattern),
+]);
+
 export const transfers = pgTable("transfers", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
@@ -234,7 +354,14 @@ export const transactions = pgTable("transactions", {
   currencyCode: varchar("currency_code", { length: 3 }).notNull(),
   description: text("description").notNull(),
   merchant: text("merchant"),
+  merchantId: uuid("merchant_id").references(() => merchants.id, { onDelete: "set null" }),
   categoryId: uuid("category_id").references(() => categories.id, { onDelete: "restrict" }),
+  // Denormalized canonical category (resolved from category_map at write time) so analytics
+  // never has to join through the per-user categories table.
+  taxonomyNodeId: uuid("taxonomy_node_id").references(() => categoryTaxonomy.id, { onDelete: "set null" }),
+  paymentMethod: paymentMethodEnum("payment_method"),
+  // How this row was classified: { categoryConfidence, merchantConfidence, method, reviewedByUser }.
+  classification: jsonb("classification"),
   transferId: uuid("transfer_id").references(() => transfers.id, { onDelete: "restrict" }),
   scheduledTransactionId: uuid("scheduled_transaction_id"),
   originalTransactionId: uuid("original_transaction_id").references((): AnyPgColumn => transactions.id, { onDelete: "restrict" }),
@@ -387,6 +514,59 @@ export const budgetAlerts = pgTable("budget_alerts", {
 }, (table) => [
   uniqueIndex("budget_alerts_budget_period_type_unique").on(table.budgetId, table.periodKey, table.alertType),
   index("budget_alerts_user_period_idx").on(table.userId, table.periodKey),
+]);
+
+export const goalCategoryEnum = pgEnum("goal_category", [
+  "EMERGENCY_FUND",
+  "TRAVEL",
+  "VEHICLE",
+  "HOME",
+  "EDUCATION",
+  "PURCHASE",
+  "INVESTMENT",
+  "OTHER",
+]);
+export const goalStatusEnum = pgEnum("goal_status", ["ACTIVE", "COMPLETED", "ARCHIVED"]);
+
+export const goals = pgTable("goals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  name: text("name").notNull(),
+  category: goalCategoryEnum("category").notNull().default("OTHER"),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  targetAmount: numeric("target_amount", { precision: 20, scale: 6 }).notNull(),
+  currentAmount: numeric("current_amount", { precision: 20, scale: 6 }).notNull().default("0"),
+  targetDate: date("target_date"),
+  status: goalStatusEnum("status").notNull().default("ACTIVE"),
+  notes: text("notes"),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  index("goals_user_status_idx").on(table.userId, table.status),
+  check("goals_target_amount_positive_check", sql`${table.targetAmount} > 0`),
+  check("goals_current_amount_nonneg_check", sql`${table.currentAmount} >= 0`),
+  check("goals_currency_code_length_check", sql`char_length(${table.currencyCode}) = 3`),
+]);
+
+// One-tap capture shortcuts. Some created by the user ("Guardar como acción rápida" on a
+// transaction), some auto-created from repeated shapes. `amountHints` holds the last few amounts
+// used for this template so the UI can offer quick-amount chips.
+export const quickTemplates = pgTable("quick_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  label: text("label").notNull(),
+  type: categoryTypeEnum("type").notNull(),
+  description: text("description").notNull(),
+  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  merchantText: text("merchant_text"),
+  amountHints: jsonb("amount_hints").notNull().default(sql`'[]'::jsonb`),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  index("quick_templates_user_idx").on(table.userId, table.usageCount),
 ]);
 
 export const billingPlans = pgTable("billing_plans", {

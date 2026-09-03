@@ -13,25 +13,25 @@ export default async function PricingPage() {
   const plan = await createBillingPlanRepository(db).findActiveByCode(PRO_MONTHLY_PLAN_CODE);
 
   return (
-    <main className="content">
-      <header className="page-header">
+    <main className="mx-auto w-full max-w-[1120px] px-6 py-12 lg:px-[6vw]">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">Planes</p>
           <h1>Know Finanzas Pro</h1>
-          <p className="lede">Desbloqueá el control financiero completo con un solo plan mensual, sin sorpresas.</p>
+          <p className="mt-4 max-w-[490px] text-body-lg leading-relaxed text-muted-foreground">Desbloqueá el control financiero completo con un solo plan mensual, sin sorpresas.</p>
         </div>
       </header>
 
       {!plan ? (
-        <section className="accounts-empty" role="status">
+        <section className="mt-10 max-w-[650px] rounded-lg border border-dashed border-border bg-card p-8" role="status">
           <h2>Todavía no hay un plan disponible.</h2>
           <p>Volvé a intentarlo más tarde.</p>
         </section>
       ) : (
-        <section className="detail-card pricing-card">
-          <p className="card-label">{plan.name}</p>
-          <p className="detail-value"><MoneyAmount amount={plan.price} currency={plan.currencyCode} /> <span className="pricing-interval">/ mes</span></p>
-          <p className="card-helper">Facturación mensual recurrente vía Mercado Pago. Podés cancelar cuando quieras.</p>
+        <section className="mt-12 max-w-[420px] rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{plan.name}</p>
+          <p className="text-2xl tracking-tight"><MoneyAmount amount={plan.price} currency={plan.currencyCode} /> <span className="pricing-interval">/ mes</span></p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Facturación mensual recurrente vía Mercado Pago. Podés cancelar cuando quieras.</p>
           <div className="pricing-actions">
             <SubscribeButton />
           </div>

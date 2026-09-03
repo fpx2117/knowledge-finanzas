@@ -1,6 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
 import { buildSecurityHeaders, createBoundedInMemoryRateLimiter, REQUEST_ID_HEADER, resolveRequestId } from "@know-finanzas/observability";
+
+// Public routes reachable without a session. Everything else (including /onboarding and
+// /elegir-acceso, which need a session to resolve *which* onboarding step to show) requires one.
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/pricing"]);
+const AUTH_ENTRY_PATHS = new Set(["/login", "/signup"]);
+
+// Presence-only check (no DB round trip) — safe/fast for middleware, matches better-auth's
+// documented Next.js pattern. The authoritative check stays server-side via requireCurrentUser()
+// (auth.api.getSession), which every protected page already calls.
+function isPublicPath(pathname: string): boolean {
+  if (PUBLIC_PATHS.has(pathname)) return true;
+  if (pathname.startsWith("/api/")) return true;
+  return false;
+}
+
+function isAdminPath(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
 
 // TASK-040: runs for every request. Two responsibilities, both cross-cutting and neither belonging
 // to any single route:
@@ -33,6 +52,21 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (!isWebhookPath) {
+    const pathname = request.nextUrl.pathname;
+    const hasSession = Boolean(getSessionCookie(request));
+
+    if (!hasSession && !isPublicPath(pathname) && !isAdminPath(pathname)) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("callbackURL", pathname + request.nextUrl.search);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (hasSession && AUTH_ENTRY_PATHS.has(pathname)) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
   // Webhook routes never get their x-request-id header touched: Mercado Pago's own x-request-id
   // header is a security-critical input to its webhook signature verification (it's baked
   // directly into the HMAC manifest — see packages/billing/src/webhooks/verify-signature.ts).
@@ -49,7 +83,10 @@ export async function middleware(request: NextRequest) {
     return next;
   })();
 
-  const securityHeaders = buildSecurityHeaders({ isHttps: request.nextUrl.protocol === "https:" });
+  const securityHeaders = buildSecurityHeaders({
+    isHttps: request.nextUrl.protocol === "https:",
+    dev: process.env.NODE_ENV !== "production",
+  });
   for (const [name, value] of Object.entries(securityHeaders)) {
     response.headers.set(name, value);
   }
@@ -57,8 +94,10 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// Excludes static assets and Next.js internals — nothing there needs a request ID or benefits from
-// re-computing security headers Next.js/the platform already handles for them.
+// Excludes Next.js internals and files served straight from /public (anything with a file
+// extension, e.g. /brand/logo.png) — nothing there needs a request ID or benefits from
+// re-computing security headers, and routing static assets through the auth check would
+// redirect them to /login and break <Image> loading them.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.[\\w]+$).*)"],
 };

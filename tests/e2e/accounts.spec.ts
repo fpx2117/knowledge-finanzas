@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signUpCompleteOnboardingAndStartTrial } from "./support/onboarding-flow";
+import { chooseCombobox } from "./support/selectors";
 
 test("registers a user, creates an account and shows its opening balance", async ({ browser, baseURL }) => {
   const context = await browser.newContext();
@@ -12,15 +13,15 @@ test("registers a user, creates an account and shows its opening balance", async
   await page.getByRole("link", { name: "Crear cuenta" }).click();
 
   await page.getByLabel("Nombre de la cuenta").fill("Cuenta E2E");
-  await page.getByLabel("Tipo").selectOption("BANK");
-  await page.getByLabel("Moneda").selectOption("ARS");
+  await chooseCombobox(page, "Tipo", "Banco");
+  await chooseCombobox(page, "Moneda", "ARS");
   await page.getByLabel("Saldo inicial").fill("1000");
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");
   await page.getByRole("button", { name: "Crear cuenta" }).click();
 
   await expect(page).toHaveURL(/\/accounts$/);
   await expect(page.getByRole("heading", { name: "Cuenta E2E" })).toBeVisible();
-  await page.locator(".account-card", { hasText: "Cuenta E2E" }).getByRole("link", { name: /Ver cuenta/ }).click();
+  await page.getByRole("heading", { name: "Cuenta E2E" }).locator("..", { has: page.getByRole("link", { name: /Ver cuenta/ }) }).getByRole("link", { name: /Ver cuenta/ }).click();
   await expect(page.getByText("ARS 1.000,00").first()).toBeVisible();
 
   await context.close();
@@ -39,7 +40,7 @@ test("creates an expense category and uses it as a parent in the category form",
   await expect(page.getByRole("listitem").filter({ hasText: "Alimentación" })).toBeVisible();
 
   await page.getByLabel("Nombre").fill("Restaurantes");
-  await page.getByLabel("Categoría padre").selectOption({ label: "Alimentación" });
+  await chooseCombobox(page, "Categoría padre", "Alimentación");
   await page.getByRole("button", { name: "Crear categoría" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "Restaurantes" })).toBeVisible();
 
@@ -75,7 +76,7 @@ test("creates income and expense movements from the UI", async ({ browser, baseU
 
   await page.goto("/transactions/new?type=EXPENSE");
   await page.getByLabel("Monto").fill("200");
-  await page.getByLabel("Categoría").selectOption({ label: "Gastos generales" });
+  await chooseCombobox(page, "Categoría", "Gastos generales");
   await page.getByLabel("Descripción").fill("Gasto E2E");
   await page.getByLabel("Fecha").fill(today);
   await page.getByRole("button", { name: "Registrar gasto" }).click();
@@ -94,7 +95,7 @@ test("creates income and expense movements from the UI", async ({ browser, baseU
   await expect(page).toHaveURL(/\/transactions$/);
   await expect(page.getByText("Gasto E2E")).toBeVisible();
   await page.goto("/accounts");
-  await page.locator(".account-card", { hasText: "Cuenta Ledger" }).getByRole("link", { name: /Ver cuenta/ }).click();
+  await page.getByRole("heading", { name: "Cuenta Ledger" }).locator("..", { has: page.getByRole("link", { name: /Ver cuenta/ }) }).getByRole("link", { name: /Ver cuenta/ }).click();
   await expect(page.getByText("ARS 1.500,00").first()).toBeVisible();
 
   await context.close();
@@ -108,7 +109,7 @@ test("creates and voids a same-currency transfer as one logical movement", async
   for (const name of ["Banco E2E", "Efectivo E2E"]) {
     await page.goto("/accounts/new");
     await page.getByLabel("Nombre de la cuenta").fill(name);
-    await page.getByLabel("Tipo").selectOption(name.startsWith("Banco") ? "BANK" : "CASH");
+    await chooseCombobox(page, "Tipo", name.startsWith("Banco") ? "Banco" : "Efectivo");
     await page.getByLabel("Saldo inicial").fill(name.startsWith("Banco") ? "1000" : "100");
     await page.getByLabel("Fecha de apertura").fill("2026-01-01");
     await page.getByRole("button", { name: "Crear cuenta" }).click();
@@ -116,8 +117,8 @@ test("creates and voids a same-currency transfer as one logical movement", async
     await expect(page.getByRole("heading", { name })).toBeVisible();
   }
   await page.goto("/transfers/new");
-  await page.getByLabel("Desde").selectOption({ label: "Banco E2E · ARS" });
-  await page.getByLabel("Hacia").selectOption({ label: "Efectivo E2E · ARS" });
+  await chooseCombobox(page, "Desde", "Banco E2E · ARS");
+  await chooseCombobox(page, "Hacia", "Efectivo E2E · ARS");
   await page.getByLabel("Monto").fill("200");
   await page.getByRole("button", { name: "Transferir" }).click();
   await expect(page).toHaveURL(/\/transactions$/);
@@ -129,17 +130,40 @@ test("creates and voids a same-currency transfer as one logical movement", async
   await context.close();
 });
 
-test("generates and edits an installment preview without persisting it", async ({ page }) => {
+test("keeps ARS and USD balances separate on the dashboard", async ({ browser, baseURL }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await signUpCompleteOnboardingAndStartTrial(page, baseURL!, { name: "Multi moneda E2E", email: `multi-currency-${Date.now()}@example.test` });
+
+  for (const account of [{ name: "Cuenta ARS", currency: "ARS", balance: "1000" }, { name: "Cuenta USD", currency: "USD", balance: "50" }]) {
+    await page.goto("/accounts/new");
+    await page.getByLabel("Nombre de la cuenta").fill(account.name);
+    await chooseCombobox(page, "Moneda", account.currency);
+    await page.getByLabel("Saldo inicial").fill(account.balance);
+    await page.getByLabel("Fecha de apertura").fill("2026-01-01");
+    await page.getByRole("button", { name: "Crear cuenta" }).click();
+    await expect(page).toHaveURL(/\/accounts$/);
+  }
+
+  await page.goto("/dashboard");
+  await expect(page.getByText("ARS 1.000,00").first()).toBeVisible();
+  await expect(page.getByText("USD 50,00").first()).toBeVisible();
+  await expect(page.getByText("ARS 1.050,00")).not.toBeVisible();
+  await context.close();
+});
+
+test("generates and edits an installment preview without persisting it", async ({ page, baseURL }) => {
+  await signUpCompleteOnboardingAndStartTrial(page, baseURL!, { name: "Debt Preview E2E", email: `debt-preview-${Date.now()}@example.test` });
   await page.goto("/debts/new");
   await page.getByLabel("Total a pagar").fill("100");
   await page.getByLabel("Cantidad de cuotas").fill("3");
   await page.getByLabel("Primer vencimiento").fill("2026-01-31");
   await page.getByRole("button", { name: "Generar preview" }).click();
   await expect(page.getByRole("region", { name: "Preview de cuotas" })).toBeVisible();
-  await expect(page.getByLabel("Importe cuota 3")).toHaveValue("33.34");
-  await page.getByLabel("Importe cuota 3").fill("33.35");
+  await expect(page.getByLabel("Importe cuota 3")).toHaveValue("33,34");
+  await page.getByLabel("Importe cuota 3").fill("33,35");
   await page.getByRole("button", { name: "Validar preview" }).click();
-  await expect(page.getByText("INSTALLMENT_TOTAL_MISMATCH")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "La suma de las cuotas no coincide con el total a pagar." }).first()).toBeVisible();
 });
 
 test("confirms a reviewed debt and inspects its installments", async ({ browser, baseURL }) => {

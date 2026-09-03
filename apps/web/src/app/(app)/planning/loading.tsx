@@ -1,1 +1,1 @@
-export default function PlanningLoading() { return <div className="loading-stack" aria-busy="true" aria-label="Cargando planificación"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-card" /></div>; }
+export default function PlanningLoading() { return <div className="mt-10 grid gap-5" aria-busy="true" aria-label="Cargando planificación"><div className="animate-pulse rounded-md bg-muted h-16 max-w-[500px]" /><div className="animate-pulse rounded-md bg-muted h-64" /></div>; }

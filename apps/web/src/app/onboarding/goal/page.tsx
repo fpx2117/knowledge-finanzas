@@ -1,6 +1,7 @@
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { analyticsService, isInternalAccount } from "@/lib/analytics/analytics-service.instance";
 import { GoalStepForm } from "@/features/onboarding/components/goal-step-form";
+import { OnboardingIntro } from "@/components/onboarding/onboarding-shell";
 
 export default async function OnboardingGoalPage() {
   const user = await requireCurrentUser();
@@ -11,11 +12,6 @@ export default async function OnboardingGoalPage() {
   }
 
   return (
-    <section className="detail-card">
-      <p className="card-label">Objetivo financiero</p>
-      <h1>¿Qué es lo que más te importa ahora?</h1>
-      <p className="lede">Esto solo ordena cómo te mostramos la app — nunca cambia ningún cálculo financiero.</p>
-      <GoalStepForm />
-    </section>
+    <section className="onboarding-step"><OnboardingIntro title="¿Qué querés lograr primero?" description="Esto nos ayuda a personalizar tu experiencia." /><GoalStepForm /></section>
   );
 }

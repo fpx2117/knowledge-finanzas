@@ -1,6 +1,18 @@
-import Link from "next/link";
+import { FormPage } from "@/components/shared/form-page";
 import { AccountForm } from "@/features/accounts/components/account-form";
+import { requireCurrentUser } from "@/lib/auth/require-current-user";
 
-export default function NewAccountPage() {
-  return <><Link className="back-link" href="/accounts">← Volver a cuentas</Link><div className="form-page-header"><p className="eyebrow">Nueva cuenta</p><h1>Empezá por lo que tenés.</h1><p className="lede">El saldo inicial es un punto de partida, no un ingreso.</p></div><AccountForm /></>;
+export default async function NewAccountPage() {
+  const user = await requireCurrentUser();
+  return (
+    <FormPage
+      backHref="/accounts"
+      backLabel="Volver a cuentas"
+      eyebrow="Nueva cuenta"
+      title="Empezá por lo que tenés"
+      description="El saldo inicial es un punto de partida, no un ingreso."
+    >
+      <AccountForm timezone={user.timezone} />
+    </FormPage>
+  );
 }

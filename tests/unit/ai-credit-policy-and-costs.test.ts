@@ -24,6 +24,7 @@ describe("AI credit cost catalog", () => {
 
   it("matches the documented example costs", () => {
     expect(resolveCreditCost("transaction.categorize")).toBe(1);
+    expect(resolveCreditCost("capture.parse")).toBe(1);
     expect(resolveCreditCost("merchant.normalize")).toBe(1);
     expect(resolveCreditCost("assistant.query.simple")).toBe(2);
     expect(resolveCreditCost("assistant.query.complex")).toBe(4);

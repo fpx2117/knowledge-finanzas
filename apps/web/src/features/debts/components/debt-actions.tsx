@@ -1,0 +1,129 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BanknoteArrowDownIcon, XIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Field, fieldControlClass } from "@/components/shared/form-field";
+import { MoneyAmount } from "@/components/financial/money-amount";
+import { cancelDebtAction, recordPaymentAction, type DebtActionState } from "../actions/debt-actions";
+
+const initial: DebtActionState | null = null;
+
+type AccountOption = { id: string; name: string; currencyCode: string };
+
+export function DebtActions({
+  debtId,
+  currencyCode,
+  remainingAmount,
+  accounts,
+}: {
+  debtId: string;
+  currencyCode: string;
+  remainingAmount: string;
+  accounts: AccountOption[];
+}) {
+  const router = useRouter();
+  const [payOpen, setPayOpen] = useState(false);
+  const [payState, payAction, payPending] = useActionState(recordPaymentAction, initial);
+  const [, cancelAction, cancelPending] = useActionState(cancelDebtAction, initial);
+
+  if (payState?.ok && payOpen) {
+    setPayOpen(false);
+    router.refresh();
+  }
+  const payErrors = payState?.ok === false ? payState.error.fieldErrors ?? {} : {};
+  const eligibleAccounts = accounts.filter((account) => account.currencyCode === currencyCode);
+
+  return (
+    <div className="flex gap-2">
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogTrigger
+          render={
+            <Button>
+              <BanknoteArrowDownIcon className="size-4" /> Registrar pago
+            </Button>
+          }
+        />
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar un pago</DialogTitle>
+            <DialogDescription>
+              Se descuenta de la cuenta elegida y se aplica a las cuotas más antiguas primero. Pendiente:{" "}
+              <MoneyAmount amount={remainingAmount} currency={currencyCode} variant="compact" />.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={payAction} className="flex flex-col gap-4">
+            <input type="hidden" name="debtId" value={debtId} />
+            {payState?.ok === false ? (
+              <p role="alert" className="rounded-md bg-negative-soft px-3 py-2 text-small text-[var(--negative)]">
+                {payState.error.message}
+              </p>
+            ) : null}
+            {eligibleAccounts.length === 0 ? (
+              <p className="rounded-md bg-warning-soft px-3 py-2 text-small text-[var(--warning)]">
+                Necesitás una cuenta en {currencyCode} para registrar el pago.
+              </p>
+            ) : null}
+            <Field label="Cuenta" htmlFor="accountId" error={payErrors.accountId?.[0]}>
+              <select id="accountId" name="accountId" required className={fieldControlClass} defaultValue={eligibleAccounts[0]?.id}>
+                {eligibleAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Monto" htmlFor="amount" error={payErrors.amount?.[0]}>
+              <input id="amount" name="amount" type="text" inputMode="decimal" required placeholder="0.00" className={fieldControlClass} />
+            </Field>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline">Cancelar</Button>} />
+              <Button type="submit" disabled={payPending || eligibleAccounts.length === 0}>
+                {payPending ? "Registrando…" : "Registrar pago"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog>
+        <DialogTrigger
+          render={
+            <Button variant="outline">
+              <XIcon className="size-4" /> Cancelar obligación
+            </Button>
+          }
+        />
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar esta obligación</DialogTitle>
+            <DialogDescription>
+              Las cuotas no pagadas quedan canceladas. Los pagos ya registrados se conservan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Volver</Button>} />
+            <form action={cancelAction}>
+              <input type="hidden" name="debtId" value={debtId} />
+              <Button type="submit" variant="destructive" disabled={cancelPending}>
+                {cancelPending ? "Cancelando…" : "Cancelar obligación"}
+              </Button>
+            </form>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

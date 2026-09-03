@@ -3,12 +3,19 @@ import Link from "next/link";
 import { isApplicationError } from "@know-finanzas/shared";
 import { requireAdminUser } from "@/lib/auth/require-admin-user";
 import { searchAdminUsers } from "@/lib/admin/search-admin-users.instance";
+import { AdminDataTable, type AdminDataTableColumn } from "@/features/admin/shared/admin-data-table";
+import { FilterBar } from "@/components/shared/filter-bar";
+import { SearchInput } from "@/components/shared/search-input";
+import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/shared/error-state";
+
+type AdminUserRow = Awaited<ReturnType<typeof searchAdminUsers>>[number];
 
 export default async function AdminUsersSearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireAdminUser("commercial.users.read");
   const q = (await searchParams).q?.trim() ?? "";
 
-  let results: Awaited<ReturnType<typeof searchAdminUsers>> = [];
+  let results: AdminUserRow[] = [];
   let error: string | null = null;
   if (q) {
     try {
@@ -18,43 +25,34 @@ export default async function AdminUsersSearchPage({ searchParams }: { searchPar
     }
   }
 
+  const columns: AdminDataTableColumn<AdminUserRow>[] = [
+    { key: "name", header: "Nombre", render: (row) => row.name },
+    { key: "email", header: "Email", render: (row) => row.email },
+    { key: "createdAt", header: "Creado", render: (row) => formatDate(row.createdAt) },
+    { key: "actions", header: "", render: (row) => <Link href={`/admin/users/${row.id}`}>Ver resumen</Link> },
+  ];
+
   return (
     <section>
-      <p className="card-label">Usuarios</p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Usuarios</p>
       <h2>Buscar usuario</h2>
-      <form className="admin-search-form" style={{ marginTop: 16 }}>
-        <div className="field-group">
-          <label htmlFor="admin-user-query">Email (exacto/prefijo) o ID interno</label>
-          <input id="admin-user-query" name="q" type="text" defaultValue={q} placeholder="usuario@ejemplo.com" minLength={3} />
-        </div>
-        <button className="secondary-button" type="submit">Buscar</button>
+      <form className="mt-4">
+        <FilterBar
+          search={<SearchInput name="q" defaultValue={q} placeholder="usuario@ejemplo.com" aria-label="Email (exacto/prefijo) o ID interno" minLength={3} />}
+          filters={<Button type="submit" variant="outline">Buscar</Button>}
+        />
       </form>
 
       {error && (
-        <div className="form-alert" role="alert" style={{ marginTop: 20 }}>
-          <strong>{error}</strong>
+        <div className="mt-5">
+          <ErrorState message={error} />
         </div>
       )}
 
       {q && !error && (
-        <table className="admin-table" style={{ marginTop: 24 }}>
-          <thead>
-            <tr><th>Nombre</th><th>Email</th><th>Creado</th><th /></tr>
-          </thead>
-          <tbody>
-            {results.length === 0 && (
-              <tr><td colSpan={4}>Sin resultados para &ldquo;{q}&rdquo;.</td></tr>
-            )}
-            {results.map((user) => (
-              <tr key={user.id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{formatDate(user.createdAt)}</td>
-                <td><Link href={`/admin/users/${user.id}`}>Ver resumen</Link></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-6">
+          <AdminDataTable caption={`Resultados de búsqueda para "${q}"`} columns={columns} rows={results} emptyMessage={`Sin resultados para "${q}".`} />
+        </div>
       )}
     </section>
   );

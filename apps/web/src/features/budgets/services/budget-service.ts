@@ -1,7 +1,16 @@
-import { calculateBudget, getCurrencyMetadata, Money, monthRangeForTimezone, resolveBudgetAlertType, todayInTimezone, type BudgetAlertType, type BudgetUsageStatus } from "@know-finanzas/finance";
+import {
+  calculateBudget,
+  getCurrencyMetadata,
+  Money,
+  monthRangeForTimezone,
+  resolveBudgetAlertType,
+  todayInTimezone,
+  type BudgetAlertType,
+  type BudgetUsageStatus,
+} from "@know-finanzas/finance";
 import { ApplicationError } from "@know-finanzas/shared";
 
-import { allowAllProductAccessGate, type ProductAccessGate } from "../../../lib/billing/product-access-gate";
+import { allowAllProductAccessGate, type ProductAccessGate } from "@/lib/billing/product-access-gate";
 
 type CategoryType = "INCOME" | "EXPENSE";
 type EntityStatus = "ACTIVE" | "ARCHIVED";
@@ -27,11 +36,7 @@ type BudgetRecord = {
   archivedAt: Date | null;
 };
 
-type BudgetSpendingRow = {
-  categoryId: string | null;
-  currencyCode: string;
-  netExpense: string;
-};
+type BudgetSpendingRow = { categoryId: string | null; currencyCode: string; netExpense: string };
 
 type CategoryRepository = {
   findByIdForUser(categoryId: string, userId: string): Promise<CategoryRecord | undefined>;
@@ -39,17 +44,33 @@ type CategoryRepository = {
 };
 
 type BudgetRepository = {
-  create(input: { userId: string; categoryId: string; name: string | null; currencyCode: string; limitAmount: string; startDate: string }): Promise<BudgetRecord>;
+  create(input: {
+    userId: string;
+    categoryId: string;
+    name: string | null;
+    currencyCode: string;
+    limitAmount: string;
+    startDate: string;
+  }): Promise<BudgetRecord>;
   findByIdForUser(budgetId: string, userId: string): Promise<BudgetRecord | undefined>;
   listForUser(userId: string, options?: { includeArchived?: boolean }): Promise<BudgetRecord[]>;
-  existsActiveForCategoryCurrencyForUser(input: { userId: string; categoryId: string; currencyCode: string; excludeBudgetId?: string }): Promise<boolean>;
-  updateLimitForUser(budgetId: string, userId: string, input: { limitAmount: string; name: string | null }): Promise<BudgetRecord | undefined>;
+  existsActiveForCategoryCurrencyForUser(input: {
+    userId: string;
+    categoryId: string;
+    currencyCode: string;
+    excludeBudgetId?: string;
+  }): Promise<boolean>;
+  updateLimitForUser(
+    budgetId: string,
+    userId: string,
+    input: { limitAmount: string; name: string | null },
+  ): Promise<BudgetRecord | undefined>;
   archiveForUser(budgetId: string, userId: string, archivedAt: Date): Promise<BudgetRecord | undefined>;
 };
 
 type ContributingTransactionRow = {
   id: string;
-  type: "INCOME" | "EXPENSE" | "REFUND" | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT" | "TRANSFER_IN" | "TRANSFER_OUT" | "LIABILITY_PAYMENT";
+  type: string;
   amount: string;
   currencyCode: string;
   description: string;
@@ -60,30 +81,12 @@ type ContributingTransactionRow = {
 
 type BudgetQueries = {
   getCategorySpendingForUser(userId: string, range: { from: Date; to: Date }): Promise<BudgetSpendingRow[]>;
-  listContributingTransactionsForUser(userId: string, categoryIds: string[], range: { from: Date; to: Date }): Promise<ContributingTransactionRow[]>;
+  listContributingTransactionsForUser(
+    userId: string,
+    categoryIds: string[],
+    range: { from: Date; to: Date },
+  ): Promise<ContributingTransactionRow[]>;
 };
-
-type BudgetAlertRecord = {
-  id: string;
-  userId: string;
-  budgetId: string;
-  periodKey: string;
-  alertType: BudgetAlertType;
-  triggeredAt: Date;
-};
-
-type BudgetAlertRepository = {
-  recordIfAbsent(input: { userId: string; budgetId: string; periodKey: string; alertType: BudgetAlertType; triggeredAt: Date }): Promise<BudgetAlertRecord | undefined>;
-  listForUserPeriod(userId: string, periodKey: string): Promise<BudgetAlertRecord[]>;
-};
-
-const noopBudgetAlerts: BudgetAlertRepository = {
-  recordIfAbsent: async () => undefined,
-  listForUserPeriod: async () => [],
-};
-
-type NotifyBudgetAlert = (input: { userId: string; userTimezone: string; budgetId: string; categoryName: string; usagePercent: string; alertType: BudgetAlertType; periodKey: string }) => Promise<unknown>;
-const noopNotifyBudgetAlert: NotifyBudgetAlert = async () => undefined;
 
 type User = { id: string; timezone: string };
 
@@ -99,138 +102,7 @@ export type BudgetOverviewItem = {
   status: BudgetUsageStatus;
 };
 
-export type BudgetAlert = {
-  id: string;
-  budgetId: string;
-  categoryName: string;
-  currencyCode: string;
-  alertType: BudgetAlertType;
-  usagePercent: string;
-  triggeredAt: Date;
-};
-
 const STATUS_PRIORITY: Record<BudgetUsageStatus, number> = { EXCEEDED: 0, NEAR_LIMIT: 1, NORMAL: 2 };
-
-export function createBudgetService({ budgets, categories, budgetQueries, budgetAlerts = noopBudgetAlerts, notifyBudgetAlert = noopNotifyBudgetAlert, now = () => new Date(), gate = allowAllProductAccessGate }: { budgets: BudgetRepository; categories: CategoryRepository; budgetQueries: BudgetQueries; budgetAlerts?: BudgetAlertRepository; notifyBudgetAlert?: NotifyBudgetAlert; now?: () => Date; gate?: ProductAccessGate }) {
-  async function computeOverviewItems(user: User): Promise<BudgetOverviewItem[]> {
-    const activeBudgets = await budgets.listForUser(user.id);
-    if (activeBudgets.length === 0) return [];
-
-    const [allCategories, spendingRows] = await Promise.all([
-      categories.listForUser(user.id, { includeArchived: true }),
-      budgetQueries.getCategorySpendingForUser(user.id, currentPeriod(user, now())),
-    ]);
-    const categoryById = new Map(allCategories.map((category) => [category.id, category]));
-
-    return activeBudgets
-      .map((budget) => buildOverviewItem(budget, categoryById, spendingRows))
-      .filter((item): item is BudgetOverviewItem => item !== null)
-      .sort((a, b) => STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status] || Number(b.usagePercent) - Number(a.usagePercent));
-  }
-
-  return {
-    async createBudget(user: User, input: { categoryId: string; name?: string; currencyCode: string; limitAmount: string; startDate?: string }) {
-      await gate.assertCanWrite(user.id);
-      const category = await validateCategory(categories, user.id, input.categoryId);
-      const currencyCode = validateCurrency(input.currencyCode);
-      validateAmount(input.limitAmount, currencyCode);
-
-      if (await budgets.existsActiveForCategoryCurrencyForUser({ userId: user.id, categoryId: category.id, currencyCode })) {
-        throw new ApplicationError("BUDGET_ALREADY_EXISTS", { field: "categoryId" });
-      }
-
-      return budgets.create({
-        userId: user.id,
-        categoryId: category.id,
-        name: input.name?.trim() || null,
-        currencyCode,
-        limitAmount: Money.fromPositiveString(input.limitAmount, currencyCode).toString(),
-        startDate: input.startDate ?? todayInTimezone(now(), user.timezone),
-      });
-    },
-
-    async updateBudget(user: User, input: { budgetId: string; limitAmount: string; name?: string }) {
-      const budget = await budgets.findByIdForUser(input.budgetId, user.id);
-      if (!budget) throw new ApplicationError("BUDGET_NOT_FOUND");
-      if (budget.status === "ARCHIVED") throw new ApplicationError("BUDGET_ARCHIVED");
-      validateAmount(input.limitAmount, budget.currencyCode);
-
-      const updated = await budgets.updateLimitForUser(input.budgetId, user.id, {
-        limitAmount: Money.fromPositiveString(input.limitAmount, budget.currencyCode).toString(),
-        name: input.name?.trim() || null,
-      });
-      if (!updated) throw new ApplicationError("BUDGET_NOT_FOUND");
-      return updated;
-    },
-
-    async archiveBudget(user: User, budgetId: string) {
-      const budget = await budgets.findByIdForUser(budgetId, user.id);
-      if (!budget) throw new ApplicationError("BUDGET_NOT_FOUND");
-      if (budget.status === "ARCHIVED") return budget;
-
-      const archived = await budgets.archiveForUser(budgetId, user.id, now());
-      if (!archived) throw new ApplicationError("BUDGET_NOT_FOUND");
-      return archived;
-    },
-
-    getBudgetOverview(user: User): Promise<BudgetOverviewItem[]> {
-      return computeOverviewItems(user);
-    },
-
-    async getBudgetDetail(user: User, budgetId: string): Promise<BudgetOverviewItem & { name: string | null; budgetStatus: EntityStatus; transactions: ContributingTransactionRow[] }> {
-      const budget = await budgets.findByIdForUser(budgetId, user.id);
-      if (!budget) throw new ApplicationError("BUDGET_NOT_FOUND");
-
-      const allCategories = await categories.listForUser(user.id, { includeArchived: true });
-      const categoryById = new Map(allCategories.map((category) => [category.id, category]));
-      const period = currentPeriod(user, now());
-      const spendingRows = await budgetQueries.getCategorySpendingForUser(user.id, period);
-
-      const item = buildOverviewItem(budget, categoryById, spendingRows);
-      if (!item) throw new ApplicationError("BUDGET_CATEGORY_NOT_FOUND");
-
-      const subtreeIds = [...resolveCategorySubtreeIds(categoryById, budget.categoryId)];
-      const transactions = await budgetQueries.listContributingTransactionsForUser(user.id, subtreeIds, period);
-
-      return { ...item, name: budget.name, budgetStatus: budget.status, transactions: transactions.filter((row) => row.currencyCode === budget.currencyCode) };
-    },
-
-    async getBudgetAlerts(user: User): Promise<BudgetAlert[]> {
-      const items = await computeOverviewItems(user);
-      const periodKey = periodKeyFor(user, now());
-      const triggeredAt = now();
-
-      await Promise.all(items
-        .map((item) => ({ item, alertType: resolveBudgetAlertType(item.status) }))
-        .filter((entry): entry is { item: BudgetOverviewItem; alertType: BudgetAlertType } => entry.alertType !== null)
-        .map(async ({ item, alertType }) => {
-          const recorded = await budgetAlerts.recordIfAbsent({ userId: user.id, budgetId: item.budgetId, periodKey, alertType, triggeredAt });
-          // Only a newly-recorded alert (not a repeat within the same period) fires a notification —
-          // recordIfAbsent's dedup constraint is the single source of truth for "have we alerted yet".
-          if (recorded) await notifyBudgetAlert({ userId: user.id, userTimezone: user.timezone, budgetId: item.budgetId, categoryName: item.categoryName, usagePercent: item.usagePercent, alertType, periodKey });
-        }));
-
-      const categoryNameByBudget = new Map(items.map((item) => [item.budgetId, item]));
-      const records = await budgetAlerts.listForUserPeriod(user.id, periodKey);
-
-      return records
-        .map((record) => {
-          const item = categoryNameByBudget.get(record.budgetId);
-          if (!item) return null;
-          return {
-            id: record.id,
-            budgetId: record.budgetId,
-            categoryName: item.categoryName,
-            currencyCode: item.currencyCode,
-            alertType: record.alertType,
-            usagePercent: item.usagePercent,
-            triggeredAt: record.triggeredAt,
-          };
-        })
-        .filter((alert): alert is BudgetAlert => alert !== null);
-    },
-  };
-}
 
 function currentPeriod(user: User, now: Date) {
   const today = todayInTimezone(now, user.timezone);
@@ -239,11 +111,26 @@ function currentPeriod(user: User, now: Date) {
   return { from: range.start, to: range.end };
 }
 
-function periodKeyFor(user: User, now: Date) {
-  return todayInTimezone(now, user.timezone).slice(0, 7);
+function resolveCategorySubtreeIds(categoryById: Map<string, CategoryRecord>, rootCategoryId: string) {
+  const ids = new Set([rootCategoryId]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const category of categoryById.values()) {
+      if (category.parentId && ids.has(category.parentId) && !ids.has(category.id)) {
+        ids.add(category.id);
+        added = true;
+      }
+    }
+  }
+  return ids;
 }
 
-function buildOverviewItem(budget: BudgetRecord, categoryById: Map<string, CategoryRecord>, spendingRows: BudgetSpendingRow[]): BudgetOverviewItem | null {
+function buildOverviewItem(
+  budget: BudgetRecord,
+  categoryById: Map<string, CategoryRecord>,
+  spendingRows: BudgetSpendingRow[],
+): BudgetOverviewItem | null {
   const category = categoryById.get(budget.categoryId);
   if (!category) return null;
 
@@ -268,23 +155,7 @@ function buildOverviewItem(budget: BudgetRecord, categoryById: Map<string, Categ
   };
 }
 
-function resolveCategorySubtreeIds(categoryById: Map<string, CategoryRecord>, rootCategoryId: string) {
-  const ids = new Set([rootCategoryId]);
-  let added = true;
-  while (added) {
-    added = false;
-    for (const category of categoryById.values()) {
-      if (category.parentId && ids.has(category.parentId) && !ids.has(category.id)) {
-        ids.add(category.id);
-        added = true;
-      }
-    }
-  }
-  return ids;
-}
-
-async function validateCategory(repository: CategoryRepository, userId: string, categoryId: string) {
-  const category = await repository.findByIdForUser(categoryId, userId);
+function validateCategory(category: CategoryRecord | undefined) {
   if (!category) throw new ApplicationError("BUDGET_CATEGORY_NOT_FOUND", { field: "categoryId" });
   if (category.status === "ARCHIVED") throw new ApplicationError("BUDGET_CATEGORY_ARCHIVED", { field: "categoryId" });
   if (category.type !== "EXPENSE") throw new ApplicationError("BUDGET_CATEGORY_TYPE_INVALID", { field: "categoryId" });
@@ -306,4 +177,119 @@ function validateAmount(limitAmount: string, currencyCode: string) {
   } catch (error) {
     throw new ApplicationError("INVALID_BUDGET_AMOUNT", { field: "limitAmount", cause: error });
   }
+}
+
+export function createBudgetService({
+  budgets,
+  categories,
+  budgetQueries,
+  now = () => new Date(),
+  gate = allowAllProductAccessGate,
+}: {
+  budgets: BudgetRepository;
+  categories: CategoryRepository;
+  budgetQueries: BudgetQueries;
+  now?: () => Date;
+  gate?: ProductAccessGate;
+}) {
+  async function computeOverviewItems(user: User): Promise<BudgetOverviewItem[]> {
+    const activeBudgets = await budgets.listForUser(user.id);
+    if (activeBudgets.length === 0) return [];
+
+    const [allCategories, spendingRows] = await Promise.all([
+      categories.listForUser(user.id, { includeArchived: true }),
+      budgetQueries.getCategorySpendingForUser(user.id, currentPeriod(user, now())),
+    ]);
+    const categoryById = new Map(allCategories.map((category) => [category.id, category]));
+
+    return activeBudgets
+      .map((budget) => buildOverviewItem(budget, categoryById, spendingRows))
+      .filter((item): item is BudgetOverviewItem => item !== null)
+      .sort(
+        (a, b) => STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status] || Number(b.usagePercent) - Number(a.usagePercent),
+      );
+  }
+
+  return {
+    async createBudget(
+      user: User,
+      input: { categoryId: string; name?: string; currencyCode: string; limitAmount: string; startDate?: string },
+    ) {
+      await gate.assertCanWrite(user.id);
+      const category = validateCategory(await categories.findByIdForUser(input.categoryId, user.id));
+      const currencyCode = validateCurrency(input.currencyCode);
+      validateAmount(input.limitAmount, currencyCode);
+
+      if (await budgets.existsActiveForCategoryCurrencyForUser({ userId: user.id, categoryId: category.id, currencyCode })) {
+        throw new ApplicationError("BUDGET_ALREADY_EXISTS", { field: "categoryId" });
+      }
+
+      return budgets.create({
+        userId: user.id,
+        categoryId: category.id,
+        name: input.name?.trim() || null,
+        currencyCode,
+        limitAmount: Money.fromPositiveString(input.limitAmount, currencyCode).toString(),
+        startDate: input.startDate ?? todayInTimezone(now(), user.timezone),
+      });
+    },
+
+    async updateBudget(user: User, input: { budgetId: string; limitAmount: string; name?: string }) {
+      await gate.assertCanWrite(user.id);
+      const budget = await budgets.findByIdForUser(input.budgetId, user.id);
+      if (!budget) throw new ApplicationError("BUDGET_NOT_FOUND");
+      if (budget.status === "ARCHIVED") throw new ApplicationError("BUDGET_ARCHIVED");
+      validateAmount(input.limitAmount, budget.currencyCode);
+
+      const updated = await budgets.updateLimitForUser(input.budgetId, user.id, {
+        limitAmount: Money.fromPositiveString(input.limitAmount, budget.currencyCode).toString(),
+        name: input.name?.trim() || null,
+      });
+      if (!updated) throw new ApplicationError("BUDGET_NOT_FOUND");
+      return updated;
+    },
+
+    async archiveBudget(user: User, budgetId: string) {
+      const budget = await budgets.findByIdForUser(budgetId, user.id);
+      if (!budget) throw new ApplicationError("BUDGET_NOT_FOUND");
+      if (budget.status === "ARCHIVED") return budget;
+      const archived = await budgets.archiveForUser(budgetId, user.id, now());
+      if (!archived) throw new ApplicationError("BUDGET_NOT_FOUND");
+      return archived;
+    },
+
+    getBudgetOverview(user: User): Promise<BudgetOverviewItem[]> {
+      return computeOverviewItems(user);
+    },
+
+    async getBudgetDetail(
+      user: User,
+      budgetId: string,
+    ): Promise<BudgetOverviewItem & { name: string | null; budgetStatus: EntityStatus; transactions: ContributingTransactionRow[] }> {
+      const budget = await budgets.findByIdForUser(budgetId, user.id);
+      if (!budget) throw new ApplicationError("BUDGET_NOT_FOUND");
+
+      const allCategories = await categories.listForUser(user.id, { includeArchived: true });
+      const categoryById = new Map(allCategories.map((category) => [category.id, category]));
+      const period = currentPeriod(user, now());
+      const spendingRows = await budgetQueries.getCategorySpendingForUser(user.id, period);
+
+      const item = buildOverviewItem(budget, categoryById, spendingRows);
+      if (!item) throw new ApplicationError("BUDGET_CATEGORY_NOT_FOUND");
+
+      const subtreeIds = [...resolveCategorySubtreeIds(categoryById, budget.categoryId)];
+      const transactions = await budgetQueries.listContributingTransactionsForUser(user.id, subtreeIds, period);
+
+      return {
+        ...item,
+        name: budget.name,
+        budgetStatus: budget.status,
+        transactions: transactions.filter((row) => row.currencyCode === budget.currencyCode),
+      };
+    },
+
+    resolveAlertType(status: BudgetUsageStatus): BudgetAlertType | null {
+      return resolveBudgetAlertType(status);
+    },
+  };
 }

@@ -1,88 +1,99 @@
-import Link from "next/link";
-import { budgetAlertRepository, budgetRepository, categoryRepository, createBudgetQueries, db } from "@know-finanzas/db";
-import { requireCurrentUser } from "@/lib/auth/require-current-user";
-import { createBudgetService } from "@/features/budgets/services/budget-service";
+import { notFound } from "next/navigation";
+
+import { budgetRepository, categoryRepository, createBudgetQueries, db } from "@know-finanzas/db";
+import { isApplicationError } from "@know-finanzas/shared";
+
+import { PageHeader } from "@/components/shared/page-header";
+import { SectionCard } from "@/components/shared/section-card";
+import { StatusChip } from "@/components/shared/status-chip";
+import { ProgressBar } from "@/components/shared/progress-bar";
 import { MoneyAmount } from "@/components/financial/money-amount";
-import { BudgetLimitForm } from "@/features/budgets/components/budget-limit-form";
+import { TransactionListItem, type TxnKind } from "@/components/financial/transaction-list-item";
+import { Card, CardContent } from "@/components/ui/card";
+import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { formatShortDate } from "@/lib/format";
+import { createBudgetService } from "@/features/budgets/services/budget-service";
+import { BudgetManage } from "@/features/budgets/components/budget-manage";
 
 const service = createBudgetService({
   budgets: budgetRepository,
   categories: categoryRepository,
   budgetQueries: createBudgetQueries(db),
-  budgetAlerts: budgetAlertRepository,
 });
 
-const STATUS_LABEL = { NORMAL: "Dentro del presupuesto", NEAR_LIMIT: "Cerca del límite", EXCEEDED: "Presupuesto excedido" } as const;
-const STATUS_CLASS = { NORMAL: "normal", NEAR_LIMIT: "near-limit", EXCEEDED: "exceeded" } as const;
+const STATUS_META = {
+  NORMAL: { label: "En control", tone: "positive" as const, bar: "normal" as const },
+  NEAR_LIMIT: { label: "Al límite", tone: "warning" as const, bar: "warning" as const },
+  EXCEEDED: { label: "Excedido", tone: "negative" as const, bar: "exceeded" as const },
+};
 
 export default async function BudgetDetailPage({ params }: { params: Promise<{ budgetId: string }> }) {
-  const user = await requireCurrentUser();
   const { budgetId } = await params;
-  const detail = await service.getBudgetDetail(user, budgetId);
+  const user = await requireCurrentUser();
+
+  let detail;
+  try {
+    detail = await service.getBudgetDetail(user, budgetId);
+  } catch (error) {
+    if (isApplicationError(error) && error.code === "BUDGET_NOT_FOUND") notFound();
+    throw error;
+  }
+
+  const meta = STATUS_META[detail.status];
+  const usage = Number(detail.usagePercent);
 
   return (
-    <>
-      <Link className="back-link" href="/budgets">← Volver a presupuestos</Link>
-      <header className="detail-header">
-        <div>
-          <p className="eyebrow">Detalle de presupuesto</p>
-          <h1>{detail.categoryName}</h1>
-          <p className="lede">
-            <span className={`status-badge ${STATUS_CLASS[detail.status]}`}>{STATUS_LABEL[detail.status]}</span>
-          </p>
-        </div>
-        <p className="detail-balance"><MoneyAmount amount={detail.spent} currency={detail.currencyCode} /> / <MoneyAmount amount={detail.limit} currency={detail.currencyCode} /></p>
-      </header>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title={detail.name ?? detail.categoryName}
+        description={`Presupuesto mensual · ${detail.currencyCode}`}
+        actions={
+          detail.budgetStatus === "ACTIVE" ? (
+            <BudgetManage budgetId={detail.budgetId} currentLimit={detail.limit} currentName={detail.name} />
+          ) : undefined
+        }
+      />
 
-      <div className="detail-grid">
-        <article className="detail-card">
-          <p className="card-label">Límite mensual</p>
-          <p className="detail-value"><MoneyAmount amount={detail.limit} currency={detail.currencyCode} /></p>
-        </article>
-        <article className="detail-card">
-          <p className="card-label">Consumido</p>
-          <p className="detail-value"><MoneyAmount amount={detail.spent} currency={detail.currencyCode} /></p>
-        </article>
-        <article className="detail-card">
-          <p className="card-label">{detail.status === "EXCEEDED" ? "Por encima del límite" : "Disponible"}</p>
-          <p className="detail-value"><MoneyAmount amount={detail.remaining} currency={detail.currencyCode} /></p>
-        </article>
-        <article className="detail-card">
-          <p className="card-label">Uso del período</p>
-          <p className="detail-value">{detail.usagePercent}%</p>
-        </article>
-      </div>
+      <Card className="[--card-spacing:--spacing(6)]">
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Gastado este mes</span>
+              <MoneyAmount amount={detail.spent} currency={detail.currencyCode} className="text-metric-xl font-medium" />
+              <span className="text-small text-muted-foreground">
+                de <MoneyAmount amount={detail.limit} currency={detail.currencyCode} variant="compact" className="text-small text-muted-foreground" /> ·{" "}
+                <MoneyAmount amount={detail.remaining} currency={detail.currencyCode} variant="compact" className="text-small text-muted-foreground" /> disponible
+              </span>
+            </div>
+            <StatusChip tone={meta.tone}>{meta.label}</StatusChip>
+          </div>
+          <ProgressBar value={usage} state={meta.bar} aria-label={`${Math.round(usage)}% usado`} />
+          <span className="text-caption text-muted-foreground">{Math.round(usage)}% del límite</span>
+        </CardContent>
+      </Card>
 
-      <div className="management-card">
-        <div>
-          <p className="card-label">Gestionar presupuesto</p>
-          <p className="status-note">Archivar deja de mostrarlo como activo, pero conserva su historial.</p>
-        </div>
-        <BudgetLimitForm budget={{ id: detail.budgetId, limitAmount: detail.limit, currencyCode: detail.currencyCode, name: detail.name, status: detail.budgetStatus }} />
-      </div>
-
-      <h2 className="payment-heading">Movimientos que aportan al presupuesto</h2>
-      {detail.transactions.length === 0 ? (
-        <p className="detail-empty">Todavía no hay movimientos este mes en esta categoría.</p>
-      ) : (
-        <section className="transaction-list">
-          {detail.transactions.map((transaction) => (
-            <article className="transaction-row" key={transaction.id}>
-              <div>
-                <strong>{transaction.description}</strong>
-                <p>{formatDate(transaction.occurredAt)}{transaction.merchant ? ` · ${transaction.merchant}` : ""}</p>
-              </div>
-              <strong className={transaction.type === "REFUND" ? "income-amount" : "expense-amount"}>
-                {transaction.type === "REFUND" ? "-" : "+"}<MoneyAmount amount={transaction.amount} currency={transaction.currencyCode} />
-              </strong>
-            </article>
-          ))}
-        </section>
-      )}
-    </>
+      <SectionCard title="Movimientos que suman a este presupuesto" eyebrow="Este mes">
+        {detail.transactions.length > 0 ? (
+          <ul className="flex flex-col divide-y divide-border">
+            {detail.transactions.map((txn) => {
+              const kind: TxnKind = txn.type === "REFUND" ? "income" : "expense";
+              return (
+                <li key={txn.id}>
+                  <TransactionListItem
+                    concept={txn.description || txn.merchant || "Movimiento"}
+                    meta={formatShortDate(txn.occurredAt)}
+                    amount={String(txn.amount)}
+                    currency={txn.currencyCode}
+                    kind={kind}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="py-6 text-center text-small text-muted-foreground">Todavía no hay gastos en esta categoría este mes.</p>
+        )}
+      </SectionCard>
+    </div>
   );
-}
-
-function formatDate(value: Date) {
-  return new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short" }).format(new Date(value));
 }

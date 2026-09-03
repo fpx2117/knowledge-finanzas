@@ -1,7 +1,14 @@
 import { createAuditLogRepository, db } from "@know-finanzas/db";
 import { requireAdminUser } from "@/lib/auth/require-admin-user";
+import { AdminDataTable, type AdminDataTableColumn } from "@/features/admin/shared/admin-data-table";
+import { FilterBar } from "@/components/shared/filter-bar";
+import { FormField } from "@/components/shared/form-field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const auditLog = createAuditLogRepository(db);
+
+type AuditEntry = Awaited<ReturnType<typeof auditLog.search>>[number];
 
 export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<{ actorUserId?: string; targetUserId?: string; entityType?: string }> }) {
   await requireAdminUser("commercial.audit.read");
@@ -13,44 +20,39 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
     entityType: filters.entityType?.trim() || undefined,
   });
 
+  const columns: AdminDataTableColumn<AuditEntry>[] = [
+    { key: "createdAt", header: "Fecha", render: (entry) => formatDateTime(entry.createdAt) },
+    { key: "actorUserId", header: "Actor", render: (entry) => entry.actorUserId },
+    { key: "action", header: "Acción", render: (entry) => entry.action },
+    { key: "entityType", header: "Entidad", render: (entry) => `${entry.entityType}${entry.entityId ? ` (${entry.entityId})` : ""}` },
+    { key: "targetUserId", header: "Usuario objetivo", render: (entry) => entry.targetUserId ?? "—" },
+    { key: "reason", header: "Motivo", render: (entry) => entry.reason ?? "—" },
+  ];
+
   return (
     <section>
-      <p className="card-label">Auditoría</p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Auditoría</p>
       <h2>Historial de acciones administrativas</h2>
-      <form className="admin-search-form" style={{ marginTop: 16, flexWrap: "wrap" }}>
-        <div className="field-group">
-          <label htmlFor="audit-actor">Actor (ID)</label>
-          <input id="audit-actor" name="actorUserId" type="text" defaultValue={filters.actorUserId ?? ""} />
-        </div>
-        <div className="field-group">
-          <label htmlFor="audit-target">Usuario objetivo (ID)</label>
-          <input id="audit-target" name="targetUserId" type="text" defaultValue={filters.targetUserId ?? ""} />
-        </div>
-        <div className="field-group">
-          <label htmlFor="audit-entity">Tipo de entidad</label>
-          <input id="audit-entity" name="entityType" type="text" defaultValue={filters.entityType ?? ""} />
-        </div>
-        <button className="secondary-button" type="submit">Filtrar</button>
+      <form className="mt-4">
+        <FilterBar
+          filters={<>
+            <FormField id="audit-actor" label="Actor (ID)" className="w-full sm:w-40">
+              <Input name="actorUserId" defaultValue={filters.actorUserId ?? ""} />
+            </FormField>
+            <FormField id="audit-target" label="Usuario objetivo (ID)" className="w-full sm:w-40">
+              <Input name="targetUserId" defaultValue={filters.targetUserId ?? ""} />
+            </FormField>
+            <FormField id="audit-entity" label="Tipo de entidad" className="w-full sm:w-40">
+              <Input name="entityType" defaultValue={filters.entityType ?? ""} />
+            </FormField>
+            <Button type="submit" variant="outline">Filtrar</Button>
+          </>}
+        />
       </form>
 
-      <table className="admin-table" style={{ marginTop: 24 }}>
-        <thead>
-          <tr><th>Fecha</th><th>Actor</th><th>Acción</th><th>Entidad</th><th>Usuario objetivo</th><th>Motivo</th></tr>
-        </thead>
-        <tbody>
-          {entries.length === 0 && <tr><td colSpan={6}>Sin entradas.</td></tr>}
-          {entries.map((entry) => (
-            <tr key={entry.id}>
-              <td>{formatDateTime(entry.createdAt)}</td>
-              <td>{entry.actorUserId}</td>
-              <td>{entry.action}</td>
-              <td>{entry.entityType}{entry.entityId ? ` (${entry.entityId})` : ""}</td>
-              <td>{entry.targetUserId ?? "—"}</td>
-              <td>{entry.reason ?? "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="mt-6">
+        <AdminDataTable caption="Historial de acciones administrativas" columns={columns} rows={entries} emptyMessage="Sin entradas." />
+      </div>
     </section>
   );
 }

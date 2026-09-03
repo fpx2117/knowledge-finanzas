@@ -12,3 +12,7 @@ backups/
 
 # Local tool config, not shared project source
 .claude/
+
+# build artifacts
+apps/web/tsconfig.tsbuildinfo
+*.tsbuildinfo

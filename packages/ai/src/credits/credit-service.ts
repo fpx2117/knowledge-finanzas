@@ -25,7 +25,7 @@ export type AICreditRepositoryPort = {
   grantTrialCredits(input: { userId: string; amount: number; expiresAt: Date | null }): Promise<AICreditGrantResult>;
   grantPlanCredits(input: { userId: string; amount: number; referenceId: string; periodKey?: string | null; expiresAt: Date | null }): Promise<AICreditGrantResult>;
   getAvailableBalances(userId: string): Promise<PoolBalances>;
-  findByOperationId(operationId: string): Promise<AICreditReservationRecord | undefined>;
+  findByOperationId(operationId: string, userId: string): Promise<AICreditReservationRecord | undefined>;
   reserve(input: { userId: string; capability: string; pool: AICreditPool; credits: number; operationId: string; expiresAt: Date }): Promise<
     { allowed: true; reservation: AICreditReservationRecord } | { allowed: false; available: number }
   >;
@@ -63,9 +63,9 @@ export function createAICreditService(repo: AICreditRepositoryPort, now: () => D
     async reserve(input: ReserveCreditsInput): Promise<ReserveCreditsResult> {
       const cost = resolveCreditCost(input.capability);
 
-      const existing = await repo.findByOperationId(input.operationId);
+      const existing = await repo.findByOperationId(input.operationId, input.userId);
       if (existing) {
-        if (existing.capability !== input.capability || existing.credits !== cost) {
+        if (existing.userId !== input.userId || existing.capability !== input.capability || existing.credits !== cost) {
           throw new AIError("AI_CREDIT_OPERATION_DUPLICATE");
         }
         return { reservation: existing, cost };

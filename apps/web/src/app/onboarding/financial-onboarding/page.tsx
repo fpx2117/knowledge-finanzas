@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { resolveAccessRoute } from "@/lib/onboarding/access-route.instance";
 import { FirstAccountForm } from "@/features/onboarding/financial/components/first-account-form";
+import { OnboardingIntro } from "@/components/onboarding/onboarding-shell";
 
 // Reachable only once access is TRIAL/PRO and no account exists yet — a completed financial
 // onboarding (an account already exists) redirects straight to the dashboard, and NO_ACCESS/
@@ -16,11 +17,6 @@ export default async function FinancialOnboardingPage() {
   if (gate.destination === "CONTINUE") redirect("/dashboard");
 
   return (
-    <section className="detail-card">
-      <p className="card-label">¿Dónde manejás tu dinero?</p>
-      <h1>Creá tu primera cuenta.</h1>
-      <p className="lede">Es la única cuenta que necesitás para empezar — podés agregar más después. El saldo inicial no se registra como un ingreso.</p>
-      <FirstAccountForm />
-    </section>
+    <section className="onboarding-step"><OnboardingIntro title="Creá tu primera cuenta" description="Es el último paso para empezar a ver tu dinero con claridad." /><p className="onboarding-form-note">Podés agregar más cuentas después. El saldo inicial no se registra como un ingreso.</p><FirstAccountForm /></section>
   );
 }

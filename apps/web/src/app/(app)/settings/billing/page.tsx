@@ -8,6 +8,10 @@ import { CancelSubscriptionDialog } from "@/features/billing/components/cancel-s
 import { RefreshSubscriptionButton } from "@/features/billing/components/refresh-subscription-button";
 import { createBillingPageService, type BillingPageView } from "@/features/billing/services/billing-page-service";
 import { RedeemPromotionCodeForm } from "@/features/promotions/components/redeem-promotion-code-form";
+import { PageContainer } from "@/components/shared/page-container";
+import { PageHeader } from "@/components/shared/page-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
 
 const service = createBillingPageService({
   users: createUserRepository(db),
@@ -28,107 +32,124 @@ export default async function BillingSettingsPage() {
   const view = await service.getBillingPage(user.id);
 
   return (
-    <>
-      <div className="settings-kicker"><span>Configuración</span><span aria-hidden="true">/</span><span>Suscripción</span></div>
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Tu plan</p>
-          <h1>Suscripción y uso</h1>
-          <p className="lede">Revisá tu acceso, tus créditos de IA y tu historial de pagos.</p>
-        </div>
-      </header>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={<div className="mb-7 flex gap-2 text-sm text-muted-foreground"><span>Configuración</span><span aria-hidden="true">/</span><span>Suscripción</span></div>}
+        title="Suscripción y uso"
+        description="Revisá tu acceso, tus créditos de IA y tu historial de pagos."
+      />
 
       <StateBanner view={view} />
       {(view.accessSource === "TRIAL" || view.accessSource === "NONE") && <RedeemPromotionCodeForm />}
       <UsageSection view={view} />
       <PaymentHistory payments={view.payments} />
-    </>
+    </PageContainer>
   );
 }
 
 function StateBanner({ view }: { view: BillingPageView }) {
   if (view.accessSource === "PROMOTION" && view.promotion) {
     return (
-      <section className="detail-card pricing-card" role="status">
-        <p className="card-label">Pro promocional</p>
-        <p className="detail-value">Acceso Pro hasta el {formatDate(view.promotion.endsAt)}</p>
-        <p className="card-helper">
-          Este acceso es promocional, no una suscripción paga — no se te va a cobrar nada al vencer. Podés suscribirte
-          en cualquier momento para conservar el acceso Pro después.
-        </p>
-        <div className="pricing-actions"><SubscribeButton /></div>
-      </section>
+      <Card role="status">
+        <CardContent className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">Pro promocional</p>
+          <p className="text-h2 text-foreground">Acceso Pro hasta el {formatDate(view.promotion.endsAt)}</p>
+          <p className="text-sm text-muted-foreground">
+            Este acceso es promocional, no una suscripción paga — no se te va a cobrar nada al vencer. Podés suscribirte
+            en cualquier momento para conservar el acceso Pro después.
+          </p>
+          <div><SubscribeButton /></div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (view.access === "TRIAL") {
     return (
-      <section className="detail-card pricing-card">
-        <p className="card-label">Prueba gratuita</p>
-        <p className="detail-value">{view.trial?.daysRemaining ?? 0} días restantes</p>
-        <p className="card-helper">Después de la prueba, Know Finanzas Pro cuesta USD 7.99 por mes. No pedimos tarjeta hasta que decidas suscribirte.</p>
-        <div className="pricing-actions"><SubscribeButton /></div>
-      </section>
+      <Card>
+        <CardContent className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">Prueba gratuita</p>
+          <p className="text-h2 text-foreground">{view.trial?.daysRemaining ?? 0} días restantes</p>
+          <p className="text-sm text-muted-foreground">Después de la prueba, Know Finanzas Pro cuesta USD 7.99 por mes. No pedimos tarjeta hasta que decidas suscribirte.</p>
+          <div><SubscribeButton /></div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (view.access === "PRO" && view.subscription) {
     const canCancel = CANCELLABLE_STATUSES.has(view.subscription.status);
     return (
-      <section className="detail-card pricing-card">
-        <p className="card-label">{view.subscription.plan?.name ?? "Know Finanzas Pro"}</p>
-        <p className="detail-value">{view.subscription.plan && <MoneyAmount amount={view.subscription.plan.price} currency={view.subscription.plan.currencyCode} />} <span className="pricing-interval">/ mes</span></p>
-        {view.subscription.status === "PAST_DUE" ? (
-          <p className="card-helper">Tu último pago no se pudo procesar. Mercado Pago va a reintentarlo; si no se resuelve, tu acceso Pro va a pasar a solo lectura.</p>
-        ) : (
-          <p className="card-helper">{view.subscription.currentPeriodEnd ? <>Se renueva el {formatDate(view.subscription.currentPeriodEnd)}.</> : "Suscripción activa."}</p>
-        )}
-        <div className="pricing-actions header-actions">
-          <RefreshSubscriptionButton subscriptionId={view.subscription.id} />
-          {canCancel && <CancelSubscriptionDialog subscriptionId={view.subscription.id} />}
-        </div>
-      </section>
+      <Card>
+        <CardContent className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">{view.subscription.plan?.name ?? "Know Finanzas Pro"}</p>
+          <p className="text-h2 text-foreground">{view.subscription.plan && <MoneyAmount amount={view.subscription.plan.price} currency={view.subscription.plan.currencyCode} />} <span className="text-sm font-normal text-muted-foreground">/ mes</span></p>
+          {view.subscription.status === "PAST_DUE" ? (
+            <p className="text-sm text-muted-foreground">Tu último pago no se pudo procesar. Mercado Pago va a reintentarlo; si no se resuelve, tu acceso Pro va a pasar a solo lectura.</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">{view.subscription.currentPeriodEnd ? <>Se renueva el {formatDate(view.subscription.currentPeriodEnd)}.</> : "Suscripción activa."}</p>
+          )}
+          <div className="flex items-center gap-2">
+            <RefreshSubscriptionButton subscriptionId={view.subscription.id} />
+            {canCancel && <CancelSubscriptionDialog subscriptionId={view.subscription.id} />}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // EXPIRED_READ_ONLY
   return (
-    <section className="accounts-empty" role="status">
-      <h2>Tu prueba terminó y no tenés una suscripción activa.</h2>
-      <p>
-        Tus datos siguen ahí, intactos. Podés seguir viéndolos, pero para registrar nuevos movimientos, cuentas o
-        usar la IA necesitás reactivar Pro (USD 7.99/mes).
-      </p>
-      <SubscribeButton />
-      {view.subscription?.status === "CANCELLED" && <p className="card-helper">Tu suscripción anterior fue cancelada{view.subscription.cancelledAt ? ` el ${formatDate(view.subscription.cancelledAt)}` : ""}.</p>}
-    </section>
+    <Card>
+      <CardContent>
+        <EmptyState
+          title="Tu prueba terminó y no tenés una suscripción activa."
+          description="Tus datos siguen ahí, intactos. Podés seguir viéndolos, pero para registrar nuevos movimientos, cuentas o usar la IA necesitás reactivar Pro (USD 7.99/mes)."
+          action={
+            <div className="flex flex-col items-center gap-2">
+              <SubscribeButton />
+              {view.subscription?.status === "CANCELLED" && (
+                <p className="text-sm text-muted-foreground">Tu suscripción anterior fue cancelada{view.subscription.cancelledAt ? ` el ${formatDate(view.subscription.cancelledAt)}` : ""}.</p>
+              )}
+            </div>
+          }
+        />
+      </CardContent>
+    </Card>
   );
 }
 
 function UsageSection({ view }: { view: BillingPageView }) {
   return (
-    <section className="dashboard-section" aria-labelledby="usage-title">
-      <div className="dashboard-section-heading"><div><p className="card-label">Plan y uso</p><h2 id="usage-title">Créditos de IA</h2></div></div>
-      <div className="metric-grid">
-        <article className="metric-card">
-          <p className="card-label">IA</p>
-          {view.ai.state === "ACCESS_REQUIRED" ? (
-            <p className="metric-value">La IA está disponible con Pro.</p>
-          ) : (
-            <>
-              <p className="metric-value">{view.ai.available} de {view.ai.total} disponibles</p>
-              <p className="card-helper">{view.ai.state === "TRIAL" ? "Expiran al finalizar tu prueba." : `Se renuevan el ${view.ai.renewsAt ? formatDate(view.ai.renewsAt) : "próximo período"}.`}</p>
-            </>
-          )}
-        </article>
-        <article className="metric-card">
-          <p className="card-label">WhatsApp</p>
-          {view.access === "EXPIRED_READ_ONLY" ? (
-            <p className="metric-value">Disponible con Pro.</p>
-          ) : (
-            <p className="metric-value">{view.whatsappTotal} por {view.access === "TRIAL" ? "prueba" : "período"}</p>
-          )}
-        </article>
+    <section aria-labelledby="usage-title" className="mt-6">
+      <div className="mb-3">
+        <p className="text-sm text-muted-foreground">Plan y uso</p>
+        <h2 id="usage-title" className="text-h3 text-foreground">Créditos de IA</h2>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card>
+          <CardContent className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">IA</p>
+            {view.ai.state === "ACCESS_REQUIRED" ? (
+              <p className="text-h2 text-foreground">La IA está disponible con Pro.</p>
+            ) : (
+              <>
+                <p className="text-h2 text-foreground">{view.ai.available} de {view.ai.total} disponibles</p>
+                <p className="text-sm text-muted-foreground">{view.ai.state === "TRIAL" ? "Expiran al finalizar tu prueba." : `Se renuevan el ${view.ai.renewsAt ? formatDate(view.ai.renewsAt) : "próximo período"}.`}</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">WhatsApp</p>
+            {view.access === "EXPIRED_READ_ONLY" ? (
+              <p className="text-h2 text-foreground">Disponible con Pro.</p>
+            ) : (
+              <p className="text-h2 text-foreground">{view.whatsappTotal} por {view.access === "TRIAL" ? "prueba" : "período"}</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </section>
   );
@@ -138,11 +159,11 @@ function PaymentHistory({ payments }: { payments: BillingPageView["payments"] })
   if (payments.length === 0) return null;
 
   return (
-    <section className="dashboard-section" aria-labelledby="payments-title">
-      <div className="dashboard-section-heading"><div><p className="card-label">Historial</p><h2 id="payments-title">Pagos</h2></div></div>
-      <div className="transaction-list">
+    <section className="mt-12" aria-labelledby="payments-title">
+      <div className="mb-5 flex items-end justify-between border-b border-border pb-3"><div><p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Historial</p><h2 id="payments-title">Pagos</h2></div></div>
+      <div className="mt-10 rounded-lg border border-border bg-card">
         {payments.map((payment) => (
-          <div className="transaction-row" key={payment.id}>
+          <div className="flex flex-col gap-3 border-b border-border p-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:px-6" key={payment.id}>
             <div>
               <strong>{PAYMENT_STATUS_LABEL[payment.status]}</strong>
               <p>{payment.paidAt ? formatDate(payment.paidAt) : formatDate(payment.createdAt)}</p>

@@ -67,11 +67,11 @@ export default async function AdminReferralsPage() {
 
   return (
     <section>
-      <p className="card-label">Referidos</p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Referidos</p>
       <h2>Atribuciones y recompensas</h2>
 
       <div style={{ marginTop: 16 }}>
-        <AdminDataTable columns={columns} rows={rows} emptyMessage="Sin referidos todavía." />
+        <AdminDataTable caption="Atribuciones y recompensas de referidos" columns={columns} rows={rows} emptyMessage="Sin referidos todavía." />
       </div>
     </section>
   );

@@ -1,2 +1,15 @@
 "use client";
-export default function DashboardError({ reset }: { reset: () => void }) { return <section className="error-panel" role="alert"><h1>No pudimos cargar tu resumen.</h1><p>Intentá nuevamente.</p><button className="secondary-button" type="button" onClick={reset}>Reintentar</button></section>; }
+
+import { ErrorState } from "@/components/shared/error-state";
+
+export default function DashboardError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  return (
+    <div className="py-6">
+      <ErrorState
+        title="No pudimos cargar tu resumen"
+        description="Ocurrió un error al calcular tu posición financiera. Tus datos están a salvo."
+        onRetry={reset}
+      />
+    </div>
+  );
+}

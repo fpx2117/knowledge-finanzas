@@ -21,7 +21,12 @@ function fakeRepository() {
 describe("category service", () => {
   it("creates a child only with an owned, active, same-type root parent", async () => {
     const repository = fakeRepository();
-    const service = createCategoryService({ categories: repository });
+    const service = createCategoryService({
+      categories: repository,
+      taxonomy: { listActive: async () => [], findById: async () => undefined },
+      map: { listForUser: async () => [], upsert: async () => undefined },
+      flattenTaxonomy: () => [],
+    });
 
     await service.createCategory(userA, { name: "Restaurantes", type: "EXPENSE", parentId: parent.id });
 
@@ -31,7 +36,12 @@ describe("category service", () => {
 
   it("rejects a parent with a different type", async () => {
     const repository = fakeRepository();
-    const service = createCategoryService({ categories: repository });
+    const service = createCategoryService({
+      categories: repository,
+      taxonomy: { listActive: async () => [], findById: async () => undefined },
+      map: { listForUser: async () => [], upsert: async () => undefined },
+      flattenTaxonomy: () => [],
+    });
 
     await expect(service.createCategory(userA, { name: "Sueldo", type: "INCOME", parentId: parent.id })).rejects.toMatchObject({ code: "CATEGORY_TYPE_MISMATCH" });
     expect(repository.records).toHaveLength(1);
@@ -39,7 +49,12 @@ describe("category service", () => {
 
   it("rejects a parent belonging to another user", async () => {
     const repository = fakeRepository();
-    const service = createCategoryService({ categories: repository });
+    const service = createCategoryService({
+      categories: repository,
+      taxonomy: { listActive: async () => [], findById: async () => undefined },
+      map: { listForUser: async () => [], upsert: async () => undefined },
+      flattenTaxonomy: () => [],
+    });
 
     await expect(service.createCategory("00000000-0000-0000-0000-000000000002", { name: "Ajena", type: "EXPENSE", parentId: parent.id })).rejects.toMatchObject({ code: "CATEGORY_NOT_FOUND" });
   });

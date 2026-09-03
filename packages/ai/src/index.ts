@@ -104,3 +104,13 @@ export {
   type MerchantNormalizationSuggestion,
   type RawMerchantNormalization,
 } from "./capabilities/merchant-normalization";
+
+export {
+  parseCaptureWithAI,
+  buildCaptureParsePrompt,
+  CAPTURE_PARSE_PROMPT_VERSION,
+  CAPTURE_PARSE_SYSTEM_PROMPT,
+  captureParseSchema,
+  type CaptureParseInput,
+  type CaptureParseResult,
+} from "./capabilities/capture-parse";

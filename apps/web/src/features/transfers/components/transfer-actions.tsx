@@ -1,4 +1,59 @@
 "use client";
-import { useState } from "react";
-import { voidTransferAction } from "../actions/void-transfer";
-export function TransferActions({ transferId, voided }: { transferId: string; voided: boolean }) { const [confirming, setConfirming] = useState(false); if (voided) return <p className="status-note">La transferencia está anulada y ambas legs dejaron de afectar los saldos.</p>; return <section className="management-card"><div><p className="card-label">Anular transferencia</p><p className="card-helper">Anulará ambas legs y conservará el historial.</p></div>{confirming ? <form action={async (data) => { await voidTransferAction(data); }}><input type="hidden" name="transferId" value={transferId} /><button className="primary-button" type="submit">Confirmar anulación</button><button className="secondary-button" type="button" onClick={() => setConfirming(false)}>Cancelar</button></form> : <button className="secondary-button" type="button" onClick={() => setConfirming(true)}>Anular transferencia</button>}</section>; }
+
+import { useActionState } from "react";
+import { XIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { voidTransferAction, type TransferActionState } from "../actions/transfer-actions";
+
+const initial: TransferActionState | null = null;
+
+export function TransferActions({ transferId, voided }: { transferId: string; voided: boolean }) {
+  const [state, action, pending] = useActionState(voidTransferAction, initial);
+
+  if (voided) return null;
+
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={
+          <Button variant="outline">
+            <XIcon className="size-4" /> Anular transferencia
+          </Button>
+        }
+      />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Anular esta transferencia</DialogTitle>
+          <DialogDescription>
+            Se revierten los dos movimientos y los saldos vuelven a como estaban. No se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        {state?.ok === false ? (
+          <p role="alert" className="rounded-md bg-negative-soft px-3 py-2 text-small text-[var(--negative)]">
+            {state.error.message}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline">Volver</Button>} />
+          <form action={action}>
+            <input type="hidden" name="transferId" value={transferId} />
+            <Button type="submit" variant="destructive" disabled={pending}>
+              {pending ? "Anulando…" : "Anular"}
+            </Button>
+          </form>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

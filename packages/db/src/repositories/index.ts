@@ -1,5 +1,21 @@
 export { createAccountRepository } from "./accounts";
 export { createCategoryRepository } from "./categories";
+export { createQuickTemplateRepository } from "./quick-templates";
+export { createCategoryTaxonomyRepository, type TaxonomyLevel } from "./category-taxonomy";
+export { createCategoryMapRepository, type CategoryMapSource } from "./category-map";
+export { createMerchantUserDefaultRepository, type MerchantUserDefaultSource } from "./merchant-user-defaults";
+export {
+  createClassificationRuleRepository,
+  type ClassificationRuleMatcher,
+  type ClassificationRuleMode,
+} from "./classification-rules";
+export {
+  createMerchantRepository,
+  type MerchantMatch,
+  type MerchantSuggestion,
+  type MerchantAliasMatchType,
+  type MerchantAliasSource,
+} from "./merchants";
 export { createTransactionRepository } from "./transactions";
 export { createTransferRepository } from "./transfers";
 export { createDebtRepository } from "./debts";
@@ -8,6 +24,7 @@ export { createScheduledTransactionRepository } from "./scheduled-transactions";
 export { createRecurringTransactionRepository } from "./recurring-transactions";
 export { createBudgetRepository } from "./budgets";
 export { createBudgetAlertRepository } from "./budget-alerts";
+export { createGoalRepository, type GoalCategory } from "./goals";
 export { createBillingPlanRepository } from "./billing-plans";
 export { createBillingSubscriptionRepository } from "./billing-subscriptions";
 export { createBillingPeriodRepository } from "./billing-periods";

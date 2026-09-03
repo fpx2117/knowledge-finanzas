@@ -1,11 +1,11 @@
 "use client";
 
-export default function BudgetsError({ reset }: { reset: () => void }) {
+import { ErrorState } from "@/components/shared/error-state";
+
+export default function BudgetsError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <section className="error-panel" role="alert">
-      <h1>No pudimos cargar tus presupuestos.</h1>
-      <p>Intentá nuevamente.</p>
-      <button className="secondary-button" type="button" onClick={reset}>Reintentar</button>
-    </section>
+    <div className="py-6">
+      <ErrorState title="No pudimos cargar tus presupuestos" onRetry={reset} />
+    </div>
   );
 }

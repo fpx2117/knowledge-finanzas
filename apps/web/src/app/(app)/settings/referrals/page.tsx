@@ -15,12 +15,12 @@ export default async function ReferralsSettingsPage() {
 
   return (
     <>
-      <div className="settings-kicker"><span>Configuración</span><span aria-hidden="true">/</span><span>Referidos</span></div>
-      <header className="page-header">
+      <div className="mb-7 flex gap-2 text-sm text-muted-foreground"><span>Configuración</span><span aria-hidden="true">/</span><span>Referidos</span></div>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">Invitá y ganá</p>
           <h1>Referidos</h1>
-          <p className="lede">
+          <p className="mt-4 max-w-[490px] text-body-lg leading-relaxed text-muted-foreground">
             Compartí tu enlace. Cuando alguien se registra con él y activa Pro, recibís {rewardLabel(summary.rewardPolicy.nonPaidType, summary.rewardPolicy.nonPaidValue)}
             {" "}(o {rewardLabel(summary.rewardPolicy.paidType, summary.rewardPolicy.paidValue)} si ya sos Pro).
           </p>
@@ -30,16 +30,16 @@ export default async function ReferralsSettingsPage() {
       <ReferralLinkCard shareUrl={shareUrl} />
 
       <div className="metric-grid" style={{ marginTop: 16 }}>
-        <article className="metric-card">
-          <p className="card-label">Registros</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registros</p>
           <p className="metric-value">{summary.totalSignups}</p>
         </article>
-        <article className="metric-card">
-          <p className="card-label">Convertidos a Pro</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Convertidos a Pro</p>
           <p className="metric-value">{summary.totalConverted}</p>
         </article>
-        <article className="metric-card">
-          <p className="card-label">Recompensas recibidas</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recompensas recibidas</p>
           <p className="metric-value">{summary.totalRewardsGranted}</p>
         </article>
       </div>

@@ -1,1 +1,11 @@
-export default function NewDebtLoading() { return <div className="loading-stack" aria-busy="true" aria-label="Cargando preview"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-form" /></div>; }
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function NewDebtLoading() {
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <Skeleton className="h-4 w-44" />
+      <Skeleton className="h-9 w-80" />
+      <Skeleton className="h-[30rem] rounded-xl" />
+    </div>
+  );
+}

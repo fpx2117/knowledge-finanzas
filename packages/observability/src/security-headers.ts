@@ -3,15 +3,20 @@
 // infrastructure — 'unsafe-inline' on script-src is required for Next.js's inline hydration data
 // without a nonce-based setup; tightening this to nonces is a follow-up, not a regression versus
 // today (no CSP exists at all currently).
-export function buildSecurityHeaders(input: { isHttps: boolean }): Record<string, string> {
+export function buildSecurityHeaders(input: { isHttps: boolean; dev?: boolean }): Record<string, string> {
+  // Next.js dev mode (react-refresh / HMR / the error overlay) evaluates code with `eval` and
+  // talks to the dev server over a websocket — both are blocked by the production CSP. Loosen
+  // exactly those two directives when `dev` is set; production keeps the strict policy.
+  const scriptSrc = input.dev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'";
+  const connectSrc = input.dev ? "connect-src 'self' ws: wss:" : "connect-src 'self'";
   const headers: Record<string, string> = {
     "Content-Security-Policy": [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      connectSrc,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

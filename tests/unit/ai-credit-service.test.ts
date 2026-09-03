@@ -85,6 +85,20 @@ describe("AICreditService.reserve", () => {
     await expect(service.reserve({ userId: "user-1", access: "TRIAL", capability: "transaction.categorize", operationId: "op-1" }))
       .rejects.toMatchObject({ code: "AI_CREDIT_OPERATION_DUPLICATE" });
   });
+
+  it("rechaza un operationId que pertenece a otro usuario", async () => {
+    const existing = reservationFixture({ userId: "user-2" });
+    const repo = fakeRepo({ findByOperationId: vi.fn().mockResolvedValue(existing) });
+    const service = createAICreditService(repo);
+
+    await expect(service.reserve({
+      userId: "user-1",
+      access: "TRIAL",
+      capability: "transaction.categorize",
+      operationId: "op-1",
+    })).rejects.toMatchObject({ code: "AI_CREDIT_OPERATION_DUPLICATE" });
+    expect(repo.reserve).not.toHaveBeenCalled();
+  });
 });
 
 describe("AICreditService.commit / release", () => {

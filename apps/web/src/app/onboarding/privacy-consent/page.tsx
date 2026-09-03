@@ -1,6 +1,7 @@
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { analyticsService, isInternalAccount } from "@/lib/analytics/analytics-service.instance";
 import { PrivacyConsentStepForm } from "@/features/onboarding/components/privacy-consent-step-form";
+import { OnboardingIntro } from "@/components/onboarding/onboarding-shell";
 
 export default async function OnboardingPrivacyConsentPage() {
   const user = await requireCurrentUser();
@@ -11,11 +12,6 @@ export default async function OnboardingPrivacyConsentPage() {
   }
 
   return (
-    <section className="detail-card">
-      <p className="card-label">Privacidad y consentimiento</p>
-      <h1>Última pantalla — tu privacidad, tus reglas.</h1>
-      <p className="lede">Podés cambiar esto en cualquier momento desde Configuración → Privacidad y datos.</p>
-      <PrivacyConsentStepForm />
-    </section>
+    <section className="onboarding-step"><OnboardingIntro title="Tu privacidad, tus reglas" description="Podés cambiar estas preferencias en cualquier momento." /><PrivacyConsentStepForm /></section>
   );
 }

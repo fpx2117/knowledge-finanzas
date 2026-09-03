@@ -22,12 +22,12 @@ export default async function PrivacySettingsPage() {
 
   return (
     <>
-      <div className="settings-kicker"><span>Configuración</span><span aria-hidden="true">/</span><span>Privacidad y datos</span></div>
-      <header className="page-header">
+      <div className="mb-7 flex gap-2 text-sm text-muted-foreground"><span>Configuración</span><span aria-hidden="true">/</span><span>Privacidad y datos</span></div>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">Tus datos, tus decisiones</p>
           <h1>Privacidad y datos</h1>
-          <p className="lede">
+          <p className="mt-4 max-w-[490px] text-body-lg leading-relaxed text-muted-foreground">
             El perfil estadístico es siempre opcional y el consentimiento de analítica es independiente de los
             términos del servicio. Ninguno de los dos afecta tu acceso al producto financiero.
           </p>

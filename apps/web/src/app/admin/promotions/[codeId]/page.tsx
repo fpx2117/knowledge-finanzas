@@ -22,15 +22,15 @@ export default async function AdminPromotionCodePage({ params }: { params: Promi
 
   return (
     <section>
-      <p className="card-label">Código promocional</p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Código promocional</p>
       <h2>{code.normalizedCode}</h2>
-      <p className="card-helper">{code.name} · Estado: {code.status}</p>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{code.name} · Estado: {code.status}</p>
 
-      <div className="admin-summary-grid" style={{ marginTop: 24 }}>
-        <article className="detail-card"><p className="card-label">Duración</p><p className="detail-value">{code.durationValue} días</p></article>
-        <article className="detail-card"><p className="card-label">Redenciones</p><p className="detail-value">{code.redemptionCount}{code.maxRedemptions !== null ? ` / ${code.maxRedemptions}` : " (ilimitado)"}</p></article>
-        <article className="detail-card"><p className="card-label">Máximo por usuario</p><p className="detail-value">{code.maxRedemptionsPerUser}</p></article>
-        <article className="detail-card"><p className="card-label">Créditos IA / WhatsApp por período</p><p className="detail-value">{code.aiCreditsPerPeriod} / {code.whatsappMessagesPerPeriod}</p></article>
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]" style={{ marginTop: 24 }}>
+        <article className="rounded-lg border border-border bg-card p-6"><p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Duración</p><p className="text-2xl tracking-tight">{code.durationValue} días</p></article>
+        <article className="rounded-lg border border-border bg-card p-6"><p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Redenciones</p><p className="text-2xl tracking-tight">{code.redemptionCount}{code.maxRedemptions !== null ? ` / ${code.maxRedemptions}` : " (ilimitado)"}</p></article>
+        <article className="rounded-lg border border-border bg-card p-6"><p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Máximo por usuario</p><p className="text-2xl tracking-tight">{code.maxRedemptionsPerUser}</p></article>
+        <article className="rounded-lg border border-border bg-card p-6"><p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Créditos IA / WhatsApp por período</p><p className="text-2xl tracking-tight">{code.aiCreditsPerPeriod} / {code.whatsappMessagesPerPeriod}</p></article>
       </div>
 
       {canManage && (

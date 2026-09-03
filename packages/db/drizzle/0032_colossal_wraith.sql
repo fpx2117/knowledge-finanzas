@@ -1,0 +1,3 @@
+DROP INDEX "merchant_aliases_pattern_type_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "merchant_aliases_public_pattern_type_unique" ON "merchant_aliases" USING btree ("pattern","match_type") WHERE "merchant_aliases"."added_by_user_id" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "merchant_aliases_user_pattern_type_unique" ON "merchant_aliases" USING btree ("added_by_user_id","pattern","match_type") WHERE "merchant_aliases"."added_by_user_id" is not null;

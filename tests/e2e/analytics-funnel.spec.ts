@@ -21,8 +21,10 @@ test("full trial funnel is measurable end-to-end: signup → trial → activatio
 
   await page.goto("/accounts/new");
   await page.getByLabel("Nombre de la cuenta").fill("Cuenta embudo");
-  await page.getByLabel("Tipo").selectOption("BANK");
-  await page.getByLabel("Moneda").selectOption("ARS");
+  await page.getByLabel("Tipo").click();
+  await page.getByRole("option", { name: "Banco", exact: false }).click();
+  await page.getByLabel("Moneda").click();
+  await page.getByRole("option", { name: "ARS", exact: false }).click();
   await page.getByLabel("Saldo inicial").fill("1000");
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");
   await page.getByRole("button", { name: "Crear cuenta" }).click();

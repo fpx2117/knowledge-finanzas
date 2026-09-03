@@ -9,6 +9,9 @@ if (existsSync(rootEnvFile)) {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: [{ find: /^@\/(.*)$/, replacement: path.resolve(__dirname, "apps/web/src/$1") }],
+  },
   test: {
     include: ["tests/integration/**/*.test.ts"],
     environment: "node",

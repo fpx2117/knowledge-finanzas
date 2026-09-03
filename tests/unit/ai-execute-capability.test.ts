@@ -4,7 +4,7 @@ import { createExecuteAICapability, type AICreditService } from "@know-finanzas/
 function fakeCreditService(overrides: Partial<AICreditService> = {}): AICreditService {
   return {
     getAvailableBalances: vi.fn(),
-    reserve: vi.fn().mockResolvedValue({ reservation: { id: "res-1" }, cost: 1 }),
+    reserve: vi.fn().mockResolvedValue({ reservation: { id: "res-1", status: "PENDING" }, cost: 1 }),
     commit: vi.fn().mockResolvedValue(undefined),
     release: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -86,6 +86,29 @@ describe("executeAICapability", () => {
       .rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
     expect(creditService.release).toHaveBeenCalledWith("res-1");
     expect(creditService.commit).not.toHaveBeenCalled();
+  });
+
+  it("rechaza una operación ya finalizada sin volver a ejecutar el proveedor", async () => {
+    const creditService = fakeCreditService({
+      reserve: vi.fn().mockResolvedValue({
+        reservation: { id: "res-1", status: "COMMITTED" },
+        cost: 1,
+      }),
+    });
+    const execute = vi.fn();
+    const executeAICapability = createExecuteAICapability({
+      aiEnabled: true,
+      creditService,
+      resolveAccess: async () => "TRIAL",
+    });
+
+    await expect(executeAICapability({
+      userId: "user-1",
+      capability: "capture.parse",
+      operationId: "op-repeated",
+      execute,
+    })).rejects.toMatchObject({ code: "AI_CREDIT_OPERATION_DUPLICATE" });
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("records usage telemetry on both success and failure without leaking prompt/output content", async () => {

@@ -9,10 +9,33 @@ export function createTransactionRepository(database: Database) {
     create(input: {
       userId: string; accountId: string; categoryId: string | null;
       type: "INCOME" | "EXPENSE" | "REFUND" | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT"; amount: string; currencyCode: string;
-      description: string; merchant: string | null; occurredAt: Date;
+      description: string; merchant: string | null; merchantId?: string | null;
+      taxonomyNodeId?: string | null;
+      paymentMethod?: "CASH" | "DEBIT" | "CREDIT" | "TRANSFER" | "WALLET" | "OTHER" | null;
+      classification?: unknown;
+      occurredAt: Date;
       postedAt: Date; source: "MANUAL"; notes: string | null; originalTransactionId?: string | null; relatedTransactionId?: string | null; reason?: string | null;
     }) {
       return database.insert(transactions).values({ ...input, status: "POSTED" }).returning().then(([transaction]) => transaction);
+    },
+
+    /**
+     * How many times this user has already had a non-voided expense for this merchant land
+     * on this taxonomy node — the evidence that a merchant→category classification is
+     * trusted (progressive trust, #13 / spec §44).
+     */
+    countClassifiedForMerchantNode(userId: string, merchantId: string, taxonomyNodeId: string) {
+      return database
+        .select({ count: sql<number>`count(*)::int` })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.merchantId, merchantId),
+          eq(transactions.taxonomyNodeId, taxonomyNodeId),
+          eq(transactions.type, "EXPENSE"),
+          eq(transactions.status, "POSTED"),
+        ))
+        .then(([row]) => row?.count ?? 0);
     },
 
     findByIdForUser(transactionId: string, userId: string) {

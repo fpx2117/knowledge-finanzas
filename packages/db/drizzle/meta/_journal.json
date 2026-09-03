@@ -190,6 +190,62 @@
       "when": 1786395999751,
       "tag": "0026_supreme_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788396620161,
+      "tag": "0027_absent_lenny_balinger",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1788398760867,
+      "tag": "0028_absurd_sage",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1788399481722,
+      "tag": "0029_real_joseph",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1788400585529,
+      "tag": "0030_dry_scarecrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788402535376,
+      "tag": "0031_outstanding_slapstick",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788410575406,
+      "tag": "0032_colossal_wraith",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788419638003,
+      "tag": "0033_robust_hawkeye",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1788421251543,
+      "tag": "0034_ambiguous_nighthawk",
+      "breakpoints": true
     }
   ]
 }

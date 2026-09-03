@@ -71,6 +71,10 @@ export function createExecuteAICapability(dependencies: {
       operationId: input.operationId,
     });
 
+    if (reservation.status !== "PENDING") {
+      throw new AIError("AI_CREDIT_OPERATION_DUPLICATE");
+    }
+
     try {
       const result = await input.execute();
       await dependencies.creditService.commit(reservation.id);

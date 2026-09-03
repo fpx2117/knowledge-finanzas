@@ -129,8 +129,11 @@ export function createAICreditRepository(database: Database) {
       return { created: false, entry: existing };
     },
 
-    findByOperationId(operationId: string) {
-      return database.select().from(aiCreditReservations).where(eq(aiCreditReservations.operationId, operationId))
+    findByOperationId(operationId: string, userId: string) {
+      return database.select().from(aiCreditReservations).where(and(
+        eq(aiCreditReservations.operationId, operationId),
+        eq(aiCreditReservations.userId, userId),
+      ))
         .limit(1).then(([reservation]) => reservation);
     },
 
@@ -179,7 +182,10 @@ export function createAICreditRepository(database: Database) {
       { allowed: true; reservation: AICreditReservation } | { allowed: false; available: number; existing?: AICreditReservation }
     > {
       return database.transaction(async (tx) => {
-        const existing = await tx.select().from(aiCreditReservations).where(eq(aiCreditReservations.operationId, input.operationId)).limit(1).then((rows) => rows[0]);
+        const existing = await tx.select().from(aiCreditReservations).where(and(
+          eq(aiCreditReservations.operationId, input.operationId),
+          eq(aiCreditReservations.userId, input.userId),
+        )).limit(1).then((rows) => rows[0]);
         if (existing) return { allowed: true, reservation: existing };
 
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.userId}))`);

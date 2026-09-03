@@ -1,4 +1,5 @@
-// Same standalone-page wrapper as /onboarding and /pricing.
+import { AccessSelectionShell } from "@/components/onboarding/onboarding-shell";
+
 export default function AccessSelectionLayout({ children }: { children: React.ReactNode }) {
-  return <main className="content">{children}</main>;
+  return <AccessSelectionShell>{children}</AccessSelectionShell>;
 }

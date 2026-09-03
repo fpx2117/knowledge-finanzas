@@ -10,6 +10,9 @@ import { adminCancelSubscriptionAction } from "@/features/admin/billing/actions/
 import { adminRequestRefundAction } from "@/features/admin/billing/actions/request-refund";
 import { adminRetryDeliveryAction } from "@/features/admin/notifications/actions/retry-delivery";
 import { adminGrantPromotionalAccessAction, adminRevokeGrantAction } from "@/features/admin/promotions/actions/manage-grant";
+import { Card, CardContent } from "@/components/ui/card";
+import { AdminDataTable, type AdminDataTableColumn } from "@/features/admin/shared/admin-data-table";
+import { MoneyAmount } from "@/components/financial/money-amount";
 
 const deliveries = createNotificationDeliveryRepository(db);
 
@@ -32,34 +35,61 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
   const canManagePromotions = hasPermission(admin.role, "promotions.manage");
   const canManageNotifications = hasPermission(admin.role, "notifications.manage");
 
+  const deliveryColumns: AdminDataTableColumn<(typeof deliveryHistory)[number]>[] = [
+    { key: "createdAt", header: "Fecha", render: (delivery) => formatDate(delivery.createdAt) },
+    { key: "notificationType", header: "Tipo", render: (delivery) => delivery.notificationType },
+    { key: "channel", header: "Canal", render: (delivery) => delivery.channel },
+    { key: "status", header: "Estado", render: (delivery) => delivery.status },
+    { key: "lastErrorCode", header: "Error", render: (delivery) => delivery.lastErrorCode ?? "—" },
+    {
+      key: "actions",
+      header: "",
+      render: (delivery) =>
+        canManageNotifications && delivery.status === "FAILED" && (delivery.channel === "EMAIL" || delivery.channel === "WHATSAPP") ? (
+          <AdminActionDialog
+            triggerLabel="Reintentar envío"
+            confirmLabel="Reintentar"
+            description="Reintenta esta entrega puntual — nunca crea una notificación nueva."
+            action={adminRetryDeliveryAction}
+            hiddenFields={{ deliveryId: delivery.id, targetUserId: userId }}
+          />
+        ) : null,
+    },
+  ];
+
   return (
     <section>
-      <p className="card-label">Resumen comercial</p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resumen comercial</p>
       <h2>{summary.user.name}</h2>
-      <p className="card-helper">{summary.user.email} · Cuenta creada el {formatDate(summary.user.createdAt)}</p>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{summary.user.email} · Cuenta creada el {formatDate(summary.user.createdAt)}</p>
 
-      <div className="admin-summary-grid" style={{ marginTop: 24 }}>
-        <article className="detail-card">
-          <p className="card-label">Acceso efectivo</p>
-          <p className="detail-value">{summary.access.resolvedState}</p>
-          <p className="card-helper">Origen: {ACCESS_SOURCE_LABEL[summary.access.source]}</p>
-        </article>
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] mt-6">
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Acceso efectivo</p>
+          <p className="text-2xl tracking-tight">{summary.access.resolvedState}</p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Origen: {ACCESS_SOURCE_LABEL[summary.access.source]}</p>
+          </CardContent>
+        </Card>
 
-        <article className="detail-card">
-          <p className="card-label">Prueba gratuita</p>
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Prueba gratuita</p>
           {summary.trial ? (
             <p className="metric-value">{summary.trial.endsAt ? formatDate(summary.trial.endsAt) : "Sin fecha"}</p>
           ) : (
             <p className="metric-value">Sin datos</p>
           )}
-        </article>
+          </CardContent>
+        </Card>
 
-        <article className="detail-card">
-          <p className="card-label">Suscripción</p>
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Suscripción</p>
           {summary.subscription ? (
             <>
               <p className="metric-value">{summary.subscription.status}</p>
-              {summary.subscription.currentPeriodEnd && <p className="card-helper">Vence el {formatDate(summary.subscription.currentPeriodEnd)}</p>}
+              {summary.subscription.currentPeriodEnd && <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Vence el {formatDate(summary.subscription.currentPeriodEnd)}</p>}
               {canManageBilling && ["ACTIVE", "PAST_DUE"].includes(summary.subscription.status) && (
                 <AdminActionDialog
                   triggerLabel="Cancelar suscripción"
@@ -75,14 +105,16 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
           ) : (
             <p className="metric-value">Sin suscripción</p>
           )}
-        </article>
+          </CardContent>
+        </Card>
 
-        <article className="detail-card">
-          <p className="card-label">Promoción activa</p>
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Promoción activa</p>
           {summary.promotion ? (
             <>
               <p className="metric-value">Hasta {formatDate(summary.promotion.endsAt)}</p>
-              <p className="card-helper">Origen: {summary.promotion.source}</p>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Origen: {summary.promotion.source}</p>
               {canManagePromotions && (
                 <AdminActionDialog
                   triggerLabel="Revocar acceso promocional"
@@ -107,7 +139,7 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
                   hiddenFields={{ targetUserId: userId }}
                   withReason
                   extraFields={(
-                    <div className="field-group">
+                    <div className="flex flex-col gap-2">
                       <label htmlFor="grant-duration">Duración (días)</label>
                       <input id="grant-duration" name="durationDays" type="number" min={1} defaultValue={30} required />
                     </div>
@@ -116,10 +148,12 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
               )}
             </>
           )}
-        </article>
+          </CardContent>
+        </Card>
 
-        <article className="detail-card">
-          <p className="card-label">Créditos de IA disponibles</p>
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Créditos de IA disponibles</p>
           <ul>
             {Object.entries(summary.aiCreditBalances).map(([pool, balance]) => (
               <li key={pool}>{pool}: {balance}</li>
@@ -135,7 +169,7 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
               withReason
               extraFields={(
                 <>
-                  <div className="field-group">
+                  <div className="flex flex-col gap-2">
                     <label htmlFor="adjust-pool">Pool</label>
                     <select id="adjust-pool" name="pool" defaultValue="PLAN_ALLOWANCE">
                       <option value="TRIAL_ALLOWANCE">TRIAL_ALLOWANCE</option>
@@ -143,14 +177,14 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
                       <option value="PURCHASED">PURCHASED</option>
                     </select>
                   </div>
-                  <div className="field-group">
+                  <div className="flex flex-col gap-2">
                     <label htmlFor="adjust-direction">Dirección</label>
                     <select id="adjust-direction" name="direction" defaultValue="CREDIT">
                       <option value="CREDIT">Agregar</option>
                       <option value="DEBIT">Quitar</option>
                     </select>
                   </div>
-                  <div className="field-group">
+                  <div className="flex flex-col gap-2">
                     <label htmlFor="adjust-amount">Cantidad</label>
                     <input id="adjust-amount" name="amount" type="number" min={1} step={1} required />
                   </div>
@@ -158,19 +192,23 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
               )}
             />
           )}
-        </article>
+          </CardContent>
+        </Card>
 
-        <article className="detail-card">
-          <p className="card-label">WhatsApp (últimos 30 días)</p>
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">WhatsApp (últimos 30 días)</p>
           <p className="metric-value">{summary.whatsappMessagesLast30Days} mensajes</p>
-        </article>
+          </CardContent>
+        </Card>
 
-        <article className="detail-card">
-          <p className="card-label">Último pago</p>
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Último pago</p>
           {summary.latestPayment ? (
             <>
-              <p className="metric-value">{summary.latestPayment.status} — {summary.latestPayment.grossAmount} {summary.latestPayment.currencyCode}</p>
-              <p className="card-helper">{formatDate(summary.latestPayment.paidAt ?? summary.latestPayment.createdAt)}</p>
+               <p className="metric-value">{summary.latestPayment.status} — <MoneyAmount amount={summary.latestPayment.grossAmount} currency={summary.latestPayment.currencyCode} /></p>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{formatDate(summary.latestPayment.paidAt ?? summary.latestPayment.createdAt)}</p>
               {canRefund && summary.latestPayment.status === "APPROVED" && !summary.latestRefund && (
                 <AdminActionDialog
                   triggerLabel="Solicitar reembolso"
@@ -180,7 +218,7 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
                   hiddenFields={{ paymentId: summary.latestPayment.id, targetUserId: userId }}
                   withReason
                   extraFields={(
-                    <div className="field-group">
+                    <div className="flex flex-col gap-2">
                       <label htmlFor="refund-reason-code">Categoría</label>
                       <select id="refund-reason-code" name="reasonCode" defaultValue="DUPLICATE_CHARGE">
                         <option value="DUPLICATE_CHARGE">Cargo duplicado</option>
@@ -195,58 +233,42 @@ export default async function AdminUserSummaryPage({ params }: { params: Promise
           ) : (
             <p className="metric-value">Sin pagos</p>
           )}
-        </article>
+          </CardContent>
+        </Card>
 
-        <article className="detail-card">
-          <p className="card-label">Estado de reembolso</p>
+        <Card>
+          <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estado de reembolso</p>
           {summary.latestRefund ? (
-            <p className="metric-value">{summary.latestRefund.status} — {summary.latestRefund.amount}</p>
+             <p className="metric-value">{summary.latestRefund.status} — <MoneyAmount amount={summary.latestRefund.amount} currency={summary.latestRefund.currencyCode} /></p>
           ) : (
             <p className="metric-value">Sin reembolsos</p>
           )}
-        </article>
+          </CardContent>
+        </Card>
       </div>
 
-      <section className="detail-card" style={{ marginTop: 24 }}>
-        <p className="card-label">¿Por qué tiene este acceso?</p>
-        <div className="admin-breakdown-list">
-          <div><span>Suscripción paga efectiva</span><strong>{summary.access.paidSubscriptionEffective ? "Sí" : "No"}</strong></div>
-          <div><span>Promoción efectiva</span><strong>{summary.access.promotionEffective ? "Sí" : "No"}</strong></div>
-          <div><span>Prueba activa</span><strong>{summary.access.trialActive ? "Sí" : "No"}</strong></div>
-          <div><span>Estado resuelto</span><strong>{summary.access.resolvedState}</strong></div>
-          <div><span>Fuente</span><strong>{summary.access.source}</strong></div>
-        </div>
-      </section>
+      <Card className="mt-6">
+        <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">¿Por qué tiene este acceso?</p>
+          <div className="grid gap-2">
+            <div><span>Suscripción paga efectiva</span><strong>{summary.access.paidSubscriptionEffective ? "Sí" : "No"}</strong></div>
+            <div><span>Promoción efectiva</span><strong>{summary.access.promotionEffective ? "Sí" : "No"}</strong></div>
+            <div><span>Prueba activa</span><strong>{summary.access.trialActive ? "Sí" : "No"}</strong></div>
+            <div><span>Estado resuelto</span><strong>{summary.access.resolvedState}</strong></div>
+            <div><span>Fuente</span><strong>{summary.access.source}</strong></div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="detail-card" style={{ marginTop: 24 }}>
-        <p className="card-label">Notificaciones — historial de entregas</p>
-        <table className="admin-table" style={{ marginTop: 12 }}>
-          <thead><tr><th>Fecha</th><th>Tipo</th><th>Canal</th><th>Estado</th><th>Error</th><th /></tr></thead>
-          <tbody>
-            {deliveryHistory.length === 0 && <tr><td colSpan={6}>Sin entregas.</td></tr>}
-            {deliveryHistory.map((delivery) => (
-              <tr key={delivery.id}>
-                <td>{formatDate(delivery.createdAt)}</td>
-                <td>{delivery.notificationType}</td>
-                <td>{delivery.channel}</td>
-                <td>{delivery.status}</td>
-                <td>{delivery.lastErrorCode ?? "—"}</td>
-                <td>
-                  {canManageNotifications && delivery.status === "FAILED" && (delivery.channel === "EMAIL" || delivery.channel === "WHATSAPP") && (
-                    <AdminActionDialog
-                      triggerLabel="Reintentar envío"
-                      confirmLabel="Reintentar"
-                      description="Reintenta esta entrega puntual — nunca crea una notificación nueva."
-                      action={adminRetryDeliveryAction}
-                      hiddenFields={{ deliveryId: delivery.id, targetUserId: userId }}
-                    />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <Card className="mt-6">
+        <CardContent>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notificaciones — historial de entregas</p>
+          <div className="mt-3">
+            <AdminDataTable caption="Historial de entregas de notificaciones" columns={deliveryColumns} rows={deliveryHistory} emptyMessage="Sin entregas." />
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }

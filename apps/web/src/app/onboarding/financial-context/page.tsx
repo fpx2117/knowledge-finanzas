@@ -1,6 +1,7 @@
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { analyticsService, isInternalAccount } from "@/lib/analytics/analytics-service.instance";
 import { FinancialContextStepForm } from "@/features/onboarding/components/financial-context-step-form";
+import { OnboardingIntro } from "@/components/onboarding/onboarding-shell";
 
 export default async function OnboardingFinancialContextPage() {
   const user = await requireCurrentUser();
@@ -11,11 +12,6 @@ export default async function OnboardingFinancialContextPage() {
   }
 
   return (
-    <section className="detail-card">
-      <p className="card-label">Contexto financiero</p>
-      <h1>Algunas preguntas rápidas (todas opcionales).</h1>
-      <p className="lede">Sin montos exactos — solo Sí, No, o preferís no responder. Podés dejar todo sin marcar y continuar.</p>
-      <FinancialContextStepForm />
-    </section>
+    <section className="onboarding-step"><OnboardingIntro title="Contanos un poco sobre vos" description="Son preguntas opcionales. Podés saltearlas cuando quieras." /><FinancialContextStepForm /></section>
   );
 }

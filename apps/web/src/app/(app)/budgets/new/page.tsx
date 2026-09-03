@@ -1,22 +1,22 @@
-import Link from "next/link";
 import { categoryRepository } from "@know-finanzas/db";
+
+import { FormPage } from "@/components/shared/form-page";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
-import { createCategoryService } from "@/features/categories/services/category-service";
 import { BudgetForm } from "@/features/budgets/components/budget-form";
 
 export default async function NewBudgetPage() {
   const user = await requireCurrentUser();
-  const categories = await createCategoryService({ categories: categoryRepository }).listCategories(user.id, { type: "EXPENSE" });
+  const categories = await categoryRepository.listForUser(user.id, { type: "EXPENSE" });
 
   return (
-    <>
-      <Link className="back-link" href="/budgets">← Volver a presupuestos</Link>
-      <div className="form-page-header">
-        <p className="eyebrow">Nuevo presupuesto</p>
-        <h1>Definí un límite mensual.</h1>
-        <p className="lede">El presupuesto compara tu consumo neto de la categoría contra el límite que definas cada mes.</p>
-      </div>
-      <BudgetForm categories={categories} />
-    </>
+    <FormPage
+      backHref="/budgets"
+      backLabel="Volver a presupuestos"
+      eyebrow="Nuevo presupuesto"
+      title="Poné un límite mensual"
+      description="Elegí una categoría de gasto y cuánto querés destinarle por mes."
+    >
+      <BudgetForm categories={categories.map((c) => ({ id: c.id, name: c.name }))} baseCurrency={user.baseCurrency} />
+    </FormPage>
   );
 }

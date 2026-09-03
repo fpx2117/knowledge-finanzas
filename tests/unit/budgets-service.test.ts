@@ -52,22 +52,8 @@ function fakeBudgetQueries(rows: Array<{ categoryId: string | null; currencyCode
   return { getCategorySpendingForUser: async () => rows, listContributingTransactionsForUser: async () => transactions };
 }
 
-function fakeBudgetAlerts() {
-  const records: Array<{ id: string; userId: string; budgetId: string; periodKey: string; alertType: "BUDGET_NEAR_LIMIT" | "BUDGET_EXCEEDED"; triggeredAt: Date }> = [];
-  let counter = 0;
-  return {
-    records,
-    recordIfAbsent: async (input: { userId: string; budgetId: string; periodKey: string; alertType: "BUDGET_NEAR_LIMIT" | "BUDGET_EXCEEDED"; triggeredAt: Date }) => {
-      const exists = records.some((item) => item.budgetId === input.budgetId && item.periodKey === input.periodKey && item.alertType === input.alertType);
-      if (exists) return undefined;
-      counter += 1;
-      const record = { id: `alert-${counter}`, ...input };
-      records.push(record);
-      return record;
-    },
-    listForUserPeriod: async (userId: string, periodKey: string) => records.filter((item) => item.userId === userId && item.periodKey === periodKey),
-  };
-}
+// NOTE: `getBudgetAlerts` coverage lives in
+// tests/unit/pending-rebuild/budgets-service-alerts.test.ts until that slice is rebuilt.
 
 describe("budget service", () => {
   it("creates a budget for an owned active expense category", async () => {
@@ -155,35 +141,6 @@ describe("budget service", () => {
 
     expect(overview.map((item) => item.categoryId)).toEqual([restaurantsCategory.id, foodCategory.id]);
     expect(overview[0].status).toBe("EXCEEDED");
-  });
-
-  it("records a deduplicated alert once per budget/period/type and does not duplicate on repeated evaluation", async () => {
-    const budgets = fakeBudgets();
-    const budgetAlerts = fakeBudgetAlerts();
-    const rows = [{ categoryId: foodCategory.id, currencyCode: "ARS", netExpense: "120.000000" }];
-    const service = createBudgetService({ budgets, categories: fakeCategories(), budgetQueries: fakeBudgetQueries(rows), budgetAlerts });
-    await service.createBudget({ id: userA, timezone: "UTC" }, { categoryId: foodCategory.id, currencyCode: "ARS", limitAmount: "100" });
-
-    const first = await service.getBudgetAlerts({ id: userA, timezone: "UTC" });
-    const second = await service.getBudgetAlerts({ id: userA, timezone: "UTC" });
-
-    expect(first).toHaveLength(1);
-    expect(first[0]).toMatchObject({ alertType: "BUDGET_EXCEEDED", categoryName: "Comida" });
-    expect(second).toHaveLength(1);
-    expect(second[0].id).toBe(first[0].id);
-    expect(budgetAlerts.records).toHaveLength(1);
-  });
-
-  it("does not raise an alert for a budget within normal usage", async () => {
-    const budgets = fakeBudgets();
-    const budgetAlerts = fakeBudgetAlerts();
-    const rows = [{ categoryId: foodCategory.id, currencyCode: "ARS", netExpense: "10.000000" }];
-    const service = createBudgetService({ budgets, categories: fakeCategories(), budgetQueries: fakeBudgetQueries(rows), budgetAlerts });
-    await service.createBudget({ id: userA, timezone: "UTC" }, { categoryId: foodCategory.id, currencyCode: "ARS", limitAmount: "100" });
-
-    const alerts = await service.getBudgetAlerts({ id: userA, timezone: "UTC" });
-
-    expect(alerts).toHaveLength(0);
   });
 
   it("returns the current-period contributing transactions in the budget detail", async () => {

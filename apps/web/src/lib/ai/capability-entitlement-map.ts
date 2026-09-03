@@ -6,6 +6,7 @@ import type { CapabilityKey } from "@know-finanzas/billing";
 // both bounded contexts (same reasoning as the rest of apps/web's instance-wiring modules).
 const AI_CAPABILITY_TO_ENTITLEMENT: Record<AICapability, CapabilityKey> = {
   "transaction.categorize": "ai.categorization",
+  "capture.parse": "ai.categorization",
   "merchant.normalize": "ai.categorization",
   "assistant.query.simple": "ai.assistant",
   "assistant.query.complex": "ai.assistant",

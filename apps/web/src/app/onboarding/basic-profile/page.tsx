@@ -1,6 +1,7 @@
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { analyticsService, isInternalAccount } from "@/lib/analytics/analytics-service.instance";
 import { BasicProfileStepForm } from "@/features/onboarding/components/basic-profile-step-form";
+import { OnboardingIntro } from "@/components/onboarding/onboarding-shell";
 
 export default async function OnboardingBasicProfilePage() {
   const user = await requireCurrentUser();
@@ -11,11 +12,6 @@ export default async function OnboardingBasicProfilePage() {
   }
 
   return (
-    <section className="detail-card">
-      <p className="card-label">Configuración básica</p>
-      <h1>Un par de datos para arrancar.</h1>
-      <p className="lede">Esto solo configura valores por defecto — no crea ninguna cuenta ni movimiento.</p>
-      <BasicProfileStepForm />
-    </section>
+    <section className="onboarding-step"><OnboardingIntro title="Configurá tu moneda y país" description="Esto nos ayuda a mostrarte la información correcta." /><BasicProfileStepForm /></section>
   );
 }

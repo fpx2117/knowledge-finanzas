@@ -6,6 +6,7 @@ import type { AICapability } from "./capabilities";
 // same as `import.map` since both are batch import capabilities of comparable cost.
 const CREDIT_COSTS: Record<AICapability, number> = {
   "transaction.categorize": 1,
+  "capture.parse": 1,
   "merchant.normalize": 1,
   "assistant.query.simple": 2,
   "cashflow.explain": 2,

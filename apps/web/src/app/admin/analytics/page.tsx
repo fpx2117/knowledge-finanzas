@@ -7,41 +7,41 @@ export default async function AdminAnalyticsPage() {
 
   return (
     <section>
-      <p className="card-label">Analítica y datos</p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Analítica y datos</p>
       <h2>Resumen agregado</h2>
-      <p className="card-helper">
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
         Solo conteos y agregados — nunca un explorador por usuario. Las cohortes por debajo del umbral de supresión
         nunca muestran sus valores estadísticos, ni siquiera acá.
       </p>
 
-      <div className="admin-summary-grid" style={{ marginTop: 24 }}>
-        <article className="detail-card">
-          <p className="card-label">Usuarios totales</p>
-          <p className="detail-value">{summary.totalUsers}</p>
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]" style={{ marginTop: 24 }}>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Usuarios totales</p>
+          <p className="text-2xl tracking-tight">{summary.totalUsers}</p>
         </article>
-        <article className="detail-card">
-          <p className="card-label">Consentimiento · analítica de producto</p>
-          <p className="detail-value">{summary.consentedProductAnalytics}</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Consentimiento · analítica de producto</p>
+          <p className="text-2xl tracking-tight">{summary.consentedProductAnalytics}</p>
         </article>
-        <article className="detail-card">
-          <p className="card-label">Consentimiento · estadísticas externas</p>
-          <p className="detail-value">{summary.consentedExternalAggregatedStatistics}</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Consentimiento · estadísticas externas</p>
+          <p className="text-2xl tracking-tight">{summary.consentedExternalAggregatedStatistics}</p>
         </article>
-        <article className="detail-card">
-          <p className="card-label">Perfiles con algún dato</p>
-          <p className="detail-value">{summary.profileCompletionCount}</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Perfiles con algún dato</p>
+          <p className="text-2xl tracking-tight">{summary.profileCompletionCount}</p>
         </article>
-        <article className="detail-card">
-          <p className="card-label">Último período generado</p>
-          <p className="detail-value">{summary.latestPeriod ?? "—"}</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Último período generado</p>
+          <p className="text-2xl tracking-tight">{summary.latestPeriod ?? "—"}</p>
         </article>
-        <article className="detail-card">
-          <p className="card-label">Cohortes (último período)</p>
-          <p className="detail-value">{summary.totalCohortCount}</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cohortes (último período)</p>
+          <p className="text-2xl tracking-tight">{summary.totalCohortCount}</p>
         </article>
-        <article className="detail-card">
-          <p className="card-label">Cohortes suprimidas</p>
-          <p className="detail-value">{summary.suppressedCohortCount}</p>
+        <article className="rounded-lg border border-border bg-card p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cohortes suprimidas</p>
+          <p className="text-2xl tracking-tight">{summary.suppressedCohortCount}</p>
         </article>
       </div>
     </section>
