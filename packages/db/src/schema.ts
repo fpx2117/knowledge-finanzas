@@ -278,6 +278,17 @@ export const userClassificationRules = pgTable("user_classification_rules", {
   uniqueIndex("user_classification_rules_user_matcher_pattern_unique").on(table.userId, table.matcher, table.mode, table.pattern),
 ]);
 
+// "These two transactions are NOT the same" — remembered so the /duplicados review screen
+// stops re-surfacing a pair the user already looked at. pairKey = "<minId>:<maxId>".
+export const duplicateDismissals = pgTable("duplicate_dismissals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pairKey: text("pair_key").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("duplicate_dismissals_user_pair_unique").on(table.userId, table.pairKey),
+]);
+
 export const transfers = pgTable("transfers", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),

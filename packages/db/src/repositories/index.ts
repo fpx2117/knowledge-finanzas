@@ -24,6 +24,7 @@ export { createScheduledTransactionRepository } from "./scheduled-transactions";
 export { createRecurringTransactionRepository } from "./recurring-transactions";
 export { createRecurringSeriesRepository, type RecurringSeriesStatus } from "./recurring-series";
 export { createSubscriptionRepository, type SubscriptionStatus } from "./subscriptions";
+export { createDuplicateDismissalRepository, duplicatePairKey } from "./duplicate-dismissals";
 export { createBudgetRepository } from "./budgets";
 export { createBudgetAlertRepository } from "./budget-alerts";
 export { createGoalRepository, type GoalCategory } from "./goals";

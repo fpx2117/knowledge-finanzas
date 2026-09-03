@@ -225,9 +225,24 @@ Spec §20/§21: fingerprint + probabilistic duplicate score.
   registrado · <desc> · <fecha> · <monto>" banner with "Registrar igual".
 - Tests: `transaction-fingerprint.test.ts` (9), 4 in `transactions-service.test.ts`.
 
-**Not done:** the `/duplicados` review screen (§ spec screen 13) scanning existing pairs +
-merge/dismiss with persistence; wiring into the full `createTransactionAction` form;
-`externalId` isn't populated yet (no import pipeline); no auto-merge at ≥0.98.
+**Not done:** wiring into the full `createTransactionAction` form; `externalId` isn't
+populated yet (no import pipeline); no auto-merge at ≥0.98.
+
+### Duplicate review screen (`/duplicados`)  ✅ DONE
+- `duplicate_dismissals` table — migration `0037_majestic_sage.sql`
+  (`duplicateDismissalRepository`, `duplicatePairKey`). `(user, pairKey)` unique.
+- `transactionRepository.listPostedForDuplicateScan` (180-day window).
+- `duplicate-review-service.ts` (pure DI) + `.instance`: `scanForUser` buckets posted
+  income/expense by `account | currency | type | amountCents`, scores each in-bucket pair,
+  keeps ≥ `DUPLICATE_REVIEW_THRESHOLD` not already dismissed; `dismissPair` ("son
+  distintos"); `resolvePair(keepId, voidId)` voids the duplicate + records the dismissal.
+- UI: `/duplicados` — per-pair card with match %, both movements, "Anular este (dejar el
+  otro)" on each, "Son movimientos distintos".
+- Tests: `duplicate-review-service.test.ts` (6).
+
+**Follow-ups:** exact-cents bucketing misses near-equal amounts (the create-guard still
+catches those); no "undo" for a dismissal from the UI (`forget` exists in the repo); the
+scan is O(bucket²) — fine while buckets are small.
 
 ### Later (from the P1–P5 roadmap, not yet started)
 

@@ -86,6 +86,31 @@ export function createTransactionRepository(database: Database) {
         .orderBy(desc(transactions.occurredAt));
     },
 
+    /** All posted income/expense rows since `since`, minimal fingerprint shape — for the duplicate review scan. */
+    listPostedForDuplicateScan(userId: string, since: Date) {
+      return database
+        .select({
+          id: transactions.id,
+          type: transactions.type,
+          accountId: transactions.accountId,
+          description: transactions.description,
+          merchant: transactions.merchant,
+          merchantId: transactions.merchantId,
+          amount: transactions.amount,
+          currencyCode: transactions.currencyCode,
+          occurredAt: transactions.occurredAt,
+          paymentMethod: transactions.paymentMethod,
+        })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.status, "POSTED"),
+          inArray(transactions.type, ["INCOME", "EXPENSE"]),
+          gte(transactions.occurredAt, since),
+        ))
+        .orderBy(desc(transactions.occurredAt));
+    },
+
     findByIdForUser(transactionId: string, userId: string) {
       return database.select().from(transactions)
         .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId)))
