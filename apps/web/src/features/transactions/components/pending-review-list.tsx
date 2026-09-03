@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { fieldControlClass } from "@/components/shared/form-field";
-import { categorizeInboxItemAction } from "../actions/inbox-actions";
+import { categorizePendingItemAction } from "../actions/pending-review-actions";
 
 type Item = { id: string; description: string; merchant: string | null; amount: string; currencyCode: string; occurredOn: string };
 
@@ -14,7 +14,7 @@ function money(amount: string, currency: string) {
     : `${currency} ${amount}`;
 }
 
-export function InboxUncategorized({ items, categories }: { items: Item[]; categories: Array<{ id: string; name: string }> }) {
+export function PendingReviewList({ items, categories }: { items: Item[]; categories: Array<{ id: string; name: string }> }) {
   const [done, setDone] = useState<Set<string>>(new Set());
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -39,7 +39,7 @@ export function InboxUncategorized({ items, categories }: { items: Item[]; categ
               if (!categoryId) return;
               startTransition(async () => {
                 setPendingId(item.id);
-                const result = await categorizeInboxItemAction(item.id, categoryId);
+                const result = await categorizePendingItemAction(item.id, categoryId);
                 setPendingId(null);
                 if (result.ok) setDone((prev) => new Set(prev).add(item.id));
               });

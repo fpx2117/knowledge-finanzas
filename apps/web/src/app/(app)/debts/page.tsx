@@ -62,6 +62,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
           actions={
             <>
               <HeaderActions showPeriod={false} />
+              <Button variant="ghost" render={<Link href="/debts/suscripciones">Suscripciones</Link>} />
               <Button render={<Link href="/debts/new">Nueva obligación</Link>} />
             </>
           }
@@ -145,6 +146,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
         actions={
           <>
             <HeaderActions showPeriod={false} />
+            <Button variant="ghost" render={<Link href="/debts/suscripciones">Suscripciones</Link>} />
             <Button render={<Link href="/debts/new">Nueva obligación</Link>} />
           </>
         }

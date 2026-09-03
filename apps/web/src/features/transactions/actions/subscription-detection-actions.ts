@@ -12,7 +12,7 @@ export async function scanSubscriptionsAction(): Promise<SubscriptionScanState> 
   try {
     const user = await requireCurrentUser();
     const { found } = await subscriptionDetectionService.refreshForUser(user.id);
-    revalidatePath("/suscripciones");
+    revalidatePath("/debts/suscripciones");
     return { ok: true, found };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
@@ -23,7 +23,7 @@ export async function dismissSubscriptionAction(subscriptionId: string): Promise
   try {
     const user = await requireCurrentUser();
     await subscriptionDetectionService.dismissSubscription(user.id, subscriptionId);
-    revalidatePath("/suscripciones");
+    revalidatePath("/debts/suscripciones");
     return { ok: true };
   } catch {
     return { ok: false };

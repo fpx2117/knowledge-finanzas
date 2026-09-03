@@ -176,7 +176,7 @@ Spec §15: learn "same merchant + similar amount + regular cadence" and propose 
   days, upserts SUGGESTED, never resurrects DISMISSED / overwrites CONFIRMED, prunes stale),
   `listSuggestions`, `confirmSuggestion`, `dismissSuggestion`. New
   `transactionRepository.listExpensesSinceForUser`. New error `RECURRING_SERIES_NOT_FOUND`.
-- UI: `/recurrentes` — "Buscar recurrentes" scan button + suggestion list with
+- UI: `/transactions/recurrentes` — "Buscar recurrentes" scan button + suggestion list with
   "Es recurrente" / dismiss.
 - Tests: `detect-recurring.test.ts` (8), `recurring-detection-service.test.ts` (5).
 
@@ -200,7 +200,7 @@ flag price hikes with monthly/yearly impact.
   scan; upsert ACTIVE unless DISMISSED; `deactivateMissing` → INACTIVE, keeps the row +
   history), `listSubscriptions` (ACTIVE+INACTIVE, resolves category, computes `priceChange`),
   `dismissSubscription`.
-- UI: `/suscripciones` — scan button, monthly-total line, list with "Subió de X a Y ·
+- UI: `/debts/suscripciones` — scan button, monthly-total line, list with "Subió de X a Y ·
   +$N/año" badge, dismiss.
 - Tests: `detect-subscriptions.test.ts` (8), `subscription-detection-service.test.ts` (5).
 
@@ -228,7 +228,7 @@ Spec §20/§21: fingerprint + probabilistic duplicate score.
 **Not done:** wiring into the full `createTransactionAction` form; `externalId` isn't
 populated yet (no import pipeline); no auto-merge at ≥0.98.
 
-### Duplicate review screen (`/duplicados`)  ✅ DONE
+### Duplicate review screen (`/transactions/duplicados`)  ✅ DONE
 - `duplicate_dismissals` table — migration `0037_majestic_sage.sql`
   (`duplicateDismissalRepository`, `duplicatePairKey`). `(user, pairKey)` unique.
 - `transactionRepository.listPostedForDuplicateScan` (180-day window).
@@ -236,7 +236,7 @@ populated yet (no import pipeline); no auto-merge at ≥0.98.
   income/expense by `account | currency | type | amountCents`, scores each in-bucket pair,
   keeps ≥ `DUPLICATE_REVIEW_THRESHOLD` not already dismissed; `dismissPair` ("son
   distintos"); `resolvePair(keepId, voidId)` voids the duplicate + records the dismissal.
-- UI: `/duplicados` — per-pair card with match %, both movements, "Anular este (dejar el
+- UI: `/transactions/duplicados` — per-pair card with match %, both movements, "Anular este (dejar el
   otro)" on each, "Son movimientos distintos".
 - Tests: `duplicate-review-service.test.ts` (6).
 
@@ -258,7 +258,7 @@ Spec §10 / §27 / §57–58.
   full `transaction-service` (so imported rows get merchant resolution + auto-categorisation
   + rules); rows the service rejects (future/pre-opening date…) count as `failed`. Writes an
   `import_batches` row (migration `0038_aberrant_monster_badoon.sql`, `importBatchRepository`).
-- UI: `/importar` — account select, file upload (read client-side as text) or paste, "Analizar"
+- UI: `/transactions/importaciones` — account select, file upload (read client-side as text) or paste, "Analizar"
   → detected-mapping summary + preview table (parsed date/desc/amount/type, unreadable rows
   flagged) → "Importar N movimientos" → summary (imported / skipped dupes / unreadable / failed).
 - Tests: `imports-parsing.test.ts` (20), `import-service.test.ts` (6).
@@ -267,7 +267,7 @@ Spec §10 / §27 / §57–58.
 no per-batch "undo import"; bank-specific adapters (§11) not started; transfers/adjustments
 not inferred (every row is INCOME or EXPENSE).
 
-### Financial Inbox (`/inbox`)  ✅ DONE (v1 — hub + inline categorize)
+### Financial Inbox (`/transactions/pendientes` etc.)  ✅ DONE (v1 — hub + inline categorize)
 Spec §25/§26. Single "X cosas para revisar" surface aggregating the detection screens.
 
 - `transactionRepository.listUncategorizedForUser` / `countUncategorizedForUser` /
@@ -276,8 +276,8 @@ Spec §25/§26. Single "X cosas para revisar" surface aggregating the detection 
   items + expense category options, recurring-suggestion count, active-subscription count,
   price increases, duplicate-pair count (live scan, best-effort), `total`.
   `categorize(txnId, categoryId)` validates + updates.
-- UI: `/inbox` — price-increase alerts, inline "Sin categoría" list (per-row `<select>`,
-  row disappears on assign), links to `/recurrentes` + `/duplicados` with counts.
+- UI: `/transactions/pendientes` etc. — price-increase alerts, inline "Sin categoría" list (per-row `<select>`,
+  row disappears on assign), links to `/transactions/recurrentes` + `/transactions/duplicados` with counts.
 - Tests: `inbox-service.test.ts` (5).
 
 **Follow-ups:** inline resolve only for uncategorized; no keyboard shortcuts; post-hoc

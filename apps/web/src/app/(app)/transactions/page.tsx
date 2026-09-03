@@ -20,6 +20,7 @@ import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
 import { Button } from "@/components/ui/button";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { TransactionsFilters } from "@/features/transactions/components/transactions-filters";
+import { TransactionsSubnav } from "@/features/transactions/components/transactions-subnav";
 import { TransactionsTable, type TransactionRow } from "@/features/transactions/components/transactions-table";
 
 const monthlyQueries = createMonthlySummaryQueries(db);
@@ -115,12 +116,14 @@ export default async function TransactionsPage({
         actions={
           <>
             <HeaderActions />
-            <Button variant="ghost" render={<Link href="/importar">Importar</Link>} />
+            <Button variant="ghost" render={<Link href="/transactions/importaciones">Importar</Link>} />
             <Button variant="outline" render={<Link href="/transfers/new">Transferencia</Link>} />
             <Button render={<Link href="/transactions/new?type=EXPENSE">Nueva transacción</Link>} />
           </>
         }
       />
+
+      <TransactionsSubnav />
 
       <TransactionsFilters accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} />
 

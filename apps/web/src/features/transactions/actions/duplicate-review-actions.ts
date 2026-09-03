@@ -9,7 +9,7 @@ export async function dismissDuplicatePairAction(idA: string, idB: string): Prom
   try {
     const user = await requireCurrentUser();
     await duplicateReviewService.dismissPair(user.id, idA, idB);
-    revalidatePath("/duplicados");
+    revalidatePath("/transactions/duplicados");
     return { ok: true };
   } catch {
     return { ok: false };
@@ -20,7 +20,7 @@ export async function resolveDuplicatePairAction(keepId: string, voidId: string)
   try {
     const user = await requireCurrentUser();
     await duplicateReviewService.resolvePair(user.id, keepId, voidId);
-    revalidatePath("/duplicados");
+    revalidatePath("/transactions/duplicados");
     revalidatePath("/transactions");
     revalidatePath("/accounts");
     revalidatePath("/dashboard");

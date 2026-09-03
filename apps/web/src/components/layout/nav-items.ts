@@ -1,6 +1,5 @@
 import {
   CalendarDaysIcon,
-  InboxIcon,
   LayoutDashboardIcon,
   LightbulbIcon,
   PiggyBankIcon,
@@ -18,13 +17,12 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
-// Canonical sidebar sections — visual-design-personal.md §7.2 + the capture "Bandeja"
-// (spec §25, the central review surface). Everything else the capture system adds
-// (recurrentes, suscripciones, duplicados, importar) is reached from /inbox, not the
-// sidebar — keep this list to primary destinations only.
+// Canonical sidebar sections — visual-design-personal.md §7.2 (§2.5, §24: fixed order).
+// The capture system does NOT add top-level items — its surfaces live under the existing
+// sections (Transacciones → Recurrentes / Importaciones / Pendientes / Duplicados,
+// Obligaciones → Suscripciones, Configuración → Reglas automáticas).
 export const NAV_ITEMS: NavItem[] = [
   { label: "Resumen", href: "/dashboard", icon: LayoutDashboardIcon },
-  { label: "Bandeja", href: "/inbox", icon: InboxIcon },
   { label: "Cuentas", href: "/accounts", icon: WalletIcon },
   { label: "Transacciones", href: "/transactions", icon: ReceiptTextIcon },
   { label: "Presupuestos", href: "/budgets", icon: ChartColumnIncreasingIcon },
@@ -37,11 +35,11 @@ export const NAV_ITEMS: NavItem[] = [
 
 // Subset shown in the mobile bottom bar (5 slots + a central action).
 export const MOBILE_NAV_ITEMS: NavItem[] = [
-  NAV_ITEMS[0], // Resumen
-  NAV_ITEMS[1], // Bandeja
-  NAV_ITEMS[3], // Transacciones
-  NAV_ITEMS[2], // Cuentas
-  NAV_ITEMS[5], // Obligaciones
+  NAV_ITEMS[0],
+  NAV_ITEMS[1],
+  NAV_ITEMS[2],
+  NAV_ITEMS[4],
+  NAV_ITEMS[7],
 ];
 
 export function isNavItemActive(pathname: string, href: string): boolean {

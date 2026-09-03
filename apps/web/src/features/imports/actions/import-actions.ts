@@ -31,7 +31,7 @@ export async function commitImportAction(_previous: CommitImportState | null, fo
     revalidatePath("/transactions");
     revalidatePath("/accounts");
     revalidatePath("/dashboard");
-    revalidatePath("/importar");
+    revalidatePath("/transactions/importaciones");
     return { ok: true, result };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };

@@ -17,7 +17,7 @@ import { signOut } from "@/lib/auth/client";
 
 const SETTINGS_LINKS = [
   { label: "Categorías", href: "/settings/categories" },
-  { label: "Reglas de categorización", href: "/settings/rules" },
+  { label: "Reglas automáticas", href: "/settings/rules" },
   { label: "Notificaciones", href: "/settings/notifications" },
   { label: "Suscripción", href: "/settings/billing" },
   { label: "Referidos", href: "/settings/referrals" },
