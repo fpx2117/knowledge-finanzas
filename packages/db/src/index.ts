@@ -21,6 +21,7 @@ import {
   createMerchantRepository,
   createMerchantUserDefaultRepository,
   createQuickTemplateRepository,
+  createRecurringSeriesRepository,
   createTransactionRepository,
 } from "./repositories";
 
@@ -33,6 +34,7 @@ export const merchantUserDefaultRepository = createMerchantUserDefaultRepository
 export const classificationRuleRepository = createClassificationRuleRepository(db);
 export const quickTemplateRepository = createQuickTemplateRepository(db);
 export const transactionRepository = createTransactionRepository(db);
+export const recurringSeriesRepository = createRecurringSeriesRepository(db);
 export const budgetRepository = createBudgetRepository(db);
 export const budgetAlertRepository = createBudgetAlertRepository(db);
 export const goalRepository = createGoalRepository(db);

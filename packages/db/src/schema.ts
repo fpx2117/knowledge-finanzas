@@ -477,6 +477,36 @@ export const recurringTransactions = pgTable("recurring_transactions", {
   check("recurring_transactions_type_check", sql`${table.type} in ('INCOME', 'EXPENSE')`),
 ]);
 
+// Recurring expense patterns DETECTED from transaction history (spec §15) — distinct from
+// `recurring_transactions`, which are user-authored schedules. One row per (user, group, currency);
+// surfaced as SUGGESTED for the user to CONFIRM or DISMISS. Re-run detection never resurrects a
+// DISMISSED series or overwrites a CONFIRMED one.
+export const recurringSeriesStatusEnum = pgEnum("recurring_series_status", ["SUGGESTED", "CONFIRMED", "DISMISSED"]);
+
+export const recurringSeries = pgTable("recurring_series", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  merchantId: uuid("merchant_id").references(() => merchants.id, { onDelete: "set null" }),
+  // Stable grouping key: "m:<merchantId>" or "d:<normalized description>" when there's no merchant.
+  groupKey: text("group_key").notNull(),
+  label: text("label").notNull(),
+  frequency: recurringTransactionFrequencyEnum("frequency").notNull(),
+  typicalAmount: numeric("typical_amount", { precision: 20, scale: 6 }).notNull(),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  occurrenceCount: integer("occurrence_count").notNull(),
+  confidence: numeric("confidence", { precision: 4, scale: 3 }).notNull(),
+  lastSeenOn: date("last_seen_on").notNull(),
+  nextExpectedOn: date("next_expected_on").notNull(),
+  status: recurringSeriesStatusEnum("status").notNull().default("SUGGESTED"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("recurring_series_user_group_currency_unique").on(table.userId, table.groupKey, table.currencyCode),
+  index("recurring_series_user_status_idx").on(table.userId, table.status),
+  check("recurring_series_confidence_range_check", sql`${table.confidence} >= 0 and ${table.confidence} <= 1`),
+  check("recurring_series_typical_amount_positive_check", sql`${table.typicalAmount} > 0`),
+]);
+
 export const budgets = pgTable("budgets", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),

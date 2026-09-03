@@ -38,6 +38,28 @@ export function createTransactionRepository(database: Database) {
         .then(([row]) => row?.count ?? 0);
     },
 
+    /** Posted expenses since `since`, minimal shape, for recurring-series detection (#16 / §15). */
+    listExpensesSinceForUser(userId: string, since: Date) {
+      return database
+        .select({
+          merchantId: transactions.merchantId,
+          merchant: transactions.merchant,
+          description: transactions.description,
+          amount: transactions.amount,
+          currencyCode: transactions.currencyCode,
+          occurredAt: transactions.occurredAt,
+          categoryId: transactions.categoryId,
+        })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, "EXPENSE"),
+          eq(transactions.status, "POSTED"),
+          gte(transactions.occurredAt, since),
+        ))
+        .orderBy(transactions.occurredAt);
+    },
+
     findByIdForUser(transactionId: string, userId: string) {
       return database.select().from(transactions)
         .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId)))

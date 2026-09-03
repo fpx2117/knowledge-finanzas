@@ -22,6 +22,7 @@ export { createDebtRepository } from "./debts";
 export { createDebtInstallmentRepository } from "./debt-installments";
 export { createScheduledTransactionRepository } from "./scheduled-transactions";
 export { createRecurringTransactionRepository } from "./recurring-transactions";
+export { createRecurringSeriesRepository, type RecurringSeriesStatus } from "./recurring-series";
 export { createBudgetRepository } from "./budgets";
 export { createBudgetAlertRepository } from "./budget-alerts";
 export { createGoalRepository, type GoalCategory } from "./goals";

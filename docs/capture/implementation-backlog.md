@@ -160,6 +160,30 @@ Spec §82: explicit user rules that always win over inferred categorization.
 "→ subscription"). No priority reordering UI, no edit (delete + recreate). `/settings/rules`
 not linked from a settings index (there isn't one).
 
+### #16 — Recurring-expense detection  ✅ DONE (core)
+Spec §15: learn "same merchant + similar amount + regular cadence" and propose it.
+
+- **Table `recurring_series`** — migration `0035_jittery_nova.sql`
+  (`recurringSeriesRepository`). One row per `(user, groupKey, currency)`; status
+  `SUGGESTED | CONFIRMED | DISMISSED`. Reuses `recurring_transaction_frequency` enum.
+  Distinct from `recurring_transactions` (user-authored schedules).
+- `features/transactions/lib/detect-recurring.ts` — pure `detectRecurringSeries`: groups by
+  merchant (or normalized description), needs ≥3 occurrences, amount spread ≤ 60%, interval
+  CV ≤ 0.35, median interval maps to WEEKLY/BIWEEKLY/MONTHLY/QUARTERLY/YEARLY, ≥60% of
+  intervals within 35% of cadence, skips lapsed series (>2.5 cadences since last), confidence
+  from occurrence count + regularity + amount stability.
+- `recurring-detection-service.ts` (pure DI) + `.instance`: `refreshForUser` (scans last 400
+  days, upserts SUGGESTED, never resurrects DISMISSED / overwrites CONFIRMED, prunes stale),
+  `listSuggestions`, `confirmSuggestion`, `dismissSuggestion`. New
+  `transactionRepository.listExpensesSinceForUser`. New error `RECURRING_SERIES_NOT_FOUND`.
+- UI: `/recurrentes` — "Buscar recurrentes" scan button + suggestion list with
+  "Es recurrente" / dismiss.
+- Tests: `detect-recurring.test.ts` (8), `recurring-detection-service.test.ts` (5).
+
+**Follow-ups:** CONFIRMED series don't yet create a real `recurring_transactions` schedule or
+feed the calendar/obligations; no auto-scan (user clicks the button); income recurrence
+(salary) not detected — expenses only. Feeds naturally into §16 Subscriptions.
+
 ### Later (from the P1–P5 roadmap, not yet started)
 
 - **P1** — CSV / XLSX import with auto-detected column mapping + import preview (§10, §56–58)
@@ -181,7 +205,7 @@ not linked from a settings index (there isn't one).
 - **P5** — Confidence-based progressive automation ("first YPF: confirm; tenth: silent") (§44)
 - **P5** — User-defined financial rules that override AI (§82)
 - **P5** — Bulk editing after imports (§83)
-- **P5** — AI parse fallback capability (`capture.parse` in `packages/ai`, metered) for the low-confidence NL tail
+- ~~**P5** — AI parse fallback (`capture.parse`)~~ **ALREADY BUILT** (verified 2026-09-03): `packages/ai/src/capabilities/capture-parse/` + `capture-parser-service.ts`, deterministic→AI below 0.8 confidence, credit-metered, injection-hardened, wired into `quick-actions.ts` with the real OpenRouter/credit/entitlement/rate-limit stack. Tests 8+11. The `frontend-quick-add` "designed not built" note was stale.
 - **Cross-cutting** — Explainable automation ("Why was this classified as Fuel?") (§41)
 - **Cross-cutting** — Voice capture on mobile (§30)
 - **Cross-cutting** — Universal financial search + command palette (§66, §67)

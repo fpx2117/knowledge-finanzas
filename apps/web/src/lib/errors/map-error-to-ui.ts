@@ -23,6 +23,7 @@ const messages: Record<ApplicationErrorCode, string> = {
   TRANSACTION_NOT_FOUND: "No encontramos este movimiento.",
   TRANSACTION_ALREADY_VOIDED: "Este movimiento ya fue anulado.",
   RULE_NOT_FOUND: "No encontramos esta regla.",
+  RECURRING_SERIES_NOT_FOUND: "No encontramos este gasto recurrente.",
   CURRENCY_MISMATCH: "Las monedas seleccionadas no coinciden.",
   INVALID_AMOUNT: "Ingresá un monto mayor a cero.",
   INTERNAL_ERROR: "No pudimos completar la operación. Intentá nuevamente.",
