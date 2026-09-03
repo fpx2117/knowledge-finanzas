@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangleIcon, ArrowRightIcon, CopyIcon, RepeatIcon } from "lucide-react";
+import { AlertTriangleIcon, ArrowRightIcon, CopyIcon, CreditCardIcon, RepeatIcon, UploadIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
@@ -15,9 +15,11 @@ export default async function InboxPage() {
   const user = await requireCurrentUser();
   const summary = await inboxService.getSummary(user.id);
 
-  const links: Array<{ icon: React.ReactNode; label: string; count: number; href: string }> = [
-    { icon: <RepeatIcon className="size-4" />, label: "Gastos recurrentes para confirmar", count: summary.recurringSuggestions, href: "/recurrentes" },
+  const links: Array<{ icon: React.ReactNode; label: string; count: number | null; href: string }> = [
+    { icon: <RepeatIcon className="size-4" />, label: "Gastos recurrentes", count: summary.recurringSuggestions, href: "/recurrentes" },
+    { icon: <CreditCardIcon className="size-4" />, label: "Suscripciones", count: summary.activeSubscriptions, href: "/suscripciones" },
     { icon: <CopyIcon className="size-4" />, label: "Posibles duplicados", count: summary.duplicatePairs, href: "/duplicados" },
+    { icon: <UploadIcon className="size-4" />, label: "Importar movimientos", count: null, href: "/importar" },
   ];
 
   return (
@@ -58,7 +60,7 @@ export default async function InboxPage() {
         )}
       </SectionCard>
 
-      <SectionCard title="Otras revisiones">
+      <SectionCard title="Herramientas">
         <ul className="flex flex-col divide-y divide-border">
           {links.map((link) => (
             <li key={link.href}>
@@ -67,7 +69,9 @@ export default async function InboxPage() {
                   {link.icon} {link.label}
                 </span>
                 <span className="flex items-center gap-2 text-caption text-muted-foreground">
-                  {link.count > 0 ? <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{link.count}</span> : "—"}
+                  {link.count && link.count > 0 ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">{link.count}</span>
+                  ) : null}
                   <ArrowRightIcon className="size-3.5" />
                 </span>
               </Link>
