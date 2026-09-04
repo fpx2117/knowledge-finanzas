@@ -120,6 +120,7 @@ export async function cleanTestDatabase(database: TestDatabase) {
       "categories",
       "accounts",
       "users"
+    cascade
   `;
 }
 

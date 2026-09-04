@@ -1,5 +1,6 @@
 export * from "./schema";
 export * from "./client";
+export { isUniqueViolation } from "./pg-errors";
 export * from "./taxonomy/category-taxonomy";
 export * from "./merchants/normalize";
 export { MERCHANT_SEED, type MerchantSeed } from "./merchants/merchant-seed";

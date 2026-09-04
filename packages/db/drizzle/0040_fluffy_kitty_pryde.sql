@@ -1,0 +1,2 @@
+ALTER TABLE "transfers" ADD COLUMN "command_id" uuid;--> statement-breakpoint
+CREATE UNIQUE INDEX "transfers_user_command_unique" ON "transfers" USING btree ("user_id","command_id") WHERE "transfers"."command_id" is not null;

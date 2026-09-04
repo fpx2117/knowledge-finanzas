@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { buildImportPreview, type ImportPreview, type ImportResult } from "../services/import-service";
 import { importService } from "../services/import-service.instance";
 
@@ -28,10 +27,7 @@ export async function commitImportAction(_previous: CommitImportState | null, fo
       filename: typeof filename === "string" ? filename : null,
       timezone: user.timezone,
     });
-    revalidatePath("/transactions");
-    revalidatePath("/accounts");
-    revalidatePath("/dashboard");
-    revalidatePath("/transactions/importaciones");
+    emitFinancialEvent({ type: "import.completed" });
     return { ok: true, result };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };

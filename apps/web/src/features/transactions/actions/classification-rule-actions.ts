@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { classificationRuleService } from "../services/classification-rule-service.instance";
 import { createClassificationRuleSchema } from "../schemas/classification-rule-schemas";
 
@@ -22,7 +21,7 @@ export async function createClassificationRuleAction(
       categoryId: formData.get("categoryId"),
     });
     await classificationRuleService.createRule(user.id, input);
-    revalidatePath("/settings/rules");
+    emitFinancialEvent({ type: "personal_rule.changed" });
     return { ok: true };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
@@ -33,7 +32,7 @@ export async function deleteClassificationRuleAction(ruleId: string): Promise<{ 
   try {
     const user = await requireCurrentUser();
     await classificationRuleService.deleteRule(user.id, ruleId);
-    revalidatePath("/settings/rules");
+    emitFinancialEvent({ type: "personal_rule.changed" });
     return { ok: true };
   } catch {
     return { ok: false };

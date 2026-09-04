@@ -9,6 +9,8 @@ const base = {
   categoryId: idSchema.optional(),
   occurredAt: z.string().datetime({ offset: true }),
   notes: z.string().trim().max(2000).optional(),
+  /** Idempotency key for a retried submit (spec 14 §38). */
+  commandId: idSchema.optional(),
 };
 
 export const createIncomeTransactionSchema = z.object(base).strict();

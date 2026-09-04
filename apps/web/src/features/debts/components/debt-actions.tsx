@@ -36,6 +36,9 @@ export function DebtActions({
 }) {
   const router = useRouter();
   const [payOpen, setPayOpen] = useState(false);
+  // Idempotency key (spec 14 §38): refreshed each time the dialog opens, so a timed-out
+  // submit that the user retries never applies the same payment twice.
+  const [commandId, setCommandId] = useState(() => crypto.randomUUID());
   const [payState, payAction, payPending] = useActionState(recordPaymentAction, initial);
   const [, cancelAction, cancelPending] = useActionState(cancelDebtAction, initial);
 
@@ -48,7 +51,13 @@ export function DebtActions({
 
   return (
     <div className="flex gap-2">
-      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+      <Dialog
+        open={payOpen}
+        onOpenChange={(next) => {
+          if (next) setCommandId(crypto.randomUUID());
+          setPayOpen(next);
+        }}
+      >
         <DialogTrigger
           render={
             <Button>
@@ -66,6 +75,7 @@ export function DebtActions({
           </DialogHeader>
           <form action={payAction} className="flex flex-col gap-4">
             <input type="hidden" name="debtId" value={debtId} />
+            <input type="hidden" name="commandId" value={commandId} />
             {payState?.ok === false ? (
               <p role="alert" className="rounded-md bg-negative-soft px-3 py-2 text-small text-[var(--negative)]">
                 {payState.error.message}

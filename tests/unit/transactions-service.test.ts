@@ -37,6 +37,48 @@ describe("transaction service", () => {
   });
 });
 
+// §38 — idempotency of the create command.
+describe("transaction service — idempotency (§38)", () => {
+  const commandId = "aaaaaaaa-0000-0000-0000-000000000001";
+
+  it("returns the already-written row and does not create again when the command key replays", async () => {
+    const created: Record<string, unknown>[] = [];
+    const service = createTransactionService({
+      accounts: { findByIdForUser: async () => account },
+      categories: { findByIdForUser: async () => category },
+      transactions: {
+        create: async (value) => { created.push(value); return value; },
+        findByCommandId: async () => ({ id: "existing-tx", type: "EXPENSE" }),
+      },
+      now: () => new Date("2026-02-02T12:00:00Z"),
+    });
+    const result = await service.createExpenseTransaction("user-a", { ...input, commandId }, "UTC");
+    expect(result).toMatchObject({ id: "existing-tx" });
+    expect(created).toHaveLength(0);
+  });
+
+  it("passes the command key through on a first write", async () => {
+    const created: Record<string, unknown>[] = [];
+    const service = createTransactionService({
+      accounts: { findByIdForUser: async () => account },
+      categories: { findByIdForUser: async () => category },
+      transactions: {
+        create: async (value) => { created.push(value); return value; },
+        findByCommandId: async () => undefined,
+      },
+      now: () => new Date("2026-02-02T12:00:00Z"),
+    });
+    await service.createExpenseTransaction("user-a", { ...input, commandId }, "UTC");
+    expect(created[0]).toMatchObject({ commandId });
+  });
+
+  it("writes a null command key when none is supplied", async () => {
+    const { service, created } = setup();
+    await service.createIncomeTransaction("user-a", { ...input, categoryId: undefined }, "UTC");
+    expect(created[0]).toMatchObject({ commandId: null });
+  });
+});
+
 // #12 — corrections as a learning signal.
 const merchantGlobalNode = "node-global";
 const userNode = "node-user";

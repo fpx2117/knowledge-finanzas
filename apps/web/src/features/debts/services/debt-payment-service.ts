@@ -9,6 +9,7 @@ import {
   debtInstallments,
   debtPaymentAllocations,
   debtPayments,
+  isUniqueViolation,
   transactions,
   type Database,
 } from "@know-finanzas/db";
@@ -16,6 +17,31 @@ import { allocatePayment, deriveDebtStatus, deriveInstallmentStatus, Money } fro
 import { ApplicationError } from "@know-finanzas/shared";
 
 import { allowAllProductAccessGate, type ProductAccessGate } from "@/lib/billing/product-access-gate";
+
+/** Current remaining/status for a debt, derived from its installments as they stand right now. */
+async function getDebtRemainingStatus(database: Database, debtId: string, currencyCode: string, timezone: string, at: Date) {
+  const installments = await database.select().from(debtInstallments).where(eq(debtInstallments.debtId, debtId));
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
+  const derived = await Promise.all(
+    installments.map(async (installment) => {
+      const [allocated] = await database
+        .select({ total: sql<string>`coalesce(sum(${debtPaymentAllocations.amount}), 0)` })
+        .from(debtPaymentAllocations)
+        .innerJoin(debtPayments, and(eq(debtPayments.id, debtPaymentAllocations.paymentId), eq(debtPayments.status, "POSTED")))
+        .where(eq(debtPaymentAllocations.installmentId, installment.id));
+      const status = deriveInstallmentStatus({
+        totalAmount: Money.fromString(installment.totalAmount, currencyCode),
+        allocatedAmount: Money.fromString(allocated?.total ?? "0", currencyCode),
+        dueDate: installment.dueDate,
+        cancelled: installment.status === "CANCELLED",
+        today,
+      });
+      return { status: status.status, remainingAmount: status.remainingAmount };
+    }),
+  );
+  const debtStatus = deriveDebtStatus({ cancelled: false, currency: currencyCode, installments: derived });
+  return { debtRemaining: debtStatus.remainingAmount.toString(), debtStatus: debtStatus.status };
+}
 
 export function createDebtPaymentService(
   database: Database = db,
@@ -25,10 +51,25 @@ export function createDebtPaymentService(
   return {
     async recordDebtPayment(
       user: { id: string; timezone: string },
-      input: { debtId: string; accountId: string; amount: string; paidAt?: string; notes?: string },
+      input: { debtId: string; accountId: string; amount: string; paidAt?: string; notes?: string; commandId?: string },
     ) {
       await gate.assertCanWrite(user.id);
-      return database.transaction(async (tx) => {
+
+      // Idempotency (spec 14 §38): a retried submit carries the same commandId. Resolve it
+      // before touching the ledger — the debt's currency isn't known yet, so read it first.
+      if (input.commandId) {
+        const [existingPayment] = await database
+          .select({ debtId: debtPayments.debtId, currencyCode: debtPayments.currencyCode })
+          .from(debtPayments)
+          .where(and(eq(debtPayments.userId, user.id), eq(debtPayments.commandId, input.commandId)))
+          .limit(1);
+        if (existingPayment) {
+          return getDebtRemainingStatus(database, existingPayment.debtId, existingPayment.currencyCode, user.timezone, now());
+        }
+      }
+
+      try {
+        return await database.transaction(async (tx) => {
         const [account] = await tx
           .select()
           .from(accounts)
@@ -119,6 +160,7 @@ export function createDebtPaymentService(
           transactionId: paymentTransaction.id,
           status: "POSTED",
           notes: input.notes?.trim() || null,
+          commandId: input.commandId ?? null,
         });
         await tx.insert(debtPaymentAllocations).values(
           allocationPreview.allocations.map((item) => ({
@@ -162,7 +204,22 @@ export function createDebtPaymentService(
         await tx.update(debts).set({ status: debtStatus.status, updatedAt: now() }).where(eq(debts.id, debt.id));
 
         return { debtRemaining: debtStatus.remainingAmount.toString(), debtStatus: debtStatus.status };
-      });
+        });
+      } catch (error) {
+        // A concurrent request with the same idempotency key committed first — return its
+        // resulting debt status instead of surfacing the conflict.
+        if (input.commandId && isUniqueViolation(error, "debt_payments_user_command_unique")) {
+          const [existingPayment] = await database
+            .select({ debtId: debtPayments.debtId, currencyCode: debtPayments.currencyCode })
+            .from(debtPayments)
+            .where(and(eq(debtPayments.userId, user.id), eq(debtPayments.commandId, input.commandId)))
+            .limit(1);
+          if (existingPayment) {
+            return getDebtRemainingStatus(database, existingPayment.debtId, existingPayment.currencyCode, user.timezone, now());
+          }
+        }
+        throw error;
+      }
     },
   };
 }

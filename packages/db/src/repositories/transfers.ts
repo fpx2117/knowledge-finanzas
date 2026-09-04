@@ -3,7 +3,25 @@ import type { Database } from "../client";
 import { accounts, transactions, transfers } from "../schema";
 
 export function createTransferRepository(database: Database) {
+  /** The transfer aggregate for this user's idempotency key, or undefined. */
+  async function findByCommandId(userId: string, commandId: string) {
+    const [transfer] = await database
+      .select()
+      .from(transfers)
+      .where(and(eq(transfers.userId, userId), eq(transfers.commandId, commandId)))
+      .limit(1);
+    if (!transfer) return undefined;
+    const legs = await database
+      .select()
+      .from(transactions)
+      .where(and(eq(transactions.transferId, transfer.id), eq(transactions.userId, userId)))
+      .orderBy(asc(transactions.type));
+    return { transfer, legs };
+  }
+
   return {
+    findByCommandId,
+
     async findAccountsForUserForUpdate(userId: string, fromAccountId: string, toAccountId: string) {
       const rows = await database.select({ id: accounts.id, userId: accounts.userId, currencyCode: accounts.currencyCode, status: accounts.status, openingDate: accounts.openingDate })
         .from(accounts)
@@ -13,7 +31,7 @@ export function createTransferRepository(database: Database) {
       return { fromAccount: rows.find((row) => row.id === fromAccountId), toAccount: rows.find((row) => row.id === toAccountId) };
     },
 
-    createShell(input: { id: string; userId: string; fromAccountId: string; toAccountId: string; amount: string; currencyCode: string; occurredAt: Date; notes: string | null }) {
+    createShell(input: { id: string; userId: string; fromAccountId: string; toAccountId: string; amount: string; currencyCode: string; occurredAt: Date; notes: string | null; commandId?: string | null }) {
       return database.insert(transfers).values(input).returning().then(([transfer]) => transfer);
     },
 

@@ -1,12 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import { budgetRepository, categoryRepository, createBudgetQueries, db } from "@know-finanzas/db";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createBudgetService } from "../services/budget-service";
 import { archiveBudgetSchema, createBudgetSchema, updateBudgetSchema } from "../schemas/budget-schemas";
 
@@ -31,8 +31,7 @@ export async function createBudgetAction(
       limitAmount: formData.get("limitAmount"),
     });
     await service.createBudget(user, input);
-    revalidatePath("/budgets");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "budget.updated" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -51,9 +50,7 @@ export async function updateBudgetAction(
       limitAmount: formData.get("limitAmount"),
     });
     await service.updateBudget(user, input);
-    revalidatePath("/budgets");
-    revalidatePath(`/budgets/${input.budgetId}`);
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "budget.updated", entityPaths: [`/budgets/${input.budgetId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -68,8 +65,7 @@ export async function archiveBudgetAction(
     const user = await requireCurrentUser();
     const { budgetId } = archiveBudgetSchema.parse({ budgetId: formData.get("budgetId") });
     await service.archiveBudget(user, budgetId);
-    revalidatePath("/budgets");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "budget.updated" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

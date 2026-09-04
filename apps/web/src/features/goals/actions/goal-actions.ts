@@ -1,10 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createGoalService } from "../services/goal-service";
 import {
   archiveGoalSchema,
@@ -38,8 +38,7 @@ export async function createGoalAction(
       notes: optional(formData.get("notes")),
     });
     await service.createGoal(user, input);
-    revalidatePath("/goals");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "goal.updated" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -57,8 +56,7 @@ export async function contributeGoalAction(
       amount: formData.get("amount"),
     });
     await service.contribute(user, input.goalId, input.amount);
-    revalidatePath("/goals");
-    revalidatePath(`/goals/${input.goalId}`);
+    emitFinancialEvent({ type: "goal.updated", entityPaths: [`/goals/${input.goalId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -80,8 +78,7 @@ export async function updateGoalAction(
       notes: optional(formData.get("notes")),
     });
     await service.updateGoal(user, input);
-    revalidatePath("/goals");
-    revalidatePath(`/goals/${input.goalId}`);
+    emitFinancialEvent({ type: "goal.updated", entityPaths: [`/goals/${input.goalId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -96,8 +93,7 @@ export async function archiveGoalAction(
     const user = await requireCurrentUser();
     const { goalId } = archiveGoalSchema.parse({ goalId: formData.get("goalId") });
     await service.archiveGoal(user, goalId);
-    revalidatePath("/goals");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "goal.updated" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

@@ -1,10 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransferService } from "../services/transfer-service";
 import { createTransferSchema, voidTransferSchema } from "../schemas/transfer-schemas";
 
@@ -24,12 +24,10 @@ export async function createTransferAction(
       amount: formData.get("amount"),
       occurredAt: `${String(formData.get("occurredAt"))}T12:00:00Z`,
       notes: formData.get("notes") || undefined,
+      commandId: formData.get("commandId") || undefined,
     });
     await service.createTransfer(user, input);
-    revalidatePath("/transactions");
-    revalidatePath("/accounts");
-    revalidatePath("/dashboard");
-    revalidatePath("/calendar");
+    emitFinancialEvent({ type: "transfer.created" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -45,10 +43,7 @@ export async function voidTransferAction(
     const user = await requireCurrentUser();
     ({ transferId } = voidTransferSchema.parse({ transferId: formData.get("transferId") }));
     await service.voidTransfer(user.id, transferId);
-    revalidatePath("/transactions");
-    revalidatePath(`/transfers/${transferId}`);
-    revalidatePath("/accounts");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "transfer.voided", entityPaths: [`/transfers/${transferId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

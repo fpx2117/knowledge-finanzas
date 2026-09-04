@@ -61,4 +61,32 @@ describe("Money", () => {
       expect(total.toString()).toBe("1234.56");
     }
   });
+
+  // WP-MONEY-SCALE: rounding happens once, at the final `toString()`, never per intermediate
+  // `add`/`subtract` step — so a chain of sub-cent amounts (each individually below the
+  // rounding threshold) still accumulates correctly instead of vanishing to zero.
+  describe("settle-once semantics (WP-MONEY-SCALE)", () => {
+    it("keeps the exact value on `.amount` before it's ever rounded", () => {
+      const money = Money.fromString("0.004", "USD");
+      expect(money.amount.toString()).toBe("0.004");
+      expect(money.toString()).toBe("0.00");
+    });
+
+    it("three sub-cent amounts accumulate to a real cent instead of rounding away to zero at each step", () => {
+      const subCent = Money.fromString("0.004", "USD");
+      const sum = Money.zero("USD").add(subCent).add(subCent).add(subCent);
+
+      // 0.004 + 0.004 + 0.004 = 0.012 → rounds once, at the end, to 0.01.
+      // Under the old per-operation rounding, each 0.004 individually rounded to 0.00 first,
+      // and 0.00 + 0.00 + 0.00 stayed 0.00 — three real charges would have disappeared.
+      expect(sum.toString()).toBe("0.01");
+    });
+
+    it("subtracting back out an unsettled remainder returns to exactly zero, not a rounding artifact", () => {
+      const a = Money.fromString("10.003", "ARS");
+      const b = Money.fromString("10.003", "ARS");
+      expect(a.subtract(b).toString()).toBe("0.00");
+      expect(a.subtract(b).amount.isZero()).toBe(true);
+    });
+  });
 });

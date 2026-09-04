@@ -19,6 +19,7 @@ import { getTodayInTimezone } from "@/lib/date";
 import { aiProvider, executeAICapability } from "@/lib/ai/execute-ai-capability.instance";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransactionService } from "@/features/transactions/services/transaction-service";
 import {
   createExpenseTransactionSchema,
@@ -240,11 +241,7 @@ export async function quickCreateTransactionAction(
       await quickTemplateRepository.recordUse(templateId, user.id, row.amount).catch(() => undefined);
     }
 
-    revalidatePath("/transactions");
-    revalidatePath("/accounts");
-    revalidatePath("/budgets");
-    revalidatePath("/dashboard");
-    revalidatePath("/calendar");
+    emitFinancialEvent({ type: "transaction.created" });
     return { ok: true, transactionId: row.id, type, amount: row.amount, currencyCode: row.currencyCode };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
@@ -255,10 +252,7 @@ export async function quickVoidTransactionAction(transactionId: string): Promise
   try {
     const user = await requireCurrentUser();
     await service.voidTransaction(user.id, transactionId);
-    revalidatePath("/transactions");
-    revalidatePath("/accounts");
-    revalidatePath("/dashboard");
-    revalidatePath("/calendar");
+    emitFinancialEvent({ type: "transaction.voided" });
     return { ok: true };
   } catch {
     return { ok: false };

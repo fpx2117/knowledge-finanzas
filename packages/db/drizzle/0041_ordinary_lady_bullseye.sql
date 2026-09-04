@@ -1,0 +1,2 @@
+ALTER TABLE "debt_payments" ADD COLUMN "command_id" uuid;--> statement-breakpoint
+CREATE UNIQUE INDEX "debt_payments_user_command_unique" ON "debt_payments" USING btree ("user_id","command_id") WHERE "debt_payments"."command_id" is not null;

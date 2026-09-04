@@ -1,12 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import { accountRepository } from "@know-finanzas/db";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createAccountService } from "../services/account-service";
 import { createAccountSchema } from "../schemas/account-schemas";
 import { createCategoryProvisioningService } from "@/features/categories/services/category-provisioning-service";
@@ -38,8 +38,7 @@ export async function createAccountAction(
     if (provisioned.skipped) {
       await categoryProvisioning.backfillCategoryMap(user.id).catch(() => undefined);
     }
-    revalidatePath("/accounts");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "account.created" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

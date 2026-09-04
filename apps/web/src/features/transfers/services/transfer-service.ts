@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 
-import { createTransferRepository, db, type Database } from "@know-finanzas/db";
+import { createTransferRepository, db, isUniqueViolation, type Database } from "@know-finanzas/db";
 import { todayInTimezone, validateTransfer } from "@know-finanzas/finance";
 import { ApplicationError } from "@know-finanzas/shared";
 
 import { allowAllProductAccessGate, type ProductAccessGate } from "@/lib/billing/product-access-gate";
 
 type User = { id: string; timezone: string };
-type TransferInput = { fromAccountId: string; toAccountId: string; amount: string; occurredAt: string; notes?: string };
+type TransferInput = { fromAccountId: string; toAccountId: string; amount: string; occurredAt: string; notes?: string; commandId?: string };
 
 function mapTransferError(error: { code: string; field?: string }) {
   return new ApplicationError(
@@ -27,70 +27,89 @@ export function createTransferService(database: Database = db, gate: ProductAcce
   return {
     async createTransfer(user: User, input: TransferInput) {
       await gate.assertCanWrite(user.id);
+
+      // Idempotency (spec 14 §38): a retried submit carries the same commandId; return the
+      // already-created transfer instead of moving the money a second time.
+      if (input.commandId) {
+        const existing = await createTransferRepository(database).findByCommandId(user.id, input.commandId);
+        if (existing) return existing;
+      }
+
       const occurredAt = new Date(input.occurredAt);
       const current = now();
 
-      return database.transaction(async (tx) => {
-        const repositories = createTransferRepository(tx as unknown as Database);
-        const accounts = await repositories.findAccountsForUserForUpdate(user.id, input.fromAccountId, input.toAccountId);
-        const validation = validateTransfer({
-          userId: user.id,
-          fromAccount: accounts.fromAccount,
-          toAccount: accounts.toAccount,
-          amount: input.amount,
-          currencyCode: accounts.fromAccount?.currencyCode ?? "ARS",
-          occurredAt,
-          occurredLocalDate: Number.isNaN(occurredAt.getTime()) ? "" : todayInTimezone(occurredAt, user.timezone),
-          now: current,
-        });
-        if (!validation.ok) throw mapTransferError(validation.errors[0]);
+      try {
+        return await database.transaction(async (tx) => {
+          const repositories = createTransferRepository(tx as unknown as Database);
+          const accounts = await repositories.findAccountsForUserForUpdate(user.id, input.fromAccountId, input.toAccountId);
+          const validation = validateTransfer({
+            userId: user.id,
+            fromAccount: accounts.fromAccount,
+            toAccount: accounts.toAccount,
+            amount: input.amount,
+            currencyCode: accounts.fromAccount?.currencyCode ?? "ARS",
+            occurredAt,
+            occurredLocalDate: Number.isNaN(occurredAt.getTime()) ? "" : todayInTimezone(occurredAt, user.timezone),
+            now: current,
+          });
+          if (!validation.ok) throw mapTransferError(validation.errors[0]);
 
-        const transferId = randomUUID();
-        const amount = validation.amount.toString();
-        const currencyCode = validation.amount.currency;
-        const notes = input.notes?.trim() || null;
+          const transferId = randomUUID();
+          const amount = validation.amount.toString();
+          const currencyCode = validation.amount.currency;
+          const notes = input.notes?.trim() || null;
 
-        const transfer = await repositories.createShell({
-          id: transferId,
-          userId: user.id,
-          fromAccountId: validation.legs[0].accountId,
-          toAccountId: validation.legs[1].accountId,
-          amount,
-          currencyCode,
-          occurredAt,
-          notes,
-        });
+          const transfer = await repositories.createShell({
+            id: transferId,
+            userId: user.id,
+            fromAccountId: validation.legs[0].accountId,
+            toAccountId: validation.legs[1].accountId,
+            amount,
+            currencyCode,
+            occurredAt,
+            notes,
+            commandId: input.commandId ?? null,
+          });
 
-        const legBase = {
-          userId: user.id,
-          status: "POSTED" as const,
-          amount,
-          currencyCode,
-          description: "Transferencia",
-          merchant: null,
-          merchantId: null,
-          categoryId: null,
-          taxonomyNodeId: null,
-          paymentMethod: "TRANSFER" as const,
-          classification: null,
-          transferId,
-          originalTransactionId: null,
-          relatedTransactionId: null,
-          reason: null,
-          occurredAt,
-          postedAt: current,
-          source: "TRANSFER" as const,
-          notes,
-        };
-        const [outgoing, incoming] = await repositories.createLegPair({
-          outgoing: { id: randomUUID(), accountId: validation.legs[0].accountId, type: "TRANSFER_OUT", ...legBase },
-          incoming: { id: randomUUID(), accountId: validation.legs[1].accountId, type: "TRANSFER_IN", ...legBase },
+          const legBase = {
+            userId: user.id,
+            status: "POSTED" as const,
+            amount,
+            currencyCode,
+            description: "Transferencia",
+            merchant: null,
+            merchantId: null,
+            categoryId: null,
+            taxonomyNodeId: null,
+            paymentMethod: "TRANSFER" as const,
+            classification: null,
+            transferId,
+            originalTransactionId: null,
+            relatedTransactionId: null,
+            reason: null,
+            occurredAt,
+            postedAt: current,
+            source: "TRANSFER" as const,
+            notes,
+          };
+          const [outgoing, incoming] = await repositories.createLegPair({
+            outgoing: { id: randomUUID(), accountId: validation.legs[0].accountId, type: "TRANSFER_OUT", ...legBase },
+            incoming: { id: randomUUID(), accountId: validation.legs[1].accountId, type: "TRANSFER_IN", ...legBase },
+          });
+          if (outgoing.transferId !== transferId || incoming.transferId !== transferId) {
+            throw new ApplicationError("TRANSFER_PERSISTENCE_FAILED");
+          }
+          return { transfer, legs: [outgoing, incoming] as const };
         });
-        if (outgoing.transferId !== transferId || incoming.transferId !== transferId) {
-          throw new ApplicationError("TRANSFER_PERSISTENCE_FAILED");
+      } catch (error) {
+        // A concurrent request with the same idempotency key committed first — return its
+        // result instead of surfacing the conflict (mirrors the transactions repository).
+        if (input.commandId && isUniqueViolation(error, "transfers_user_command_unique")) {
+          const existing = await createTransferRepository(database).findByCommandId(user.id, input.commandId);
+          if (existing) return existing;
         }
-        return { transfer, legs: [outgoing, incoming] as const };
-      });
+        throw error;
+      }
     },
 
     async getTransfer(userId: string, transferId: string) {

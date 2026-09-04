@@ -1,13 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import { generateInstallments, InstallmentEngineError, Money, parseLocalDate } from "@know-finanzas/finance";
 import { ApplicationError } from "@know-finanzas/shared";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createDebtService } from "../services/debt-service";
 import { createDebtPaymentService } from "../services/debt-payment-service";
 import { cancelDebtSchema, createDebtSchema, recordPaymentSchema } from "../schemas/debt-schemas";
@@ -85,8 +85,7 @@ export async function createDebtAction(
       })),
     });
 
-    revalidatePath("/debts");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "obligation.created" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -106,13 +105,11 @@ export async function recordPaymentAction(
       amount: formData.get("amount"),
       paidAt: formData.get("paidAt") || undefined,
       notes: formData.get("notes") || undefined,
+      commandId: formData.get("commandId") || undefined,
     });
     debtId = input.debtId;
     await paymentService.recordDebtPayment(user, input);
-    revalidatePath("/debts");
-    revalidatePath(`/debts/${debtId}`);
-    revalidatePath("/accounts");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "obligation.payment_linked", entityPaths: [`/debts/${debtId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -127,8 +124,7 @@ export async function cancelDebtAction(
     const user = await requireCurrentUser();
     const { debtId } = cancelDebtSchema.parse({ debtId: formData.get("debtId") });
     await debtService.cancelDebt(user.id, debtId);
-    revalidatePath("/debts");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "obligation.updated" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

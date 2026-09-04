@@ -27,6 +27,9 @@ export function TransactionForm({
   defaultType?: "INCOME" | "EXPENSE";
 }) {
   const [type, setType] = useState<"INCOME" | "EXPENSE">(defaultType);
+  // One idempotency key per form instance (spec 14 §38): a timed-out submit that the user
+  // retries carries the same value, so the movement is written at most once.
+  const [commandId] = useState(() => crypto.randomUUID());
   const [state, action, pending] = useActionState(createTransactionAction, initialState);
   const fieldErrors = state?.ok === false ? state.error.fieldErrors ?? {} : {};
 
@@ -35,6 +38,7 @@ export function TransactionForm({
   return (
     <form action={action} className="flex flex-col gap-5">
       <input type="hidden" name="type" value={type} />
+      <input type="hidden" name="commandId" value={commandId} />
 
       <div role="tablist" aria-label="Tipo de movimiento" className="grid grid-cols-2 gap-1 rounded-lg bg-secondary p-1">
         {(["EXPENSE", "INCOME"] as const).map((option) => (

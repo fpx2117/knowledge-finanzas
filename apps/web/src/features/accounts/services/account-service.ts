@@ -28,6 +28,8 @@ type BalanceInput = {
   refundTotal?: string;
   adjustmentInTotal?: string;
   adjustmentOutTotal?: string;
+  transferInTotal?: string;
+  transferOutTotal?: string;
   liabilityPaymentTotal?: string;
 };
 
@@ -51,6 +53,8 @@ function toAccountView(account: AccountRecord, balance?: BalanceInput): AccountV
     refundTotal: balance?.refundTotal ?? "0",
     adjustmentInTotal: balance?.adjustmentInTotal ?? "0",
     adjustmentOutTotal: balance?.adjustmentOutTotal ?? "0",
+    transferInTotal: balance?.transferInTotal ?? "0",
+    transferOutTotal: balance?.transferOutTotal ?? "0",
     liabilityPaymentTotal: balance?.liabilityPaymentTotal ?? "0",
   });
   return { ...account, balance: money.toString() };

@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 import {
   accountRepository,
@@ -15,6 +14,7 @@ import {
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransactionService } from "../services/transaction-service";
 import { createExpenseTransactionSchema, createIncomeTransactionSchema } from "../schemas/transaction-schemas";
 
@@ -45,6 +45,7 @@ export async function createTransactionAction(
       merchant: formData.get("merchant") || undefined,
       occurredAt: `${String(formData.get("occurredAt"))}T12:00:00Z`,
       notes: formData.get("notes") || undefined,
+      commandId: formData.get("commandId") || undefined,
     };
 
     if (type === "INCOME") {
@@ -55,10 +56,7 @@ export async function createTransactionAction(
       await service.createExpenseTransaction(user.id, input, user.timezone);
     }
 
-    revalidatePath("/transactions");
-    revalidatePath("/accounts");
-    revalidatePath("/budgets");
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "transaction.created" });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

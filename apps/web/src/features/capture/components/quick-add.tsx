@@ -68,6 +68,10 @@ export function QuickAdd({
   const parsingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
+  // Idempotency key (spec 14 §38): one per movement intent — refreshed each time the dialog
+  // opens and after a successful capture. A "registrar igual" retry of a duplicate warning
+  // reuses it, so a timed-out first submit is never written twice.
+  const [commandId, setCommandId] = useState(() => crypto.randomUUID());
   const [state, action, pending] = useActionState(quickCreateTransactionAction, initial);
 
   // The category-trust hint only makes sense while a merchant is resolved.
@@ -90,6 +94,10 @@ export function QuickAdd({
     setInterpretation(null);
     setShowDetail(false);
   };
+
+  useEffect(() => {
+    if (open) setCommandId(crypto.randomUUID());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -339,6 +347,7 @@ export function QuickAdd({
 
               <form ref={formRef} action={action} className="flex flex-col gap-3.5">
                 <input type="hidden" name="type" value={type} />
+                <input type="hidden" name="commandId" value={commandId} />
                 {templateId ? <input type="hidden" name="templateId" value={templateId} /> : null}
                 {allowDuplicate ? <input type="hidden" name="allowDuplicate" value="1" /> : null}
 

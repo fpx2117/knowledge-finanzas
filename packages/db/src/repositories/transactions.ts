@@ -3,10 +3,23 @@ import Decimal from "decimal.js";
 
 import type { Database } from "../client";
 import { transactions } from "../schema";
+import { isUniqueViolation } from "../pg-errors";
 
 export function createTransactionRepository(database: Database) {
+  /** The row for this user's idempotency key, or undefined. */
+  function findByCommandId(userId: string, commandId: string) {
+    return database
+      .select()
+      .from(transactions)
+      .where(and(eq(transactions.userId, userId), eq(transactions.commandId, commandId)))
+      .limit(1)
+      .then(([transaction]) => transaction);
+  }
+
   return {
-    create(input: {
+    findByCommandId,
+
+    async create(input: {
       userId: string; accountId: string; categoryId: string | null;
       type: "INCOME" | "EXPENSE" | "REFUND" | "ADJUSTMENT_IN" | "ADJUSTMENT_OUT"; amount: string; currencyCode: string;
       description: string; merchant: string | null; merchantId?: string | null;
@@ -14,9 +27,18 @@ export function createTransactionRepository(database: Database) {
       paymentMethod?: "CASH" | "DEBIT" | "CREDIT" | "TRANSFER" | "WALLET" | "OTHER" | null;
       classification?: unknown;
       occurredAt: Date;
-      postedAt: Date; source: "MANUAL"; notes: string | null; originalTransactionId?: string | null; relatedTransactionId?: string | null; reason?: string | null;
+      postedAt: Date; source: "MANUAL"; notes: string | null; commandId?: string | null; originalTransactionId?: string | null; relatedTransactionId?: string | null; reason?: string | null;
     }) {
-      return database.insert(transactions).values({ ...input, status: "POSTED" }).returning().then(([transaction]) => transaction);
+      try {
+        return await database.insert(transactions).values({ ...input, status: "POSTED" }).returning().then(([transaction]) => transaction);
+      } catch (error) {
+        // A concurrent request with the same idempotency key already inserted this row —
+        // return the winner instead of surfacing the conflict.
+        if (input.commandId && isUniqueViolation(error, "transactions_user_command_unique")) {
+          return findByCommandId(input.userId, input.commandId);
+        }
+        throw error;
+      }
     },
 
     /**

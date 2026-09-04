@@ -13,12 +13,21 @@ function parseDecimal(value: string) {
 }
 
 export class Money {
+  /**
+   * Exact, unrounded value (decimal.js — arbitrary precision). Chained operations
+   * (`add`/`subtract`) never round intermediate results: rounding to the currency's minor
+   * unit happens exactly once, at the output boundary (`toString`), matching the DB column's
+   * `numeric(20,6)` scale so a chain of many additions never accumulates per-step rounding
+   * error, and any future domain that legitimately produces sub-cent amounts (prorated
+   * recurring estimates, statistical aggregates) can retain that precision through Money
+   * itself instead of losing it on the first operation.
+   */
   readonly amount: Decimal;
   readonly currency: CurrencyCode;
 
   private constructor(amount: Decimal, currency: CurrencyCode) {
     this.currency = currency;
-    this.amount = roundAmount(amount, currency);
+    this.amount = amount;
   }
 
   static fromString(value: string, currency: string) {
@@ -62,12 +71,17 @@ export class Money {
     return this.amount.isZero();
   }
 
+  /** The settled, final value: rounded to the currency's minor unit exactly once, here. */
   toString() {
-    return this.amount.toFixed(getCurrencyMetadata(this.currency).decimalPlaces);
+    return roundAmount(this.amount, this.currency).toFixed(getCurrencyMetadata(this.currency).decimalPlaces);
   }
 
   split(parts: number) {
-    return splitAmount(this.amount, this.currency, parts).map(
+    // A split produces N real payable amounts (e.g. debt installments), so it settles the
+    // source value to the currency's minor unit first — same as `toString()` — before dividing;
+    // an installment is a whole-cent amount someone actually pays, never a sub-cent estimate.
+    const settled = roundAmount(this.amount, this.currency);
+    return splitAmount(settled, this.currency, parts).map(
       (part) => new Money(part, this.currency),
     );
   }

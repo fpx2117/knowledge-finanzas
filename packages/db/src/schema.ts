@@ -314,11 +314,16 @@ export const transfers = pgTable("transfers", {
   currencyCode: varchar("currency_code", { length: 3 }).notNull(),
   occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
   notes: text("notes"),
+  // Idempotency key for the create command (spec 14 §38) — see the matching column on `transactions`.
+  commandId: uuid("command_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("transfers_user_occurred_idx").on(table.userId, table.occurredAt),
   index("transfers_from_account_occurred_idx").on(table.fromAccountId, table.occurredAt),
   index("transfers_to_account_occurred_idx").on(table.toAccountId, table.occurredAt),
+  uniqueIndex("transfers_user_command_unique")
+    .on(table.userId, table.commandId)
+    .where(sql`${table.commandId} is not null`),
   check("transfers_amount_positive_check", sql`${table.amount} > 0`),
   check("transfers_currency_code_length_check", sql`char_length(${table.currencyCode}) = 3`),
   check("transfers_different_accounts_check", sql`${table.fromAccountId} <> ${table.toAccountId}`),
@@ -391,6 +396,10 @@ export const transactions = pgTable("transactions", {
   classification: jsonb("classification"),
   transferId: uuid("transfer_id").references(() => transfers.id, { onDelete: "restrict" }),
   scheduledTransactionId: uuid("scheduled_transaction_id"),
+  // Idempotency key for the create command (spec 14 §38, Foundation §14). Client-generated,
+  // one per capture-form instance; a retried submit carries the same value so the write is
+  // applied at most once. NULL for rows created by paths that don't (yet) pass a key.
+  commandId: uuid("command_id"),
   originalTransactionId: uuid("original_transaction_id").references((): AnyPgColumn => transactions.id, { onDelete: "restrict" }),
   relatedTransactionId: uuid("related_transaction_id").references((): AnyPgColumn => transactions.id, { onDelete: "restrict" }),
   reason: text("reason"),
@@ -410,6 +419,9 @@ export const transactions = pgTable("transactions", {
   index("transactions_related_transaction_idx").on(table.relatedTransactionId),
   index("transactions_transfer_idx").on(table.transferId),
   uniqueIndex("transactions_scheduled_transaction_unique").on(table.scheduledTransactionId),
+  uniqueIndex("transactions_user_command_unique")
+    .on(table.userId, table.commandId)
+    .where(sql`${table.commandId} is not null`),
   uniqueIndex("transactions_transfer_out_unique").on(table.transferId).where(sql`${table.type} = 'TRANSFER_OUT'`),
   uniqueIndex("transactions_transfer_in_unique").on(table.transferId).where(sql`${table.type} = 'TRANSFER_IN'`),
   check("transactions_transfer_metadata_check", sql`(${table.type} in ('TRANSFER_IN', 'TRANSFER_OUT') and ${table.source} = 'TRANSFER' and ${table.transferId} is not null and ${table.categoryId} is null) or (${table.type} not in ('TRANSFER_IN', 'TRANSFER_OUT'))`),
@@ -428,9 +440,14 @@ export const debtPayments = pgTable("debt_payments", {
   transactionId: uuid("transaction_id").notNull().unique().references(() => transactions.id, { onDelete: "restrict" }),
   status: debtPaymentStatusEnum("status").notNull().default("POSTED"),
   notes: text("notes"),
+  // Idempotency key for the record-payment command (spec 14 §38) — see `transactions.command_id`.
+  commandId: uuid("command_id"),
   ...timestamps,
 }, (table) => [
   index("debt_payments_debt_paid_idx").on(table.debtId, table.paidAt),
+  uniqueIndex("debt_payments_user_command_unique")
+    .on(table.userId, table.commandId)
+    .where(sql`${table.commandId} is not null`),
   check("debt_payments_amount_positive_check", sql`${table.amount} > 0`),
   check("debt_payments_currency_code_length_check", sql`char_length(${table.currencyCode}) = 3`),
 ]);

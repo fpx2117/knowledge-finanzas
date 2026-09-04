@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createCategoryProvisioningService } from "../services/category-provisioning-service";
 import { categoryService } from "../services/category-service.instance";
 
@@ -21,9 +20,7 @@ export async function provisionDefaultCategoriesAction(): Promise<CategoryAction
     if (result.skipped) {
       await service.backfillCategoryMap(user.id).catch(() => undefined);
     }
-    revalidatePath("/transactions/new");
-    revalidatePath("/budgets/new");
-    revalidatePath("/settings/categories");
+    emitFinancialEvent({ type: "category.changed" });
     return { ok: true, created: result.created };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
@@ -53,9 +50,7 @@ export async function createCategoryAction(
     const type = formData.get("type") === "INCOME" ? "INCOME" : "EXPENSE";
     const parentId = (formData.get("parentId") as string) || null;
     await categoryService.createCategory(user.id, { name, type, parentId });
-    revalidatePath("/settings/categories");
-    revalidatePath("/transactions/new");
-    revalidatePath("/budgets/new");
+    emitFinancialEvent({ type: "category.changed" });
     return { ok: true };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
@@ -73,7 +68,7 @@ export async function renameCategoryAction(
       name: String(formData.get("name") ?? "").trim(),
       parentId: (formData.get("parentId") as string) || null,
     });
-    revalidatePath("/settings/categories");
+    emitFinancialEvent({ type: "category.changed" });
     return { ok: true };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
@@ -87,7 +82,7 @@ export async function archiveCategoryAction(
   try {
     const user = await requireCurrentUser();
     await categoryService.archiveCategory(user.id, String(formData.get("categoryId")));
-    revalidatePath("/settings/categories");
+    emitFinancialEvent({ type: "category.changed" });
     return { ok: true };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
@@ -105,7 +100,7 @@ export async function setCategoryMappingAction(
       String(formData.get("categoryId")),
       String(formData.get("taxonomyNodeId")),
     );
-    revalidatePath("/settings/categories");
+    emitFinancialEvent({ type: "category.changed" });
     return { ok: true };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };

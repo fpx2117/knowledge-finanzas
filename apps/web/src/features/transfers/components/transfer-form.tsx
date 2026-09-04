@@ -16,6 +16,8 @@ type AccountOption = { id: string; name: string; currencyCode: string };
 export function TransferForm({ accounts, timezone }: { accounts: AccountOption[]; timezone: string }) {
   const [state, action, pending] = useActionState(createTransferAction, initial);
   const errors = state?.ok === false ? state.error.fieldErrors ?? {} : {};
+  // One idempotency key per form instance (spec 14 §38).
+  const [commandId] = useState(() => crypto.randomUUID());
 
   const [fromId, setFromId] = useState(accounts[0]?.id ?? "");
   const from = accounts.find((a) => a.id === fromId);
@@ -27,6 +29,7 @@ export function TransferForm({ accounts, timezone }: { accounts: AccountOption[]
 
   return (
     <form action={action} className="flex flex-col gap-5">
+      <input type="hidden" name="commandId" value={commandId} />
       {state?.ok === false ? (
         <p role="alert" className="rounded-md bg-negative-soft px-3 py-2 text-small text-[var(--negative)]">
           {state.error.message}

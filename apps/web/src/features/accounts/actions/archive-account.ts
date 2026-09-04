@@ -1,11 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { accountRepository } from "@know-finanzas/db";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createAccountService } from "../services/account-service";
 import { archiveAccountSchema } from "../schemas/account-schemas";
 
@@ -21,9 +20,7 @@ export async function archiveAccountAction(
     const user = await requireCurrentUser();
     const { accountId } = archiveAccountSchema.parse({ accountId: formData.get("accountId") });
     await service.archiveAccount(user.id, accountId);
-    revalidatePath("/accounts");
-    revalidatePath(`/accounts/${accountId}`);
-    revalidatePath("/dashboard");
+    emitFinancialEvent({ type: "account.archived", entityPaths: [`/accounts/${accountId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

@@ -9,7 +9,7 @@ type AccountType = "CASH" | "BANK" | "DIGITAL_WALLET" | "SAVINGS";
 type Account = { id: string; userId: string; type: AccountType; currencyCode: string; openingDate: string; status: "ACTIVE" | "ARCHIVED" };
 type Category = { id: string; userId: string; type: "INCOME" | "EXPENSE"; status: "ACTIVE" | "ARCHIVED" };
 type TxnType = "INCOME" | "EXPENSE";
-type TransactionInput = { accountId: string; amount: string; description: string; categoryId?: string; occurredAt: string; notes?: string; merchant?: string; merchantId?: string };
+type TransactionInput = { accountId: string; amount: string; description: string; categoryId?: string; occurredAt: string; notes?: string; merchant?: string; merchantId?: string; commandId?: string };
 
 type MerchantAliasMatchType = "EXACT" | "PREFIX" | "CONTAINS" | "REGEX";
 type MerchantMatch = { merchantId: string; canonicalName?: string; defaultTaxonomyNodeId: string | null; confidence?: number; matchType?: MerchantAliasMatchType };
@@ -35,6 +35,8 @@ type Dependencies = {
   categories: { findByIdForUser(id: string, userId: string): Promise<Category | undefined> };
   transactions: {
     create(input: Record<string, unknown>): Promise<{ id: string; currencyCode: string } | unknown>;
+    /** Idempotency (spec 14 §38): the row previously written for this command key, if any. */
+    findByCommandId?(userId: string, commandId: string): Promise<unknown | undefined>;
     findByIdForUser(
       id: string,
       userId: string,
@@ -105,6 +107,14 @@ export function createTransactionService({
 }: Dependencies) {
   async function create(userId: string, type: TxnType, input: TransactionInput, timezone: string) {
     await gate.assertCanWrite(userId);
+
+    // Idempotency (spec 14 §38 / Foundation §14): a retried submit carries the same commandId;
+    // return the already-written row instead of creating a duplicate.
+    if (input.commandId && transactions.findByCommandId) {
+      const existing = await transactions.findByCommandId(userId, input.commandId).catch(() => undefined);
+      if (existing) return existing;
+    }
+
     const account = await accounts.findByIdForUser(input.accountId, userId);
     if (!account) throw new ApplicationError("ACCOUNT_NOT_FOUND", { field: "accountId" });
     if (account.status === "ARCHIVED") throw new ApplicationError("ACCOUNT_ARCHIVED", { field: "accountId" });
@@ -313,6 +323,7 @@ export function createTransactionService({
       postedAt: current,
       source: "MANUAL",
       notes: input.notes?.trim() || null,
+      commandId: input.commandId ?? null,
     });
 
     // Corrections as a learning signal (#12) — best-effort, never blocks the write.

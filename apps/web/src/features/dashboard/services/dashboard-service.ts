@@ -24,6 +24,8 @@ type BalanceRow = {
   refundTotal?: string;
   adjustmentInTotal?: string;
   adjustmentOutTotal?: string;
+  transferInTotal?: string;
+  transferOutTotal?: string;
   liabilityPaymentTotal?: string;
 };
 
@@ -120,6 +122,8 @@ export function createDashboardService(dependencies: Dependencies) {
           refundTotal: row.refundTotal,
           adjustmentInTotal: row.adjustmentInTotal,
           adjustmentOutTotal: row.adjustmentOutTotal,
+          transferInTotal: row.transferInTotal,
+          transferOutTotal: row.transferOutTotal,
           liabilityPaymentTotal: row.liabilityPaymentTotal,
         }).toString(),
         status: row.account.status,

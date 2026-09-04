@@ -9,6 +9,8 @@ export const createTransferSchema = z
     amount: moneyInputSchema,
     occurredAt: z.string().datetime({ offset: true }),
     notes: z.string().trim().max(1000).optional(),
+    /** Idempotency key for a retried submit (spec 14 §38). */
+    commandId: idSchema.optional(),
   })
   .strict();
 

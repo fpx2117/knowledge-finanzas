@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import type { Database } from "../client";
 import { accounts, transactions } from "../schema";
+import { buildLedgerTotalColumns } from "../queries/ledger-totals";
 
 export function createAccountRepository(database: Database) {
   return {
@@ -60,23 +61,15 @@ export function createAccountRepository(database: Database) {
     },
 
     getBalanceInputsForUser(userId: string, accountId?: string) {
-      const income = sql<string>`coalesce(sum(case when ${transactions.type} = 'INCOME' and ${transactions.status} = 'POSTED' then ${transactions.amount} else 0 end), 0)`;
-      const expense = sql<string>`coalesce(sum(case when ${transactions.type} = 'EXPENSE' and ${transactions.status} = 'POSTED' then ${transactions.amount} else 0 end), 0)`;
-      const refund = sql<string>`coalesce(sum(case when ${transactions.type} = 'REFUND' and ${transactions.status} = 'POSTED' then ${transactions.amount} else 0 end), 0)`;
-      const adjustmentIn = sql<string>`coalesce(sum(case when ${transactions.type} = 'ADJUSTMENT_IN' and ${transactions.status} = 'POSTED' then ${transactions.amount} else 0 end), 0)`;
-      const adjustmentOut = sql<string>`coalesce(sum(case when ${transactions.type} = 'ADJUSTMENT_OUT' and ${transactions.status} = 'POSTED' then ${transactions.amount} else 0 end), 0)`;
-      const liabilityPayment = sql<string>`coalesce(sum(case when ${transactions.type} = 'LIABILITY_PAYMENT' and ${transactions.status} = 'POSTED' then ${transactions.amount} else 0 end), 0)`;
-
       return database.select({
         account: accounts,
-        incomeTotal: income,
-        expenseTotal: expense,
-        refundTotal: refund,
-        adjustmentInTotal: adjustmentIn,
-        adjustmentOutTotal: adjustmentOut,
-        liabilityPaymentTotal: liabilityPayment,
+        ...buildLedgerTotalColumns(),
       }).from(accounts)
-        .leftJoin(transactions, and(eq(transactions.accountId, accounts.id), eq(transactions.userId, accounts.userId)))
+        .leftJoin(transactions, and(
+          eq(transactions.accountId, accounts.id),
+          eq(transactions.userId, accounts.userId),
+          eq(transactions.status, "POSTED"),
+        ))
         .where(accountId ? and(eq(accounts.userId, userId), eq(accounts.id, accountId)) : eq(accounts.userId, userId))
         .groupBy(accounts.id)
         .orderBy(desc(accounts.updatedAt));
