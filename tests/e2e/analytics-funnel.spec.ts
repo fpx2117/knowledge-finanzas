@@ -41,7 +41,7 @@ test("full trial funnel is measurable end-to-end: signup → trial → activatio
 
   // Visiting the dashboard fires dashboard_viewed/cashflow_viewed and re-checks activation —
   // the 5th transaction above already triggered the same check, this just confirms it holds.
-  await page.goto("/dashboard");
+  await page.goto("/app");
 
   const database = createTestDatabase();
   try {

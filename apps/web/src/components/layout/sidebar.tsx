@@ -11,7 +11,7 @@ type SidebarUser = { name: string; email: string; image?: string | null };
 export function Sidebar({ user }: { user: SidebarUser }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r border-border bg-card lg:flex">
-      <Link href="/dashboard" aria-label="Know Finanzas · Ir al resumen" className="flex items-center gap-2 px-5 py-5">
+      <Link href="/app" aria-label="Know Finanzas · Ir al resumen" className="flex items-center gap-2 px-5 py-5">
         <Image src="/brand/logo.png" alt="" width={28} height={28} className="size-7 object-contain" priority />
         <span className="text-body-lg font-medium tracking-tight text-foreground">
           Know<span className="text-brand">Finanzas</span>

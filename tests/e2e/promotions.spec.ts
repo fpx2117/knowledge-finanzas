@@ -32,7 +32,7 @@ test("a trial user redeems a valid promo code and immediately sees the Pro promo
     await closeTestDatabase(database);
   }
 
-  await page.goto("/settings/billing");
+  await page.goto("/settings/plan");
   await expect(page.getByText("¿Tenés un código promocional?")).toBeVisible();
 
   await page.getByLabel("Código promocional").fill(code);
@@ -59,7 +59,7 @@ test("an invalid code shows a generic error and never reveals whether the code e
   const email = `promotions-invalid-e2e-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`;
   await signUpCompleteOnboardingAndStartTrial(page, baseURL!, { name: "Promotions Invalid E2E", email });
 
-  await page.goto("/settings/billing");
+  await page.goto("/settings/plan");
   await page.getByLabel("Código promocional").fill("NOEXISTE1234");
   await page.getByRole("button", { name: "Aplicar código" }).click();
 

@@ -31,20 +31,20 @@ test("a seeded notification appears in the center, marks read, and navigates to 
   // No manual notification insert: the debt above is genuinely overdue relative to "now", so
   // visiting the dashboard triggers the real TASK-049 rule evaluation, which creates the
   // DEBT_OVERDUE notification itself — this is the actual end-to-end path, not a synthetic seed.
-  await page.goto("/dashboard");
+  await page.goto("/app");
   await expect(page.getByRole("link", { name: /Notificaciones, 1 sin leer/ })).toBeVisible();
 
   await page.goto("/notifications");
   const relatedLink = page.getByRole("link", { name: "Cuota vencida" });
   await expect(relatedLink).toBeVisible();
-  await expect(relatedLink).toHaveAttribute("href", `/debts/${debtId}`);
+  await expect(relatedLink).toHaveAttribute("href", `/obligations/${debtId}`);
 
   await page.getByRole("button", { name: "Marcar leída" }).click();
   await expect(page.getByRole("button", { name: "Marcar leída" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Notificaciones", exact: true })).toBeVisible();
 
   await relatedLink.click();
-  await expect(page).toHaveURL(new RegExp(`/debts/${debtId}$`));
+  await expect(page).toHaveURL(new RegExp(`/obligations/${debtId}$`));
   await expect(page.getByRole("heading", { name: "Deuda notificada" })).toBeVisible();
 
   await context.close();
@@ -68,7 +68,7 @@ test("reconnecting to the notification center reloads unread state from Postgres
   // Simulates reconnect: a fresh navigation (new server render + a fresh SSE handshake) must
   // reflect Postgres truth even though the notification was written by a process outside this
   // page's own SSE connection.
-  await page.goto("/dashboard");
+  await page.goto("/app");
   await expect(page.getByRole("link", { name: /Notificaciones, 1 sin leer/ })).toBeVisible();
 
   await context.close();

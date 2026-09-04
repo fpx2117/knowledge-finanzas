@@ -28,8 +28,8 @@ subvistas, Insights determinísticos).
 
 | WP | Contenido |
 |---|---|
-| WP-ROUTES-RENAME | Ejecutar ADR-IMPL-001: renombrar árbol `app/(app)/` a paths canónicos + redirects 308. Temprano; paralelo a WP-LEDGER-IDEMP. |
-| WP-ROUTES-SUBVIEWS | Subvistas faltantes de Cuentas / Transacciones / Presupuestos / Obligaciones / Metas (filtros server-side, no lógica nueva), ya con paths canónicos. Depende de WP-ROUTES-RENAME. |
+| ~~WP-ROUTES-RENAME~~ **DONE** | Árbol `app/(app)/` movido a paths canónicos (`git mv`) + redirects 308 en `next.config.ts` + nav-items/TransactionsSubnav reconstruidos + 11 specs E2E actualizados. `/planning` no se plegó en `/transactions/recurring` (contenido distinto) — quedó como `/transactions/scheduled` propia; ver ADR-IMPL-001. |
+| WP-ROUTES-SUBVIEWS | Subvistas faltantes de Cuentas / Presupuestos / Obligaciones (`upcoming`, `installments`) / Metas (filtros server-side, no lógica nueva), ya con paths canónicos. Transacciones y Obligaciones core ya están. |
 | WP-ACCOUNTS-SPEC | Warning archivar con saldo ≠ 0 (OQ-007); exclusión de archivadas del balance líquido verificada + test. |
 | WP-CAPTURE-CMDSURFACE | Auditar `features/capture` como command surface pura (§25): no duplica ledger, enruta a owners, valida IDs contra recursos reales. |
 | WP-IMPORTS-CF05 | Verificar/completar CF-05: encoding+delimitador, preview sin escritura, batch idempotente (`import_batches`), fingerprint de fila, excepciones → Pendientes, reconciliación de contadores. |

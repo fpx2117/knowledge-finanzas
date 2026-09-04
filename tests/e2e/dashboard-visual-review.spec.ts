@@ -11,7 +11,7 @@ for (const viewport of [
     page.on("pageerror", (error) => errors.push(error));
     await page.setViewportSize(viewport);
     await signUpCompleteOnboardingAndStartTrial(page, baseURL!, { name: `Dashboard visual ${viewport.name}`, email: `dashboard-visual-${viewport.name}-${Date.now()}@example.test` });
-    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+    await page.goto("/app", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("heading", { name: /Hola,/ })).toBeVisible();
     await expect(page.locator(".dashboard-kpis")).toBeVisible();
@@ -19,6 +19,6 @@ for (const viewport of [
     if (viewport.name === "desktop") await expect(page.locator(".nav-icon").first()).toBeVisible();
     else await expect(page.locator(".sidebar")).toBeHidden();
     expect(errors).toEqual([]);
-    await page.screenshot({ path: `test-results/dashboard-visual-review-${viewport.name}.png`, fullPage: true });
+    await page.screenshot({ path: `test-results/app-visual-review-${viewport.name}.png`, fullPage: true });
   });
 }

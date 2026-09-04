@@ -37,7 +37,7 @@ test("cancelling a subscription shows an accurate immediate-access-loss confirma
   await completeProfileOnboarding(page);
   await completeFinancialOnboarding(page, "Cuenta Billing Cancel E2E");
 
-  await page.goto("/settings/billing");
+  await page.goto("/settings/plan");
   await expect(page.getByRole("button", { name: "Cancelar suscripción" })).toBeVisible();
 
   await page.getByRole("button", { name: "Cancelar suscripción" }).click();

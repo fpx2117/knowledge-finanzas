@@ -84,7 +84,7 @@ export function GoalActions({
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" render={<Link href={`/goals/${goalId}/editar`}><PencilIcon className="size-4" /> Editar</Link>} />
+          <Button variant="outline" render={<Link href={`/goals/${goalId}/edit`}><PencilIcon className="size-4" /> Editar</Link>} />
         </>
       ) : null}
 

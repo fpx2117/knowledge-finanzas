@@ -19,7 +19,7 @@ const SETTINGS_LINKS = [
   { label: "Categorías", href: "/settings/categories" },
   { label: "Reglas automáticas", href: "/settings/rules" },
   { label: "Notificaciones", href: "/settings/notifications" },
-  { label: "Suscripción", href: "/settings/billing" },
+  { label: "Suscripción", href: "/settings/plan" },
   { label: "Referidos", href: "/settings/referrals" },
   { label: "Privacidad y datos", href: "/settings/privacy" },
 ];

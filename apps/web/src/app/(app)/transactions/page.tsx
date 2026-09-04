@@ -116,8 +116,8 @@ export default async function TransactionsPage({
         actions={
           <>
             <HeaderActions />
-            <Button variant="ghost" render={<Link href="/transactions/importaciones">Importar</Link>} />
-            <Button variant="outline" render={<Link href="/transfers/new">Transferencia</Link>} />
+            <Button variant="ghost" render={<Link href="/settings/imports">Importar</Link>} />
+            <Button variant="outline" render={<Link href="/transactions/transfers/new">Transferencia</Link>} />
             <Button render={<Link href="/transactions/new?type=EXPENSE">Nueva transacción</Link>} />
           </>
         }

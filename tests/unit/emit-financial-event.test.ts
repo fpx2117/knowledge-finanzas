@@ -11,15 +11,15 @@ describe("emitFinancialEvent", () => {
     const revalidate = vi.fn();
     emitFinancialEvent({ type: "transaction.voided" }, revalidate);
     const calls = revalidate.mock.calls.map(([path]) => path);
-    expect(calls).toEqual(expect.arrayContaining(["/transactions", "/accounts", "/budgets", "/dashboard", "/calendar"]));
+    expect(calls).toEqual(expect.arrayContaining(["/transactions", "/accounts", "/budgets", "/app", "/calendar"]));
   });
 
   it("also revalidates extra entity-specific paths without duplicating a shared one", () => {
     const revalidate = vi.fn();
-    emitFinancialEvent({ type: "account.archived", entityPaths: ["/accounts/acc-1", "/dashboard"] }, revalidate);
+    emitFinancialEvent({ type: "account.archived", entityPaths: ["/accounts/acc-1", "/app"] }, revalidate);
     const calls = revalidate.mock.calls.map(([path]) => path);
     expect(calls).toContain("/accounts/acc-1");
-    expect(calls.filter((path) => path === "/dashboard")).toHaveLength(1);
+    expect(calls.filter((path) => path === "/app")).toHaveLength(1);
   });
 
   it("transfers never revalidate /budgets (transfers are excluded from consumption)", () => {
@@ -32,6 +32,6 @@ describe("emitFinancialEvent", () => {
     const revalidate = vi.fn();
     emitFinancialEvent({ type: "obligation.payment_linked" }, revalidate);
     const calls = revalidate.mock.calls.map(([path]) => path);
-    expect(calls).toEqual(expect.arrayContaining(["/debts", "/transactions", "/accounts", "/budgets", "/dashboard"]));
+    expect(calls).toEqual(expect.arrayContaining(["/obligations", "/transactions", "/accounts", "/budgets", "/app"]));
   });
 });

@@ -62,8 +62,8 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
           actions={
             <>
               <HeaderActions showPeriod={false} />
-              <Button variant="ghost" render={<Link href="/debts/suscripciones">Suscripciones</Link>} />
-              <Button render={<Link href="/debts/new">Nueva obligación</Link>} />
+              <Button variant="ghost" render={<Link href="/obligations/subscriptions">Suscripciones</Link>} />
+              <Button render={<Link href="/obligations/new">Nueva obligación</Link>} />
             </>
           }
         />
@@ -71,7 +71,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
           icon={<HandCoinsIcon />}
           title="No tenés obligaciones registradas"
           description="Cargá tus préstamos y compras en cuotas para no perder de vista lo que viene."
-          action={<Button render={<Link href="/debts/new">Nueva obligación</Link>} />}
+          action={<Button render={<Link href="/obligations/new">Nueva obligación</Link>} />}
         />
       </div>
     );
@@ -129,10 +129,10 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
     .map((s) => ({ label: STATUS_META[s.key].label, value: statusCounts[s.key] ?? 0, color: s.color }));
 
   const tabs = [
-    { key: "resumen", label: "Resumen", href: "/debts" },
-    { key: "todas", label: "Todas", href: "/debts?tab=todas" },
-    { key: "proximos", label: "Próximos vencimientos", href: "/debts?tab=proximos" },
-    { key: "pagadas", label: "Pagadas", href: "/debts?tab=pagadas" },
+    { key: "resumen", label: "Resumen", href: "/obligations" },
+    { key: "todas", label: "Todas", href: "/obligations?tab=todas" },
+    { key: "proximos", label: "Próximos vencimientos", href: "/obligations?tab=proximos" },
+    { key: "pagadas", label: "Pagadas", href: "/obligations?tab=pagadas" },
   ];
 
   const tableDebts =
@@ -146,8 +146,8 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
         actions={
           <>
             <HeaderActions showPeriod={false} />
-            <Button variant="ghost" render={<Link href="/debts/suscripciones">Suscripciones</Link>} />
-            <Button render={<Link href="/debts/new">Nueva obligación</Link>} />
+            <Button variant="ghost" render={<Link href="/obligations/subscriptions">Suscripciones</Link>} />
+            <Button render={<Link href="/obligations/new">Nueva obligación</Link>} />
           </>
         }
       />
@@ -173,7 +173,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
               {upcoming.map((u, i) => (
                 <li key={`${u.debtId}-${i}`} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                   <span className="flex min-w-0 flex-col">
-                    <Link href={`/debts/${u.debtId}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
+                    <Link href={`/obligations/${u.debtId}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
                       {u.debtName}
                     </Link>
                     <span className="text-caption text-muted-foreground">
@@ -192,7 +192,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
         <>
           {tab === "resumen" ? (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
-              <SectionCard title="Próximos vencimientos" action={{ label: "Ver todos", href: "/debts?tab=proximos" }}>
+              <SectionCard title="Próximos vencimientos" action={{ label: "Ver todos", href: "/obligations?tab=proximos" }}>
                 {upcoming.filter((u) => !u.overdue).length > 0 ? (
                   <ul className="flex flex-col divide-y divide-border">
                     {upcoming
@@ -201,7 +201,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
                       .map((u, i) => (
                         <li key={`${u.debtId}-${i}`} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                           <span className="flex min-w-0 flex-col">
-                            <Link href={`/debts/${u.debtId}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
+                            <Link href={`/obligations/${u.debtId}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
                               {u.debtName}
                             </Link>
                             <span className="text-caption text-muted-foreground">
@@ -263,7 +263,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
                       return (
                         <TableRow key={debt.id} className="h-[52px] hover:bg-brand-subtle/60">
                           <TableCell className="pl-5 sm:pl-6">
-                            <Link href={`/debts/${debt.id}`} className="text-small font-medium text-foreground hover:text-brand hover:underline">
+                            <Link href={`/obligations/${debt.id}`} className="text-small font-medium text-foreground hover:text-brand hover:underline">
                               {debt.name}
                             </Link>
                             {debt.creditor ? <span className="block text-caption text-muted-foreground">{debt.creditor}</span> : null}
@@ -281,7 +281,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
                             <StatusChip tone={meta.tone}>{meta.label}</StatusChip>
                           </TableCell>
                           <TableCell className="pr-5 sm:pr-6">
-                            <Link href={`/debts/${debt.id}`} aria-label={`Ver ${debt.name}`} className="text-muted-foreground hover:text-foreground">
+                            <Link href={`/obligations/${debt.id}`} aria-label={`Ver ${debt.name}`} className="text-muted-foreground hover:text-foreground">
                               →
                             </Link>
                           </TableCell>

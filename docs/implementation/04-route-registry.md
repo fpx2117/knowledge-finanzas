@@ -104,15 +104,15 @@ en su `layout`. Auth: `session required` salvo indicado. Entitlement: `TRIAL|PRO
 
 | Tema | Decisión | Ejecución |
 |---|---|---|
-| Idioma de paths | **Inglés** (= spec 14 §8 literal); español sólo en labels UI | WP-ROUTES-RENAME |
-| Resumen | **`/app`** ; `/dashboard` → redirect 308 | WP-ROUTES-RENAME |
-| Obligaciones | **`/obligations`** + `/obligations/{upcoming,debts,installments,subscriptions,:id,new}` ; `/debts*` → 308 | WP-ROUTES-RENAME + WP-ROUTES-SUBVIEWS |
-| Transferencias | **`/transactions/transfers`** (+ `/:transferId`, `/new`) ; `/transfers*` → 308 ; sidebar: hija de Transacciones | WP-ROUTES-RENAME |
-| Importaciones | **`/settings/imports`** (setup + historial) ; excepciones → `/transactions/pending` ; `/transactions/importaciones` → 308 | WP-ROUTES-RENAME |
-| Duplicados | **`/transactions/pending?view=duplicates`** (query param, deep-linkable) ; `/transactions/duplicados` → 308 | WP-ROUTES-RENAME |
-| Planning | **se pliega en `/transactions/recurring`** ; `/planning*` → 308 | WP-ROUTES-RENAME |
-| Plan / Billing | **`/settings/plan`** ; `/billing` + `/settings/billing` → 308 ; `/billing/return` se mantiene (handler de checkout) | WP-ROUTES-RENAME |
-| Sub-rutas nuevas faltantes | crear **ya con path canónico** | WP-ROUTES-SUBVIEWS |
+| Idioma de paths | **Inglés** (= spec 14 §8 literal); español sólo en labels UI | ✅ WP-ROUTES-RENAME |
+| Resumen | **`/app`** ; `/dashboard` → redirect 308 | ✅ WP-ROUTES-RENAME |
+| Obligaciones | **`/obligations`** (+ `/new`, `/subscriptions`, `/:obligationId`) ; `/debts*` → 308 | ✅ WP-ROUTES-RENAME · subvistas `upcoming`/`installments` → WP-ROUTES-SUBVIEWS |
+| Transferencias | **`/transactions/transfers`** (+ `/:transferId`, `/new`) ; `/transfers*` → 308 ; sidebar: hija de Transacciones | ✅ WP-ROUTES-RENAME |
+| Importaciones | **`/settings/imports`** (setup + historial) ; excepciones → `/transactions/pending` ; `/transactions/importaciones` → 308 | ✅ WP-ROUTES-RENAME |
+| Duplicados | **`/transactions/pending#duplicados`** — fold real (segunda `SectionCard` en la misma página, no query param) ; `/transactions/duplicados` → 308 | ✅ WP-ROUTES-RENAME |
+| Planning | **Revisado al ejecutar:** no se plegó en `/transactions/recurring` (contenido distinto — ver ADR-IMPL-001 "Estado de ejecución"). Ruta propia **`/transactions/scheduled`** (+ `/new`) ; `/planning*` → 308 | ✅ WP-ROUTES-RENAME |
+| Plan / Billing | **`/settings/plan`** ; `/settings/billing` → 308 ; `/billing/return` se mantiene (handler de checkout) | ✅ WP-ROUTES-RENAME |
+| Sub-rutas nuevas faltantes | crear **ya con path canónico** | ⬜ WP-ROUTES-SUBVIEWS |
 | Filtros/estados | **query params**, nunca sub-ruta por filtro (§8.1) | transversal |
 
 Cualquiera de estas decisiones se revierte con un comentario antes de que WP-ROUTES-RENAME se ejecute.

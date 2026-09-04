@@ -43,7 +43,7 @@ export async function voidTransferAction(
     const user = await requireCurrentUser();
     ({ transferId } = voidTransferSchema.parse({ transferId: formData.get("transferId") }));
     await service.voidTransfer(user.id, transferId);
-    emitFinancialEvent({ type: "transfer.voided", entityPaths: [`/transfers/${transferId}`] });
+    emitFinancialEvent({ type: "transfer.voided", entityPaths: [`/transactions/transfers/${transferId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }

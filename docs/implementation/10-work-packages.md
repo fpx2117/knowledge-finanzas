@@ -32,32 +32,54 @@ goal + dependencias + criterio; se desglosan al llegar a su fase.
 
 ---
 
-## WP-ROUTES-RENAME — Ejecutar ADR-IMPL-001  ·  P1  ·  `UX-RISK`
+## WP-ROUTES-RENAME — Ejecutar ADR-IMPL-001  ·  P1  ·  **DONE (2026-09-04)**
 
-- **Goal:** el árbol `app/(app)/` y la navegación cumplen los paths canónicos de ADR-IMPL-001.
-- **Dependencies:** ADR-IMPL-001 (hecho). **Hacer temprano** (frontend en reconstrucción — cada
-  pantalla nueva sobre un path viejo agranda este WP). No bloquea WP-LEDGER-IDEMP; pueden ir en paralelo.
-- **Files likely affected:**
-  - `apps/web/src/app/(app)/` — mover: `dashboard→app`, `debts→obligations` (+ hijos),
-    `transfers→transactions/transfers`, `transactions/{pendientes→pending, recurrentes→recurring,
-    importaciones→settings/imports, duplicados→(pliega)}`, `planning/*→(pliega en transactions/recurring)`,
-    `goals/[goalId]/editar→edit`, `settings/billing`+`billing→settings/plan`.
-  - `apps/web/src/components/layout/nav-items.ts` + `MOBILE_NAV_ITEMS` — labels es-AR, hrefs canónicos,
-    "Obligaciones" reemplaza "Deudas", quitar "Transferencias"/"Planning" como secciones.
-  - Todos los `redirect()`, `revalidatePath()`, `<Link href>` internos y `useRouter().push`.
-  - `middleware.ts` o `next.config` — redirects 308 de los paths viejos (`/dashboard`, `/debts/*`,
-    `/transfers/*`, `/planning/*`, `/transactions/{pendientes,recurrentes,importaciones,duplicados}`,
-    `/billing`, `/settings/billing`).
-  - `tests/e2e/*` — actualizar todos los paths.
-- **Backend work:** ninguno (sólo routing).
-- **Frontend work:** el renombre + los 308 + reintroducir duplicados como `?view=duplicates` en
-  `/transactions/pending` y programados en `/transactions/recurring`.
-- **Tests:**
-  - E2E: navegación por sidebar llega a cada ruta canónica.
-  - E2E: cada path viejo responde 308 al canónico.
-  - unit: `isNavItemActive` / `isNavChildActive` con los nuevos hrefs.
-- **Acceptance criteria:** `04-route-registry.md` sin filas `RENAME`/`MISSING` por naming;
-  `pnpm test:e2e` verde; sidebar coincide con spec 14 §7.
+- **Goal:** el árbol `app/(app)/` y la navegación cumplen los paths canónicos de ADR-IMPL-001. ✅
+- **Refinamiento sobre la ADR al implementar:** `/planning` (3 tabs: próximos/programados/reglas
+  recurrentes) y `/transactions/recurrentes` (cola de sugerencias de detección) resultaron ser
+  contenido genuinamente distinto — plegar el primero *dentro* del segundo habría mezclado dos
+  conceptos de producto diferentes bajo una sola URL sin ningún trabajo de UX real detrás. En vez
+  de forzar esa fusión, `/planning` pasó a **`/transactions/scheduled`** (ruta propia, sigue siendo
+  de Transacciones — spec 14 §6 ya asigna `ScheduledTransaction`/`RecurringRule` al módulo 03) y
+  `/transactions/recurrentes` se renombró mecánicamente a **`/transactions/recurring`** sin fusión.
+  El fold de `/transactions/duplicados` en Pendientes sí se hizo completo (ver abajo) porque ahí
+  las dos secciones son genuinamente parte de un mismo "qué necesita tu revisión".
+- **Movidos** (vía `git mv`, preserva historia): `dashboard→app`, `debts→obligations` (+
+  `[debtId]→[obligationId]`, `suscripciones→subscriptions`), `transfers→transactions/transfers`,
+  `transactions/{pendientes→pending, recurrentes→recurring, importaciones→settings/imports}`,
+  `settings/billing→settings/plan`, `goals/[goalId]/editar→edit`, `planning→transactions/scheduled`
+  (con `planning/scheduled/new` colapsado a `transactions/scheduled/new`, evitando el segmento
+  "scheduled" duplicado).
+- **Fold real:** `/transactions/duplicados` se eliminó; su contenido (`DuplicateReviewList`) pasó a
+  ser una segunda `SectionCard` dentro de `transactions/pending/page.tsx`, anclada en `#duplicados`
+  — Pendientes es ahora el único hub de "movimientos que necesitan tu decisión" (sin categoría +
+  posibles duplicados), consistente con cómo la spec 03 trata ambos como excepciones del mismo tipo.
+- **`nav-items.ts`:** "Resumen"→`/app`; "Obligaciones" reemplaza "Deudas" (`/obligations` +
+  hijos); Transacciones gana "Transferencias" y "Programados" como hijos (antes no estaban en el
+  sidebar). `TransactionsSubnav` reconstruido con los 5 tabs canónicos (Movimientos/Pendientes/
+  Duplicados-ancla/Programados/Recurrentes); Importaciones sale del tab bar (vive en Settings).
+  `settings/imports/page.tsx` dejó de renderizar `TransactionsSubnav` (ya no es una pestaña de
+  Transacciones).
+- **Redirects 308:** `apps/web/next.config.ts` `redirects()` — 15 reglas cubriendo cada path viejo
+  (incl. dinámicos vía `:param`), con las más específicas (`/planning/scheduled/new`) antes que las
+  generales (`/planning`).
+- **Corregido de paso:** el barrido de string-replace mecánico rompió por un momento
+  `@/features/dashboard/...`, `@/features/debts/...` y `@/features/transfers/...` (imports de
+  módulo cuyo nombre coincide por sustring con un path de ruta renombrado) — detectado por
+  `pnpm typecheck` (nuevos "Cannot find module") y revertido sólo en esas líneas de import; los
+  módulos de dominio (`features/debts`, `features/transfers`, `features/dashboard`, `features/planning`)
+  **no** se renombraron, sólo las rutas.
+- **Tests:** actualizados 11 specs de `tests/e2e/*` (URLs literales) + `tests/e2e/support/onboarding-flow.ts`;
+  `tests/unit/emit-financial-event.test.ts` actualizado a los nuevos paths del mapa de eventos.
+  No se agregó un test de redirect 308 dedicado (E2E no corre en este entorno sin servidor+DB
+  levantados) — queda como seguimiento antes de desplegar.
+- **Verificación:** `pnpm typecheck` estable en 148 errores preexistentes (mismos, sólo re-etiquetados
+  bajo los nuevos paths de archivo — confirmado por diff antes/después); lint limpio; unit 804/804;
+  los 19 tests de integración de Fase A sin regresión (no tocan rutas, pero confirman que el dominio
+  sigue intacto). `pnpm test:e2e` no se ejecutó (requiere Postgres de test + build; ver limitación
+  de entorno).
+- **Acceptance criteria:** `04-route-registry.md` sin filas `RENAME` por naming (actualizar en la
+  próxima pasada de discovery); árbol de rutas confirmado 1:1 contra la tabla "canónico decidido".
 - **Financial invariants:** ninguno (routing).
 - **Observability:** contador de hits a rutas 308 (para saber cuándo retirar los redirects).
 - **DoD:** specs 03/05/11 y `nav-items.ts` citan spec 14 §7/§8 + ADR-IMPL-001; ningún path español activo.

@@ -60,7 +60,7 @@ test("abandon at the goal step, return later, resume exactly there", async ({ br
   await expect(page).toHaveURL(/\/onboarding\/goal$/);
 
   // Abandon here (navigate away without submitting the goal step) and come back later.
-  await page.goto("/dashboard");
+  await page.goto("/app");
   await page.goto("/onboarding");
   await expect(page).toHaveURL(/\/onboarding\/goal$/);
 

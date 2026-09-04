@@ -86,7 +86,7 @@ enlazan a `/settings/imports`.
 | Ruta actual | Resolución |
 |---|---|
 | `/transactions/duplicados` | **Se pliega** en `/transactions/pending` como vista/filtro deep-linkable: `/transactions/pending?view=duplicates`. La spec 03 trata duplicados como parte de Pendientes; §8 no define ruta propia. Redirect 308. |
-| `/planning`, `/planning/scheduled`, `/planning/scheduled/new` | **Se pliega** en `/transactions/recurring`. `ScheduledTransaction` y `RecurringRule` pertenecen al módulo 03 (spec §6); el nav §7 sólo tiene "Recurrentes" bajo Transacciones. Programados de una sola vez y reglas recurrentes comparten esa superficie. Redirect 308. |
+| `/planning`, `/planning/scheduled/new` | **Revisado al ejecutar (2026-09-04):** no se plegó en `/transactions/recurring` — ambas páginas resultaron ser contenido genuinamente distinto (planning = próximos/programados/reglas recurrentes en 3 tabs; recurrentes = cola de sugerencias de detección) y fusionarlas habría mezclado dos conceptos sin ningún trabajo de UX real detrás. Pasó a su propia ruta **`/transactions/scheduled`** (+ `/transactions/scheduled/new`), que sigue siendo de Transacciones (spec §6: `ScheduledTransaction`/`RecurringRule` → módulo 03). Redirect 308. |
 | `/billing`, `/settings/billing` | Canónico **`/settings/plan`** (spec §8). Redirect 308. |
 | `/billing/return` | **Se mantiene** — es el handler de retorno del checkout de Mercado Pago, no un destino de navegación. No aparece en el sidebar ni en el registro de rutas de producto. |
 | `/settings/referrals`, `/settings/notifications`, `/notifications`, `/admin/*` | Fuera del alcance de specs 01–13 (plataforma). Se mantienen como están. |
@@ -138,3 +138,8 @@ enlazan a `/settings/imports`.
 
 Cualquiera de D1–D6 puede revertirse con un comentario del usuario antes de que WP-ROUTES-RENAME entre
 en ejecución. Después, revertir implica otra ronda de redirects.
+
+## Estado de ejecución
+
+**WP-ROUTES-RENAME: DONE (2026-09-04).** Ver `docs/implementation/10-work-packages.md` para el
+detalle de la ejecución (incluye el refinamiento de D6 sobre `/planning` documentado arriba).

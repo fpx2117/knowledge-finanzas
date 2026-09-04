@@ -35,25 +35,25 @@ export type FinancialEventType =
   | "subscription.changed";
 
 const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
-  "account.created": ["/accounts", "/dashboard"],
-  "account.archived": ["/accounts", "/dashboard"],
+  "account.created": ["/accounts", "/app"],
+  "account.archived": ["/accounts", "/app"],
   // CM-01/CM-02/CM-03 (§9): a transaction touches its own list, the account it moved money in/out
   // of, the budget it may consume, the dashboard, and the calendar (transactions can be linked
   // from scheduled/obligation entries shown there).
-  "transaction.created": ["/transactions", "/accounts", "/budgets", "/dashboard", "/calendar"],
-  "transaction.updated": ["/transactions", "/accounts", "/budgets", "/dashboard", "/calendar"],
-  "transaction.voided": ["/transactions", "/accounts", "/budgets", "/dashboard", "/calendar"],
+  "transaction.created": ["/transactions", "/accounts", "/budgets", "/app", "/calendar"],
+  "transaction.updated": ["/transactions", "/accounts", "/budgets", "/app", "/calendar"],
+  "transaction.voided": ["/transactions", "/accounts", "/budgets", "/app", "/calendar"],
   // CM-04 (§9): both accounts, never a budget (transfers are excluded from consumption).
-  "transfer.created": ["/transactions", "/accounts", "/dashboard", "/calendar"],
-  "transfer.voided": ["/transactions", "/accounts", "/dashboard", "/calendar"],
+  "transfer.created": ["/transactions", "/accounts", "/app", "/calendar"],
+  "transfer.voided": ["/transactions", "/accounts", "/app", "/calendar"],
   // CM-05/CM-06 (§9, §14.1): an obligation and its payments affect the debt surface, the ledger
   // (a payment posts a transaction), the account it was paid from, and — because paying reduces
-  // what's committed — budgets/dashboard/calendar too.
-  "obligation.created": ["/debts", "/dashboard", "/calendar"],
-  "obligation.updated": ["/debts", "/dashboard", "/calendar"],
-  "obligation.payment_linked": ["/debts", "/transactions", "/accounts", "/budgets", "/dashboard"],
-  "budget.updated": ["/budgets", "/dashboard"],
-  "goal.updated": ["/goals", "/dashboard"],
+  // what's committed — budgets/app/calendar too.
+  "obligation.created": ["/obligations", "/app", "/calendar"],
+  "obligation.updated": ["/obligations", "/app", "/calendar"],
+  "obligation.payment_linked": ["/obligations", "/transactions", "/accounts", "/budgets", "/app"],
+  "budget.updated": ["/budgets", "/app"],
+  "goal.updated": ["/goals", "/app"],
   // CM-09 (§9): a category change (create/rename/archive/mapping) can change what a transaction
   // or budget shows, plus the two "new" forms that list categories.
   "category.changed": ["/settings/categories", "/transactions/new", "/budgets/new", "/transactions", "/budgets"],
@@ -61,11 +61,11 @@ const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
   "personal_rule.changed": ["/settings/rules"],
   // CM-11 (§9): resolving a pending/duplicate item can post a transaction or dismiss it — cover
   // both review surfaces plus everything a newly-posted transaction would touch.
-  "pending_item.resolved": ["/transactions/pendientes", "/transactions/duplicados", "/transactions", "/accounts", "/budgets", "/dashboard"],
+  "pending_item.resolved": ["/transactions/pending", "/transactions", "/accounts", "/budgets", "/app"],
   // CF-05: an import batch posts transactions and sends exceptions to Pendientes.
-  "import.completed": ["/transactions", "/transactions/importaciones", "/accounts", "/dashboard"],
-  "recurring.changed": ["/transactions/recurrentes"],
-  "subscription.changed": ["/debts/suscripciones"],
+  "import.completed": ["/transactions", "/settings/imports", "/accounts", "/app"],
+  "recurring.changed": ["/transactions/recurring"],
+  "subscription.changed": ["/obligations/subscriptions"],
 };
 
 export type EmitFinancialEventInput = {

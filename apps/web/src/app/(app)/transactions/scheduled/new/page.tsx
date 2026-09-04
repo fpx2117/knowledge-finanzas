@@ -13,7 +13,7 @@ export default async function NewScheduledTransactionPage({ searchParams }: { se
 
   return (
     <>
-      <Link className="mb-8 inline-block text-sm text-muted-foreground hover:text-foreground" href="/planning">← Volver a planificación</Link>
+      <Link className="mb-8 inline-block text-sm text-muted-foreground hover:text-foreground" href="/transactions/scheduled">← Volver a planificación</Link>
       <div className="mb-8 max-w-[680px]">
         <p className="eyebrow">Nuevo movimiento programado</p>
         <h1>{mode === "EXPENSE" ? "Programá un gasto." : "Programá un ingreso."}</h1>

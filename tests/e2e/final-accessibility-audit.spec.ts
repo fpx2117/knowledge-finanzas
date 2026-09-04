@@ -3,12 +3,12 @@ import { expect, test } from "@playwright/test";
 import { signUpCompleteOnboardingAndStartTrial } from "./support/onboarding-flow";
 
 const routes = [
-  "/dashboard",
+  "/app",
   "/accounts",
   "/transactions",
   "/budgets",
-  "/debts",
-  "/planning",
+  "/obligations",
+  "/transactions/scheduled",
   "/notifications",
   "/settings/categories",
   "/settings/notifications",

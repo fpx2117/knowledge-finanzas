@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </>
       }
     >
-      <LoginForm callbackURL={callbackURL || "/dashboard"} />
+      <LoginForm callbackURL={callbackURL || "/app"} />
     </AuthLayout>
   );
 }

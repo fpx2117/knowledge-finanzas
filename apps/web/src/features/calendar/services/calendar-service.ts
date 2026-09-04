@@ -97,7 +97,7 @@ export function createCalendarService(database = db) {
           amount: remaining.toString(),
           currencyCode: row.debt.currencyCode,
           projected: true,
-          href: `/debts/${row.debt.id}`,
+          href: `/obligations/${row.debt.id}`,
         });
       }
 
@@ -126,7 +126,7 @@ export function createCalendarService(database = db) {
           amount: Money.fromString(transfer.amount, transfer.currencyCode).toString(),
           currencyCode: transfer.currencyCode,
           projected: false,
-          href: `/transfers/${transfer.id}`,
+          href: `/transactions/transfers/${transfer.id}`,
         });
       }
 

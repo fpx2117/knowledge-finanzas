@@ -63,7 +63,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (hasSession && AUTH_ENTRY_PATHS.has(pathname)) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/app", request.url));
     }
   }
 

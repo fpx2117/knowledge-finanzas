@@ -9,7 +9,7 @@ export default function NotFound() {
         El enlace que seguiste puede estar roto o la página se movió.
       </p>
       <Link
-        href="/dashboard"
+        href="/app"
         className="mt-2 inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-body font-medium text-primary-foreground transition-colors hover:opacity-90"
       >
         Volver al resumen

@@ -14,7 +14,7 @@ export default async function FinancialOnboardingPage() {
 
   if (gate.destination === "ONBOARDING") redirect("/onboarding");
   if (gate.destination === "ACCESS_SELECTION") redirect("/elegir-acceso");
-  if (gate.destination === "CONTINUE") redirect("/dashboard");
+  if (gate.destination === "CONTINUE") redirect("/app");
 
   return (
     <section className="onboarding-step"><OnboardingIntro title="Creá tu primera cuenta" description="Es el último paso para empezar a ver tu dinero con claridad." /><p className="onboarding-form-note">Podés agregar más cuentas después. El saldo inicial no se registra como un ingreso.</p><FirstAccountForm /></section>

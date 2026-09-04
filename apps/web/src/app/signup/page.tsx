@@ -18,7 +18,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
         </>
       }
     >
-      <SignupForm callbackURL={callbackURL || "/dashboard"} />
+      <SignupForm callbackURL={callbackURL || "/app"} />
     </AuthLayout>
   );
 }

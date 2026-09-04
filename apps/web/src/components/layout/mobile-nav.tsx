@@ -41,7 +41,7 @@ export function MobileNav({ user, unreadCount }: { user: MobileUser; unreadCount
         </SheetContent>
       </Sheet>
 
-      <Link href="/dashboard" aria-label="Know Finanzas" className="flex items-center gap-2">
+      <Link href="/app" aria-label="Know Finanzas" className="flex items-center gap-2">
         <Image src="/brand/logo.png" alt="" width={24} height={24} className="size-6 object-contain" />
         <span className="text-body font-medium tracking-tight text-foreground">
           Know<span className="text-brand">Finanzas</span>

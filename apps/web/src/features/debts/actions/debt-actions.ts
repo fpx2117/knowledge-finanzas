@@ -89,7 +89,7 @@ export async function createDebtAction(
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
-  redirect("/debts");
+  redirect("/obligations");
 }
 
 export async function recordPaymentAction(
@@ -109,7 +109,7 @@ export async function recordPaymentAction(
     });
     debtId = input.debtId;
     await paymentService.recordDebtPayment(user, input);
-    emitFinancialEvent({ type: "obligation.payment_linked", entityPaths: [`/debts/${debtId}`] });
+    emitFinancialEvent({ type: "obligation.payment_linked", entityPaths: [`/obligations/${debtId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
@@ -128,5 +128,5 @@ export async function cancelDebtAction(
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
   }
-  redirect("/debts");
+  redirect("/obligations");
 }

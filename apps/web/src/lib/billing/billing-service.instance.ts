@@ -4,7 +4,7 @@ import { env } from "@know-finanzas/config";
 
 import { createBillingService } from "@/features/billing/services/billing-service";
 
-// Shared instance so both /settings/billing's "Suscribirse a Pro" and /elegir-acceso's "Comenzar
+// Shared instance so both /settings/plan's "Suscribirse a Pro" and /elegir-acceso's "Comenzar
 // con Pro" call the exact same StartProSubscription wiring — never a second, parallel one.
 export const billingService = createBillingService({
   plans: createBillingPlanRepository(db),

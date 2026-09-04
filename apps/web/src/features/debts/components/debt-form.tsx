@@ -137,7 +137,7 @@ export function DebtForm({ timezone, baseCurrency }: { timezone: string; baseCur
       ) : null}
 
       <div className="flex items-center justify-end gap-3 pt-2">
-        <Button variant="outline" render={<Link href="/debts">Cancelar</Link>} />
+        <Button variant="outline" render={<Link href="/obligations">Cancelar</Link>} />
         <Button type="submit" disabled={pending}>
           {pending ? "Creando…" : "Crear obligación"}
         </Button>

@@ -18,7 +18,7 @@ export default function BillingReturnPage() {
       <section className="mt-10 max-w-[650px] rounded-lg border border-dashed border-border bg-card p-8" role="status">
         <h2>Tu suscripción está pendiente de confirmación.</h2>
         <p>Todavía no está activa. No hace falta que hagas nada más: te avisaremos cuando se confirme.</p>
-        <Button variant="outline" render={<Link href="/dashboard" />}>Volver al dashboard</Button>
+        <Button variant="outline" render={<Link href="/app" />}>Volver al dashboard</Button>
       </section>
     </>
   );

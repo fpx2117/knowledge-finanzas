@@ -16,7 +16,7 @@ export async function signUp(request: APIRequestContext, baseURL: string, input:
 
 // Walks all six onboarding steps with the minimum valid input, declining every optional
 // question/consent along the way. Ends wherever the (app) layout's routing guard sends the user
-// next — /elegir-acceso for a brand-new user, /onboarding/financial-onboarding or /dashboard for a
+// next — /elegir-acceso for a brand-new user, /onboarding/financial-onboarding or /app for a
 // user whose access was already provisioned directly in the database before this ran.
 export async function completeProfileOnboarding(page: Page): Promise<void> {
   await page.goto("/onboarding");
@@ -50,7 +50,7 @@ export async function chooseTrial(page: Page): Promise<void> {
 }
 
 // Fills and submits the financial-onboarding first-account form (same underlying CreateAccount
-// service the standalone Accounts feature uses), landing on /dashboard. Whatever name is passed
+// service the standalone Accounts feature uses), landing on /app. Whatever name is passed
 // here is just the mandatory "first account" placeholder — tests that need specific accounts for
 // their own assertions create additional ones afterward via the normal Accounts feature.
 export async function completeFinancialOnboarding(page: Page, accountName = "Cuenta inicial"): Promise<void> {
@@ -59,11 +59,11 @@ export async function completeFinancialOnboarding(page: Page, accountName = "Cue
   await page.getByLabel("Saldo inicial").fill("0");
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");
   await page.getByRole("button", { name: "Crear mi primera cuenta" }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/app$/);
 }
 
 // The single composite most specs need: sign up, walk profile onboarding, choose Trial, and
-// create the mandatory first account — ending on /dashboard with full TRIAL access, ready for
+// create the mandatory first account — ending on /app with full TRIAL access, ready for
 // whatever the test actually wants to do next.
 export async function signUpCompleteOnboardingAndStartTrial(page: Page, baseURL: string, input: { name: string; email: string }): Promise<void> {
   await signUp(page.request, baseURL, input);

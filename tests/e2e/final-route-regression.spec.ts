@@ -3,23 +3,23 @@ import { expect, test } from "@playwright/test";
 import { signUpCompleteOnboardingAndStartTrial } from "./support/onboarding-flow";
 
 const authenticatedRoutes = [
-  "/dashboard",
+  "/app",
   "/accounts",
   "/accounts/new",
   "/transactions",
   "/transactions/new?type=INCOME",
   "/budgets",
   "/budgets/new",
-  "/debts",
-  "/debts/new",
-  "/planning",
-  "/planning/scheduled/new?type=EXPENSE",
+  "/obligations",
+  "/obligations/new",
+  "/transactions/scheduled",
+  "/transactions/scheduled/new?type=EXPENSE",
   "/notifications",
   "/settings/categories",
   "/settings/notifications",
   "/settings/privacy",
   "/settings/referrals",
-  "/settings/billing",
+  "/settings/plan",
   "/billing/return",
 ];
 

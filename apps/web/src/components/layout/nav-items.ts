@@ -21,11 +21,14 @@ export type NavItem = {
   children?: NavChild[];
 };
 
-// Canonical sidebar sections — visual-design-personal.md §7.2 (§2.5, §24: fixed order).
+// Canonical sidebar sections — visual-design-personal.md §7.2 (§2.5, §24: fixed order),
+// reconciled with spec 14 §7/§8 routes per ADR-IMPL-001 (English canonical paths; Transferencias/
+// Programados live under Transacciones — module 03 owns Transfer/ScheduledTransaction; see
+// docs/implementation/05-domain-ownership.md).
 // A section only lists `children` for sub-routes that actually exist; groups expand when one
 // of their routes is active. New capture surfaces attach here, never as a new top-level item.
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Resumen", href: "/dashboard", icon: LayoutDashboardIcon },
+  { label: "Resumen", href: "/app", icon: LayoutDashboardIcon },
   { label: "Cuentas", href: "/accounts", icon: WalletIcon },
   {
     label: "Transacciones",
@@ -33,20 +36,20 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ReceiptTextIcon,
     children: [
       { label: "Movimientos", href: "/transactions" },
-      { label: "Pendientes", href: "/transactions/pendientes" },
-      { label: "Recurrentes", href: "/transactions/recurrentes" },
-      { label: "Importaciones", href: "/transactions/importaciones" },
-      { label: "Duplicados", href: "/transactions/duplicados" },
+      { label: "Pendientes", href: "/transactions/pending" },
+      { label: "Transferencias", href: "/transactions/transfers" },
+      { label: "Programados", href: "/transactions/scheduled" },
+      { label: "Recurrentes", href: "/transactions/recurring" },
     ],
   },
   { label: "Presupuestos", href: "/budgets", icon: ChartColumnIncreasingIcon },
   {
     label: "Obligaciones",
-    href: "/debts",
+    href: "/obligations",
     icon: PiggyBankIcon,
     children: [
-      { label: "Deudas y cuotas", href: "/debts" },
-      { label: "Suscripciones", href: "/debts/suscripciones" },
+      { label: "Deudas y cuotas", href: "/obligations" },
+      { label: "Suscripciones", href: "/obligations/subscriptions" },
     ],
   },
   { label: "Calendario", href: "/calendar", icon: CalendarDaysIcon },

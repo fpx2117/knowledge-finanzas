@@ -20,7 +20,7 @@ export default async function ClassificationRulesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
+      <Link href="/app" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
         <ArrowLeftIcon className="size-4" /> Configuración
       </Link>
 

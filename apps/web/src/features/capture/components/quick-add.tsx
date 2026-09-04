@@ -547,7 +547,7 @@ export function QuickAdd({
               className="h-11"
               onClick={() => {
                 onOpenChange(false);
-                router.push(type === "TRANSFER" ? "/transfers/new" : "/debts/new");
+                router.push(type === "TRANSFER" ? "/transactions/transfers/new" : "/obligations/new");
               }}
             >
               {type === "TRANSFER" ? "Nueva transferencia" : "Nueva obligación"}

@@ -6,7 +6,7 @@ import { signUpCompleteOnboardingAndStartTrial } from "./support/onboarding-flow
 
 async function expectDashboardEventually(page: Page, text: string) {
   await expect(async () => {
-    await page.goto("/dashboard");
+    await page.goto("/app");
     await expect(page.getByText(text).first()).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 15000 });
 }
@@ -24,20 +24,20 @@ test("debt payment reduces dashboard debt summary and spendable", async ({ brows
   await page.getByRole("button", { name: "Crear cuenta" }).click();
   await expect(page).toHaveURL(/\/accounts$/);
 
-  await page.goto("/debts/new");
+  await page.goto("/obligations/new");
   await page.getByLabel("Nombre").fill("Préstamo Dashboard E2E");
   await page.getByRole("button", { name: "Generar preview" }).click();
   await page.getByRole("button", { name: "Validar preview" }).click();
   await page.getByRole("button", { name: "Confirmar deuda" }).click();
-  await expect(page).toHaveURL(/\/debts$/);
+  await expect(page).toHaveURL(/\/obligations$/);
 
   await expectDashboardEventually(page, "ARS 100,00");
 
-  await page.goto("/debts");
+  await page.goto("/obligations");
   await page.getByRole("link", { name: "Préstamo Dashboard E2E" }).click();
   await page.getByLabel("Monto").fill("40");
   await page.getByRole("button", { name: "Confirmar pago" }).click();
-  await expect(page).toHaveURL(/\/debts\//);
+  await expect(page).toHaveURL(/\/obligations\//);
   await expect(page.getByText("ARS 60.00").first()).toBeVisible();
 
   await expectDashboardEventually(page, "ARS 60,00");
@@ -82,7 +82,7 @@ test("confirming a scheduled transaction updates dashboard totals and recent act
 
   await expectDashboardEventually(page, "ARS 1.000,00");
 
-  await page.goto("/planning?tab=scheduled");
+  await page.goto("/transactions/scheduled?tab=scheduled");
   await expect(page.getByText("Gasto programado dashboard E2E")).toBeVisible();
   await page.getByRole("button", { name: "Confirmar" }).click();
   await page.getByLabel("Importe real").fill("150");

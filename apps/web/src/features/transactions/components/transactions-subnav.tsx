@@ -5,12 +5,15 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
+// ADR-IMPL-001: canonical English paths (spec 14 §8). Importaciones moved to /settings/imports
+// (module 11) and Duplicados folded into Pendientes as an anchored section (#duplicados) — see
+// apps/web/src/app/(app)/transactions/pending/page.tsx.
 const TABS = [
   { label: "Movimientos", href: "/transactions" },
-  { label: "Pendientes", href: "/transactions/pendientes" },
-  { label: "Recurrentes", href: "/transactions/recurrentes" },
-  { label: "Importaciones", href: "/transactions/importaciones" },
-  { label: "Duplicados", href: "/transactions/duplicados" },
+  { label: "Pendientes", href: "/transactions/pending" },
+  { label: "Duplicados", href: "/transactions/pending#duplicados" },
+  { label: "Programados", href: "/transactions/scheduled" },
+  { label: "Recurrentes", href: "/transactions/recurring" },
 ];
 
 export function TransactionsSubnav() {
@@ -18,7 +21,8 @@ export function TransactionsSubnav() {
   return (
     <nav aria-label="Secciones de transacciones" className="-mb-px flex gap-1 overflow-x-auto border-b border-border">
       {TABS.map((tab) => {
-        const active = tab.href === "/transactions" ? pathname === "/transactions" : pathname.startsWith(tab.href);
+        const href = tab.href.split("#")[0];
+        const active = href === "/transactions" ? pathname === "/transactions" : pathname.startsWith(href);
         return (
           <Link
             key={tab.href}

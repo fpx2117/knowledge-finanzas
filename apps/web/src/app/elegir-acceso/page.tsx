@@ -15,7 +15,7 @@ export default async function AccessSelectionPage() {
 
   if (gate.destination === "ONBOARDING") redirect("/onboarding");
   if (gate.destination === "FINANCIAL_ONBOARDING") redirect("/onboarding/financial-onboarding");
-  if (gate.destination === "CONTINUE") redirect("/dashboard");
+  if (gate.destination === "CONTINUE") redirect("/app");
 
   try {
     await analyticsService("access_selection_viewed", {}, { userId: user.id, internal: isInternalAccount(user.email) });

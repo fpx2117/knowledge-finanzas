@@ -25,7 +25,7 @@ test("full path: onboarding completed → choose Trial → TRIAL access → crea
   await expect(page).toHaveURL(/\/onboarding\/financial-onboarding$/);
   await completeFinancialOnboarding(page, "Cuenta Trial E2E");
 
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/app$/);
   await context.close();
 });
 
@@ -73,7 +73,7 @@ test("full path: onboarding completed → enter valid promo code → PRO (source
 
   await expect(page).toHaveURL(/\/onboarding\/financial-onboarding$/);
   await completeFinancialOnboarding(page, "Cuenta Promo E2E");
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/app$/);
 
   await context.close();
 });

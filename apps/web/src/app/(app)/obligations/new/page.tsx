@@ -6,7 +6,7 @@ export default async function NewDebtPage() {
   const user = await requireCurrentUser();
   return (
     <FormPage
-      backHref="/debts"
+      backHref="/obligations"
       backLabel="Volver a obligaciones"
       eyebrow="Nueva obligación"
       title="Registrá una deuda o compra en cuotas"

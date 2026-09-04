@@ -83,7 +83,7 @@ test("creates income and expense movements from the UI", async ({ browser, baseU
   await expect(page).toHaveURL(/\/transactions$/);
   await expect(page.getByText("Gasto E2E")).toBeVisible();
 
-  await page.goto("/dashboard");
+  await page.goto("/app");
   await expect(page.getByText("ARS 1.300,00").first()).toBeVisible();
   await expect(page.getByText("ARS 500,00").first()).toBeVisible();
   await expect(page.getByText("ARS 200,00").first()).toBeVisible();
@@ -116,7 +116,7 @@ test("creates and voids a same-currency transfer as one logical movement", async
     await expect(page).toHaveURL(/\/accounts$/);
     await expect(page.getByRole("heading", { name })).toBeVisible();
   }
-  await page.goto("/transfers/new");
+  await page.goto("/transactions/transfers/new");
   await chooseCombobox(page, "Desde", "Banco E2E · ARS");
   await chooseCombobox(page, "Hacia", "Efectivo E2E · ARS");
   await page.getByLabel("Monto").fill("200");
@@ -145,7 +145,7 @@ test("keeps ARS and USD balances separate on the dashboard", async ({ browser, b
     await expect(page).toHaveURL(/\/accounts$/);
   }
 
-  await page.goto("/dashboard");
+  await page.goto("/app");
   await expect(page.getByText("ARS 1.000,00").first()).toBeVisible();
   await expect(page.getByText("USD 50,00").first()).toBeVisible();
   await expect(page.getByText("ARS 1.050,00")).not.toBeVisible();
@@ -154,7 +154,7 @@ test("keeps ARS and USD balances separate on the dashboard", async ({ browser, b
 
 test("generates and edits an installment preview without persisting it", async ({ page, baseURL }) => {
   await signUpCompleteOnboardingAndStartTrial(page, baseURL!, { name: "Debt Preview E2E", email: `debt-preview-${Date.now()}@example.test` });
-  await page.goto("/debts/new");
+  await page.goto("/obligations/new");
   await page.getByLabel("Total a pagar").fill("100");
   await page.getByLabel("Cantidad de cuotas").fill("3");
   await page.getByLabel("Primer vencimiento").fill("2026-01-31");
@@ -175,18 +175,18 @@ test("confirms a reviewed debt and inspects its installments", async ({ browser,
   await page.getByLabel("Saldo inicial").fill("500");
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");
   await page.getByRole("button", { name: "Crear cuenta" }).click();
-  await page.goto("/debts/new");
+  await page.goto("/obligations/new");
   await page.getByLabel("Nombre").fill("Préstamo E2E");
   await page.getByRole("button", { name: "Generar preview" }).click();
   await page.getByRole("button", { name: "Validar preview" }).click();
   await page.getByRole("button", { name: "Confirmar deuda" }).click();
-  await expect(page).toHaveURL(/\/debts$/);
+  await expect(page).toHaveURL(/\/obligations$/);
   await expect(page.getByText("Préstamo E2E")).toBeVisible();
   await page.getByRole("link", { name: "Préstamo E2E" }).click();
   await expect(page.getByRole("heading", { name: "Préstamo E2E" })).toBeVisible();
   await page.getByLabel("Monto").fill("50");
   await page.getByRole("button", { name: "Confirmar pago" }).click();
-  await expect(page).toHaveURL(/\/debts\//);
+  await expect(page).toHaveURL(/\/obligations\//);
   await expect(page.getByText("ARS 50.00")).toBeVisible();
   await context.close();
 });

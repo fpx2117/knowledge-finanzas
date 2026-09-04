@@ -17,7 +17,7 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>;
 
-export function LoginForm({ callbackURL = "/dashboard" }: { callbackURL?: string }) {
+export function LoginForm({ callbackURL = "/app" }: { callbackURL?: string }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const {

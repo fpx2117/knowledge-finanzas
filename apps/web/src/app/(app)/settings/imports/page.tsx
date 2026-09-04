@@ -5,7 +5,6 @@ import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { ImportWizard } from "@/features/imports/components/import-wizard";
-import { TransactionsSubnav } from "@/features/transactions/components/transactions-subnav";
 
 export default async function ImportPage() {
   const user = await requireCurrentUser();
@@ -20,8 +19,6 @@ export default async function ImportPage() {
         title="Importar movimientos"
         description="Subí el CSV que exportás de tu banco o billetera. Detectamos las columnas solas, te mostramos una vista previa y salteamos lo que ya tengas cargado."
       />
-
-      <TransactionsSubnav />
 
       <SectionCard title="Archivo">
         {options.length > 0 ? (
