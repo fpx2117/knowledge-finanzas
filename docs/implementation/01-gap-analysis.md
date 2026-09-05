@@ -13,7 +13,7 @@ convertirse en work package cerrado.
 | 01 | Resumen | PARTIAL (P0 cerrado 2026-09-04) | MEDIO | `/app` con KPIs correctos (Saldo total/Dinero disponible/Resultado del período), multimoneda separada, drawer de "Ver cálculo". Pendiente (fuera de este WP): estados de calidad de datos §17, degradación por sección §18.2/18.3, empty state "sin movimientos" §19.2, texto accesible del gráfico §24.3 |
 | 02 | Cuentas | PARTIAL | MEDIO | CRUD + balance derivado + detalle OK; faltan subvistas `/accounts/{banks,wallets,cash,savings}` y warning de archivar con saldo ≠ 0 (UNVERIFIED) |
 | 03 | Transacciones | PARTIAL | ALTO | Ledger sólido; **rutas divergen** (español + transfers separado), **sin idempotency key en `transactions`**, "Pendientes" como sub-vista vs spec, recurrentes/duplicados/importaciones presentes |
-| 04 | Presupuestos | PARTIAL | MEDIO | Dominio + UI + alerts + dashboard existen; faltan `/budgets/categories`, `/budgets/history`, detalle por categoría; semántica refund/transfer/deuda a re-verificar contra §13 |
+| 04 | Presupuestos | MOSTLY DONE | BAJO | Dominio + UI + alerts + subvistas (`/budgets/categories`, `/budgets/history`, `/budgets/[id]`) existen. Consumo verificado contra §13/§18/§21 y fijado con integration tests (2026-09-05): EXPENSE−REFUND, excluye transfer/liability/adjustment/voided, rollup de subárbol |
 | 05 | Obligaciones | PARTIAL | BAJO | Read model unificado + `/obligations/upcoming` (§10) + vista principal `/obligations` "Todas" (§9: KPIs, "Necesita atención", lista agrupada por tiempo) sobre el read model (2026-09-05). Falta sólo: detalle unificado (`/obligations/[id]` sigue siendo de deudas) |
 | 06 | Calendario | PARTIAL | BAJO | Taxonomía temporal-financiera §5 (CONFIRMED/COMMITTED/SCHEDULED/OVERDUE…) en cada evento + etiqueta sin color + desglose por capa + monedas separadas + tests DST (2026-09-05). Falta sólo: modos Agenda (§7) y Día (§8) como UI |
 | 07 | Metas | PARTIAL | MEDIO | `/goals` + CRUD + aporte/retiro; **`goals.currentAmount` es columna mutable**, no derivada de asignaciones (§15). Sin tabla `goal_allocations`. Subvistas `/goals/active|completed` faltan |
@@ -72,11 +72,11 @@ convertirse en work package cerrado.
 | Capability | Spec | Code | Status | Risk | Trabajo |
 |---|---|---|---|---|---|
 | Límite mensual por categoría | §13 | `budgets` tabla + `calculateBudget` | IMPLEMENTED | — | — |
-| spent = gastos confirmados elegibles | §13 | `calculate-budget` | PARTIAL | FINANCIAL | Verificar exclusión de transferencias y pagos de deuda; test §13 |
+| spent = gastos confirmados elegibles | §13/§18/§21 | `queries/budgets.ts` + `budget-service.ts` | **IMPLEMENTED (2026-09-05)** | — | `EXPENSE−REFUND` = Σ consumptionDelta; `tests/integration/budget-consumption.test.ts` prueba exclusión de transfer/LIABILITY_PAYMENT/ADJUSTMENT/VOIDED + rollup subárbol + neto negativo |
 | Total = suma de líneas (sin límite global) | PD-006 | UNVERIFIED | UNVERIFIED | — | Confirmar |
 | NORMAL/NEAR_LIMIT/EXCEEDED + alerts | 04 | `budget-alerts`, `budget_alerts` tabla | IMPLEMENTED | — | — |
 | `/budgets/categories`, `/budgets/history`, `/budgets/categories/:id` | §8 | sólo `/budgets` + `[budgetId]` + `new` | PARTIAL | UX | 2 rutas + detalle por categoría |
-| Refund corrige consumo | §13 | UNVERIFIED | UNVERIFIED | FINANCIAL | Test |
+| Refund corrige consumo | §13/§20 | `queries/budgets.ts` netExpense | **IMPLEMENTED (2026-09-05)** | — | Refund reduce el período en que se registra (§20.3 P0); test cubre neto bajo cero |
 | Budgets padre/hijo superpuestos | OQ-002 | UNVERIFIED | UNVERIFIED | FINANCIAL | Confirmar semántica de doble comparación sin doble gasto |
 
 ### 05 Obligaciones (spec `/obligations` — código `/debts`)

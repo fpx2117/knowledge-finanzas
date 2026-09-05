@@ -56,7 +56,7 @@ subvistas, Insights determinísticos).
 
 | WP | Contenido |
 |---|---|
-| WP-BUDGET-CONSUMPTION | Verificar/corregir query de spent: usa `consumptionDelta`, excluye transferencias y `LIABILITY_PAYMENT`, aplica refunds (§13). Tests. Detalle por categoría + historial. |
+| ~~WP-BUDGET-CONSUMPTION~~ **DONE (2026-09-05)** | La query `getCategorySpendingForUser` ya era correcta: `netExpense = Σ EXPENSE − Σ REFUND` = `Σ consumptionDelta`; `type in ('EXPENSE','REFUND')` excluye transfers/`LIABILITY_PAYMENT`/`ADJUSTMENT`/`INCOME`, `status='POSTED'` excluye VOIDED, refund reduce el período en que se registra (§20.3 P0), rollup por subárbol de categoría. Verificado y fijado con integration tests + comentario que ata la fórmula a §13/§18/§21. Detalle (`/budgets/[id]`) + historial (`/budgets/history`, recálculo real por mes) ya existían. |
 | WP-GOALS-ALLOC | Tabla `goal_allocations`; `currentAmount` derivado; migración + backfill; validador en `finance:audit`; verificar que aporte no crea EXPENSE (CM-08). |
 | WP-GOALS-UI | Subvistas activas/completadas; ritmo/fecha estimada sólo con evidencia (§6). |
 

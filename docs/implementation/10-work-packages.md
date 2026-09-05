@@ -598,6 +598,31 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 828/828 (+3), integration
   del WP 3/3.
 
+## WP-BUDGET-CONSUMPTION — Consumo de presupuesto correcto  ·  P1 · FINANCIAL  ·  **DONE (2026-09-05)**
+
+- **Goal (spec 04 §13/§18/§21):** que "Gastado" en un presupuesto sea consumo neto real —
+  `EXPENSE − REFUND` — y excluya transferencias, pagos de deuda/tarjeta, ajustes contables,
+  ingresos y anulados, sin doble contar.
+- **Hallazgo:** la query `getCategorySpendingForUser` (`packages/db/src/queries/budgets.ts`) y
+  `budget-service.ts` **ya eran correctos**. `netExpense = Σ(EXPENSE) − Σ(REFUND)` es exactamente
+  `Σ classifyLedgerEffect().consumptionDelta` sobre las filas seleccionadas; el filtro
+  `type in ('EXPENSE','REFUND')` excluye estructuralmente `TRANSFER_IN/OUT` (§19), `LIABILITY_PAYMENT`
+  (§21 — liquidación, no consumo nuevo), `ADJUSTMENT_IN/OUT` (§18.2) e `INCOME`; `status='POSTED'`
+  excluye VOIDED (el enum no tiene PENDING); el refund reduce el período en que se registra (§20.3
+  P0); `resolveCategorySubtreeIds` hace el rollup por subárbol. `netExpense` negativo (refunds >
+  gastos) está bien y `calculateBudget` lo maneja (NORMAL, remaining sobre el límite).
+- **Trabajo hecho:** comentario en la query que ata la fórmula a §13/§18/§21 + `tests/integration/
+  budget-consumption.test.ts` (Postgres real, wiring de producción): (1) cuenta EXPENSE − REFUND con
+  rollup de subcategoría e ignora transferencia real / `LIABILITY_PAYMENT` / `ADJUSTMENT_OUT` /
+  VOIDED / fila fuera del período; (2) un refund grande empuja el neto bajo cero sin romper el
+  presupuesto.
+- **Ya existían:** `/budgets/[budgetId]` (detalle con transacciones que explican el consumo) y
+  `/budgets/history` (recálculo real del consumo contra cada mes pasado, no una foto).
+- **Nota / no en alcance:** §18.1 menciona incluir "ajustes que explícitamente representen consumo
+  corregido" — no hay sub-tipo de ADJUSTMENT que distinga eso de un ajuste puramente contable, así
+  que se excluyen todos (conservador, alineado con §18.2). Documentado, no inventado.
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 828/828, integration del WP 2/2.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
