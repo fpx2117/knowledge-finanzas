@@ -40,9 +40,9 @@ const TYPE_META: Record<AccountRow["type"], { label: string; icon: typeof Wallet
   SAVINGS: { label: "Ahorro", icon: PiggyBankIcon },
 };
 
-export function AccountsExplorer({ accounts }: { accounts: AccountRow[] }) {
+export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: AccountRow[]; defaultType?: string }) {
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<string>("ALL");
+  const [type, setType] = useState<string>(defaultType);
   const [currency, setCurrency] = useState<string>("ALL");
 
   const currencies = useMemo(() => [...new Set(accounts.map((a) => a.currencyCode))].sort(), [accounts]);

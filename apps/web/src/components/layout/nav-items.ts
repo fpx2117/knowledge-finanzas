@@ -29,7 +29,18 @@ export type NavItem = {
 // of their routes is active. New capture surfaces attach here, never as a new top-level item.
 export const NAV_ITEMS: NavItem[] = [
   { label: "Resumen", href: "/app", icon: LayoutDashboardIcon },
-  { label: "Cuentas", href: "/accounts", icon: WalletIcon },
+  {
+    label: "Cuentas",
+    href: "/accounts",
+    icon: WalletIcon,
+    children: [
+      { label: "Todas", href: "/accounts" },
+      { label: "Bancos", href: "/accounts/banks" },
+      { label: "Billeteras", href: "/accounts/wallets" },
+      { label: "Efectivo", href: "/accounts/cash" },
+      { label: "Ahorro", href: "/accounts/savings" },
+    ],
+  },
   {
     label: "Transacciones",
     href: "/transactions",
@@ -42,18 +53,38 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Recurrentes", href: "/transactions/recurring" },
     ],
   },
-  { label: "Presupuestos", href: "/budgets", icon: ChartColumnIncreasingIcon },
+  {
+    label: "Presupuestos",
+    href: "/budgets",
+    icon: ChartColumnIncreasingIcon,
+    children: [
+      { label: "Resumen", href: "/budgets" },
+      { label: "Por categoría", href: "/budgets/categories" },
+      { label: "Historial", href: "/budgets/history" },
+    ],
+  },
   {
     label: "Obligaciones",
     href: "/obligations",
     icon: PiggyBankIcon,
     children: [
-      { label: "Deudas y cuotas", href: "/obligations" },
+      { label: "Todas", href: "/obligations" },
+      { label: "Próximas", href: "/obligations/upcoming" },
+      { label: "Cuotas", href: "/obligations/installments" },
       { label: "Suscripciones", href: "/obligations/subscriptions" },
     ],
   },
   { label: "Calendario", href: "/calendar", icon: CalendarDaysIcon },
-  { label: "Metas", href: "/goals", icon: TargetIcon },
+  {
+    label: "Metas",
+    href: "/goals",
+    icon: TargetIcon,
+    children: [
+      { label: "Todas", href: "/goals" },
+      { label: "Activas", href: "/goals/active" },
+      { label: "Completadas", href: "/goals/completed" },
+    ],
+  },
   { label: "Reportes", href: "/reports", icon: FileBarChartIcon },
   { label: "Insights", href: "/insights", icon: LightbulbIcon },
 ];

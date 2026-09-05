@@ -269,7 +269,31 @@ severidad retroactiva de "HIGH especulativo" a "CRITICAL confirmado".**
 
 | WP | Prio | Goal | Dep | Criterio |
 |---|---|---|---|---|
-| WP-ROUTES-SUBVIEWS | P1 `UX-RISK` | Subvistas de accounts/transactions/budgets/obligations/goals/insights como filtros server-side | ADR-001 | rutas de `04-route-registry` MISSING→OK; sin lógica de dominio nueva |
+| ~~WP-ROUTES-SUBVIEWS~~ **DONE (2026-09-04, parcial — Cuentas/Presupuestos/Obligaciones/Metas)** | P1 `UX-RISK` | Ver detalle abajo | ADR-001, WP-ROUTES-RENAME | rutas de Cuentas/Presupuestos/Obligaciones/Metas en `04-route-registry` MISSING→OK. Transacciones ya cubierto por WP-ROUTES-RENAME. Insights queda pendiente (depende de WP-INSIGHT-DETECTORS, Fase F — no tiene sentido crear `/insights/{opportunities,history}` sin detectores reales detrás). |
+
+### Detalle de lo hecho
+
+- **Cuentas** — `/accounts/{banks,wallets,cash,savings}`: nuevo `features/accounts/views/accounts-view.tsx`
+  (extraído de `page.tsx`, parametrizado por `type`) reusado por las 4 subvistas + la vista "Todas";
+  `AccountsExplorer` gana `defaultType`. Stats/donut se recalculan sobre el subconjunto filtrado
+  (p.ej. "Bancos" muestra el saldo total sólo de cuentas bancarias).
+- **Presupuestos** — `/budgets/categories` (tabla completa sin las stat cards del resumen);
+  `/budgets/history` (`?month=YYYY-MM`, últimos 6 meses) — requirió extender
+  `createBudgetService`: `computeOverviewItems` ahora acepta un `period` opcional y se agregó
+  `getBudgetOverviewForMonth(user, year, month)`. Los presupuestos son un límite estándar por
+  categoría, no una fila por mes, así que "Historial" **recalcula el consumo real contra meses
+  pasados** vía `getCategorySpendingForUser`, nunca lee una foto guardada.
+- **Obligaciones** — `/obligations/upcoming` redirige a `/obligations?tab=proximos` (el contenido
+  ya existía como tab de query-param; puentea sin duplicar el render). `/obligations/installments`
+  es nuevo: lista las deudas `type = PURCHASE_INSTALLMENTS` (compras en cuotas), separadas de
+  préstamos personales/deudas con terceros/servicios que quedan en la vista general.
+- **Metas** — `/goals/active`, `/goals/completed`: `GoalRow` se extrajo de `goals/page.tsx` a
+  `features/goals/components/goal-row.tsx` para reusarlo en las 3 vistas sin duplicar markup.
+- **`nav-items.ts`**: Cuentas, Presupuestos, Obligaciones y Metas ganaron `children` (antes eran
+  links planos) — sidebar ahora coincide con el mapa de navegación de spec 14 §7 para estos 4 módulos.
+- **Verificación:** lint limpio, `pnpm typecheck` estable en los mismos 148 errores preexistentes
+  (0 nuevos), unit 804/804 sin cambio (páginas de servidor sin lógica de dominio nueva que testear
+  aisladamente — la cobertura real es E2E, no ejecutado en este entorno).
 | WP-ACCOUNTS-SPEC | P1 `FINANCIAL-RISK` | Warning archivar saldo≠0 + exclusión de archivadas del balance líquido | WP-LEDGER-EXHAUSTIVE | test OQ-007 |
 | WP-CAPTURE-CMDSURFACE | P1 | `features/capture` es command surface pura §25 | WP-LEDGER-IDEMP | no duplica ledger; valida IDs; enruta a owners |
 | WP-IMPORTS-CF05 | P1 `FINANCIAL-RISK` | CF-05 completo y verificado | WP-LEDGER-IDEMP | preview sin escritura, batch idempotente, fingerprint, excepciones→Pendientes |

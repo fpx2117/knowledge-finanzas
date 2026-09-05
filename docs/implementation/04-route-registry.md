@@ -14,41 +14,42 @@ en su `layout`. Auth: `session required` salvo indicado. Entitlement: `TRIAL|PRO
 
 | Ruta spec | Vista | Owner | Prio | Ruta en código | Estado | Deep-link / Mobile |
 |---|---|---|---:|---|---|---|
-| `/app` | Resumen | 01 | P0 | `(app)/dashboard` | RENAME | bottom bar slot 1; sin deep-link params |
+| `/app` | Resumen | 01 | P0 | `(app)/app` | OK | bottom bar slot 1; sin deep-link params |
 | `/accounts` | Cuentas/Todas | 02 | P0 | `(app)/accounts` | OK | slot 2 |
-| `/accounts/banks` | Bancos | 02 | P0 | — | MISSING | filtro server-side |
-| `/accounts/wallets` | Billeteras | 02 | P0 | — | MISSING | — |
-| `/accounts/cash` | Efectivo | 02 | P0 | — | MISSING | — |
-| `/accounts/savings` | Ahorro | 02 | P0 | — | MISSING | — |
+| `/accounts/banks` | Bancos | 02 | P0 | `(app)/accounts/banks` | OK | filtro server-side vía `AccountsView` |
+| `/accounts/wallets` | Billeteras | 02 | P0 | `(app)/accounts/wallets` | OK | — |
+| `/accounts/cash` | Efectivo | 02 | P0 | `(app)/accounts/cash` | OK | — |
+| `/accounts/savings` | Ahorro | 02 | P0 | `(app)/accounts/savings` | OK | — |
 | `/accounts/:accountId` | Detalle cuenta | 02 | P0 | `(app)/accounts/[accountId]` | OK | ID opaco |
 | — | Nueva cuenta | 02 | — | `(app)/accounts/new` | extra (aceptable) | full-screen en mobile |
 | `/transactions` | Todos | 03 | P0 | `(app)/transactions` | OK | slot 3; filtros por query param |
-| `/transactions/expenses` | Gastos | 03 | P0 | — | MISSING | (hoy: filtro dentro de `/transactions`?) |
-| `/transactions/income` | Ingresos | 03 | P0 | — | MISSING | — |
-| `/transactions/transfers` | Transferencias | 03 | P0 | `(app)/transfers` (+ `/new`, `/[transferId]`) | RENAME | árbol separado |
-| `/transactions/recurring` | Recurrentes | 03 | P1 | `(app)/transactions/recurrentes` | RENAME (ES) | — |
-| `/transactions/pending` | Pendientes | 03 | P0 | `(app)/transactions/pendientes` | RENAME (ES) | CTA Revisar |
+| `/transactions/expenses` | Gastos | 03 | P0 | — | MISSING | filtro `?type=expense` dentro de `/transactions`, sin ruta propia todavía |
+| `/transactions/income` | Ingresos | 03 | P0 | — | MISSING | ídem, `?type=income` |
+| `/transactions/transfers` | Transferencias | 03 | P0 | `(app)/transactions/transfers` (+ `/new`, `/[transferId]`) | OK | — |
+| `/transactions/recurring` | Recurrentes | 03 | P1 | `(app)/transactions/recurring` | OK | — |
+| `/transactions/pending` | Pendientes | 03 | P0 | `(app)/transactions/pending` | OK | CTA Revisar; incluye sección Duplicados anclada `#duplicados` |
 | `/transactions/:transactionId` | Detalle | 03 | P0 | `(app)/transactions/[transactionId]` | OK | — |
-| — | Duplicados | 03 | — | `(app)/transactions/duplicados` | extra (spec: parte de Pendientes) | — |
-| — | Importaciones | 03/11 | — | `(app)/transactions/importaciones` | RENAME (spec: `/settings/imports`) | — |
+| — | Duplicados | 03 | — | plegado en `(app)/transactions/pending#duplicados` | OK | fold real, no ruta propia |
+| — | Importaciones | 11 | — | `(app)/settings/imports` | OK | ver fila `/settings/imports` |
+| — | Programados | 03 | — | `(app)/transactions/scheduled` (+ `/new`) | extra (spec: sin ruta propia; ver ADR-IMPL-001 refinamiento) | ex `/planning` |
 | — | Nuevo movimiento | 03/10 | — | `(app)/transactions/new` | extra | full-screen mobile |
 | `/budgets` | Resumen | 04 | P0 | `(app)/budgets` | OK | — |
-| `/budgets/categories` | Por categoría | 04 | P0 | — | MISSING | — |
-| `/budgets/history` | Historial | 04 | P1 | — | MISSING | — |
-| `/budgets/categories/:categoryId` | Detalle categoría | 04 | P0 | — | MISSING | — |
+| `/budgets/categories` | Por categoría | 04 | P0 | `(app)/budgets/categories` | OK | — |
+| `/budgets/history` | Historial | 04 | P1 | `(app)/budgets/history` | OK | `?month=YYYY-MM`, recalcula contra meses pasados |
+| `/budgets/categories/:categoryId` | Detalle categoría | 04 | P0 | — | MISSING | hoy: `/budgets/:budgetId` sirve como detalle (1 budget = 1 categoría) |
 | — | Nuevo budget | 04 | — | `(app)/budgets/new`, `[budgetId]` | extra/OK | — |
-| `/obligations` | Todas | 05 | P0 | `(app)/debts` | RENAME | — |
-| `/obligations/upcoming` | Próximas | 05 | P0 | — | MISSING | — |
-| `/obligations/debts` | Deudas y préstamos | 05 | P0 | `(app)/debts` (mismo) | SPLIT | — |
-| `/obligations/installments` | Cuotas | 05 | P0 | — | MISSING (dentro de detalle) | — |
-| `/obligations/subscriptions` | Suscripciones | 05 | P1 | `(app)/debts/suscripciones` | RENAME | — |
-| `/obligations/:obligationId` | Detalle | 05 | P0 | `(app)/debts/[debtId]` | RENAME | — |
-| — | Nueva deuda | 05/10 | — | `(app)/debts/new` | extra | — |
+| `/obligations` | Todas | 05 | P0 | `(app)/obligations` | OK | — |
+| `/obligations/upcoming` | Próximas | 05 | P0 | `(app)/obligations/upcoming` | OK | redirige a `/obligations?tab=proximos` |
+| `/obligations/debts` | Deudas y préstamos | 05 | P0 | `(app)/obligations` (mismo, sin filtro de tipo propio) | SPLIT | pendiente: filtrar por `type != PURCHASE_INSTALLMENTS` como sub-vista |
+| `/obligations/installments` | Cuotas | 05 | P0 | `(app)/obligations/installments` | OK | filtra `type = PURCHASE_INSTALLMENTS` |
+| `/obligations/subscriptions` | Suscripciones | 05 | P1 | `(app)/obligations/subscriptions` | OK | — |
+| `/obligations/:obligationId` | Detalle | 05 | P0 | `(app)/obligations/[obligationId]` | OK | — |
+| — | Nueva deuda | 05/10 | — | `(app)/obligations/new` | extra | — |
 | `/calendar` | Calendario | 06 | P0 | `(app)/calendar` | OK | modos internos (no rutas) |
 | `/goals` | Todas | 07 | P0 | `(app)/goals` | OK | — |
-| `/goals/active` | Activas | 07 | P0 | — | MISSING | — |
-| `/goals/completed` | Completadas | 07 | P1 | — | MISSING | — |
-| `/goals/:goalId` | Detalle | 07 | P0 | `(app)/goals/[goalId]` (+ `/editar`) | OK | — |
+| `/goals/active` | Activas | 07 | P0 | `(app)/goals/active` | OK | — |
+| `/goals/completed` | Completadas | 07 | P1 | `(app)/goals/completed` | OK | — |
+| `/goals/:goalId` | Detalle | 07 | P0 | `(app)/goals/[goalId]` (+ `/edit`) | OK | — |
 | — | Nueva meta | 07 | — | `(app)/goals/new` | extra | — |
 | `/reports` | Panorama | 08 | P0 | `(app)/reports` | OK | — |
 | `/reports/expenses` | Gastos | 08 | P0 | — | MISSING | — |
@@ -64,11 +65,11 @@ en su `layout`. Auth: `session required` salvo indicado. Entitlement: `TRIAL|PRO
 | `/settings/preferences` | Preferencias | 11 | P0 | — | MISSING | locale/tz/moneda |
 | `/settings/categories` | Categorías | 11 | P0 | `(app)/settings/categories` | OK | — |
 | `/settings/rules` | Reglas | 11 | P1 | `(app)/settings/rules` | OK | — |
-| `/settings/imports` | Importaciones | 11 | P0 | (en `/transactions/importaciones`) | RENAME | — |
+| `/settings/imports` | Importaciones | 11 | P0 | `(app)/settings/imports` | OK | ya no muestra `TransactionsSubnav` |
 | `/settings/notifications` | Notificaciones | 11 | P1 | `(app)/settings/notifications` | OK | — |
 | `/settings/privacy` | Privacidad | 11 | P0 | `(app)/settings/privacy` | OK | — |
 | `/settings/security` | Seguridad | 11 | P0 | — | MISSING | sesiones, reauth, MFA(§49.3) |
-| `/settings/plan` | Plan | 11 | P0 | `(app)/settings/billing` + `(app)/billing` + `(app)/billing/return` | RENAME | — |
+| `/settings/plan` | Plan | 11 | P0 | `(app)/settings/plan` | OK | `(app)/billing/return` se mantiene aparte (handler de checkout, no navegable) |
 | `/help` | Centro de ayuda | 12 | P0 | — | MISSING | — |
 | `/help/getting-started` | Primeros pasos | 12 | P0 | — | MISSING | — |
 | `/help/troubleshoot` | Resolver problema | 12 | P1 | — | MISSING | diagnóstico read-only |

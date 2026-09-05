@@ -192,13 +192,13 @@ export function createBudgetService({
   now?: () => Date;
   gate?: ProductAccessGate;
 }) {
-  async function computeOverviewItems(user: User): Promise<BudgetOverviewItem[]> {
+  async function computeOverviewItems(user: User, period = currentPeriod(user, now())): Promise<BudgetOverviewItem[]> {
     const activeBudgets = await budgets.listForUser(user.id);
     if (activeBudgets.length === 0) return [];
 
     const [allCategories, spendingRows] = await Promise.all([
       categories.listForUser(user.id, { includeArchived: true }),
-      budgetQueries.getCategorySpendingForUser(user.id, currentPeriod(user, now())),
+      budgetQueries.getCategorySpendingForUser(user.id, period),
     ]);
     const categoryById = new Map(allCategories.map((category) => [category.id, category]));
 
@@ -260,6 +260,14 @@ export function createBudgetService({
 
     getBudgetOverview(user: User): Promise<BudgetOverviewItem[]> {
       return computeOverviewItems(user);
+    },
+
+    // WP-ROUTES-SUBVIEWS (/budgets/history): the same overview computation, for an arbitrary
+    // past month — budgets are a standing per-category limit, not a per-month row, so "history"
+    // means re-running the real spend calculation against each past period, never a snapshot.
+    getBudgetOverviewForMonth(user: User, year: number, month: number): Promise<BudgetOverviewItem[]> {
+      const range = monthRangeForTimezone(year, month, user.timezone);
+      return computeOverviewItems(user, { from: range.start, to: range.end });
     },
 
     async getBudgetDetail(
