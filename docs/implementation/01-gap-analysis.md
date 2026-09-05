@@ -17,7 +17,7 @@ convertirse en work package cerrado.
 | 05 | Obligaciones | PARTIAL / naming | ALTO | Implementado como `/debts` + `/debts/suscripciones`. Cubre deudas/cuotas/pagos parciales/anti-doble-conteo; falta unificación conceptual "Obligación", rutas `/obligations/*`, `/obligations/upcoming` |
 | 06 | Calendario | PARTIAL | MEDIO | `/calendar` existe + `features/calendar/services`; modos Mes/Agenda/Día y capas (hechos/programados/estimados) UNVERIFIED |
 | 07 | Metas | PARTIAL | MEDIO | `/goals` + CRUD + aporte/retiro; **`goals.currentAmount` es columna mutable**, no derivada de asignaciones (§15). Sin tabla `goal_allocations`. Subvistas `/goals/active|completed` faltan |
-| 08 | Reportes | PARTIAL | ALTO | Sólo `/reports` (una vista). Faltan `/reports/{expenses,income,cash-flow,net-worth,categories}`, drill-down verificable al ledger, `calculationVersion` |
+| 08 | Reportes | DONE (2026-09-04) | — | 6 rutas (`/reports` + `{expenses,income,cash-flow,net-worth,categories}`), drill-down categoría→`/transactions?category=`, `calculationVersion`+`coverage.excludedCurrencies` en el read model |
 | 09 | Insights | PARTIAL | ALTO | `/insights` + `insight-service` + capability IA `explain-financial-insight`. **Detectores determinísticos con evidence package**: UNVERIFIED / probablemente MISSING. Subvistas `/insights/opportunities|history` faltan |
 | 10 | Registrar | PARTIAL | BAJO | `features/capture` (Quick Add global, parser NL español + fallback IA, toast-undo, guard de duplicados) existe y **es command surface pura, auditado 2026-09-04** — no duplica ledger, enruta a owners, IA nunca escribe. Import pipeline en `features/imports`. Route-intercept overlay vs spec §25 sigue UNVERIFIED (no crítico) |
 | 11 | Configuración | PARTIAL | MEDIO | `/settings/{categories,notifications,privacy,rules,referrals,billing}`. Faltan `/settings/{profile,preferences,imports,security,plan}` como rutas canónicas |
@@ -116,11 +116,11 @@ convertirse en work package cerrado.
 
 | Capability | Spec | Code | Status | Risk | Trabajo |
 |---|---|---|---|---|---|
-| `/reports` panorama | §8 | `/reports` + `features/reports/services` | PARTIAL | — | — |
-| `/reports/{expenses,income,cash-flow,categories}` (P0) | §8, §40 | MISSING | MISSING | ALTO | 4 vistas con read models reconstruibles |
-| `/reports/net-worth` (P1) | §8 | MISSING | MISSING | MEDIO | Patrimonio multimoneda separado |
-| Drill-down verificable al ledger | §16 | UNVERIFIED | UNVERIFIED | FINANCIAL | Cada agregado navega a movimientos fuente |
-| `calculationVersion` en read models | §42 | UNVERIFIED / MISSING | MISSING | FINANCIAL | Versionar cálculos |
+| `/reports` panorama | §8 | `/reports` + `features/reports/services` | DONE | — | — |
+| `/reports/{expenses,income,cash-flow,categories}` (P0) | §8, §40 | `app/(app)/reports/{expenses,income,cash-flow,categories}` | DONE (2026-09-04) | — | — |
+| `/reports/net-worth` (P1) | §8 | `app/(app)/reports/net-worth` + `report-service.netWorthDetail` | DONE (2026-09-04) | — | — |
+| Drill-down verificable al ledger | §16 | `report-shared.tsx` `BreakdownTable` → `/transactions?period=&category=` | DONE (2026-09-04) | — | Link real, no decorativo; `transactions/page.tsx` filtra por `category` |
+| `calculationVersion` en read models | §42 | `ReportData.calculationVersion: 1` + `coverage.excludedCurrencies` | DONE (2026-09-04) | — | Sello de forma, no cache key |
 | Sin suma cross-currency | §22 | UNVERIFIED | UNVERIFIED | FINANCIAL | Test |
 
 ### 09 Insights

@@ -52,11 +52,11 @@ en su `layout`. Auth: `session required` salvo indicado. Entitlement: `TRIAL|PRO
 | `/goals/:goalId` | Detalle | 07 | P0 | `(app)/goals/[goalId]` (+ `/edit`) | OK | — |
 | — | Nueva meta | 07 | — | `(app)/goals/new` | extra | — |
 | `/reports` | Panorama | 08 | P0 | `(app)/reports` | OK | — |
-| `/reports/expenses` | Gastos | 08 | P0 | — | MISSING | — |
-| `/reports/income` | Ingresos | 08 | P0 | — | MISSING | — |
-| `/reports/cash-flow` | Flujo de caja | 08 | P0 | — | MISSING | — |
-| `/reports/net-worth` | Patrimonio | 08 | P1 | — | MISSING | — |
-| `/reports/categories` | Categorías | 08 | P0 | — | MISSING | — |
+| `/reports/expenses` | Gastos | 08 | P0 | `(app)/reports/expenses` | OK (2026-09-04) | — |
+| `/reports/income` | Ingresos | 08 | P0 | `(app)/reports/income` | OK (2026-09-04) | — |
+| `/reports/cash-flow` | Flujo de caja | 08 | P0 | `(app)/reports/cash-flow` | OK (2026-09-04) | — |
+| `/reports/net-worth` | Patrimonio | 08 | P1 | `(app)/reports/net-worth` | OK (2026-09-04) | — |
+| `/reports/categories` | Categorías | 08 | P0 | `(app)/reports/categories` | OK (2026-09-04) | — |
 | `/insights` | Para vos | 09 | P0 | `(app)/insights` | OK | — |
 | `/insights/opportunities` | Oportunidades | 09 | P1 | — | MISSING | — |
 | `/insights/history` | Historial | 09 | P1 | — | MISSING | — |

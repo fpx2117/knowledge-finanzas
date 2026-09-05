@@ -85,7 +85,19 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Completadas", href: "/goals/completed" },
     ],
   },
-  { label: "Reportes", href: "/reports", icon: FileBarChartIcon },
+  {
+    label: "Reportes",
+    href: "/reports",
+    icon: FileBarChartIcon,
+    children: [
+      { label: "Panorama", href: "/reports" },
+      { label: "Gastos", href: "/reports/expenses" },
+      { label: "Ingresos", href: "/reports/income" },
+      { label: "Flujo de caja", href: "/reports/cash-flow" },
+      { label: "Patrimonio", href: "/reports/net-worth" },
+      { label: "Categorías", href: "/reports/categories" },
+    ],
+  },
   { label: "Insights", href: "/insights", icon: LightbulbIcon },
 ];
 

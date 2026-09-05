@@ -9,15 +9,6 @@ import {
 } from "@know-finanzas/db";
 import { Money, monthRangeForTimezone, todayInTimezone } from "@know-finanzas/finance";
 
-export type ReportTab =
-  | "resumen"
-  | "gastos"
-  | "ingresos"
-  | "flujo"
-  | "patrimonio"
-  | "deudas"
-  | "comparativos";
-
 export type MonthPoint = { period: string; label: string; income: string; expense: string; net: string };
 export type CategorySlice = { id: string; name: string; amount: string; share: number };
 
@@ -28,6 +19,19 @@ export type ReportData = {
   months: MonthPoint[];
   expenseByCategory: CategorySlice[];
   incomeByCategory: CategorySlice[];
+  netWorthDetail: { liquidAssets: string; debtOutstanding: string; netWorth: string };
+  /**
+   * WP-READMODEL-CONTRACT (spec 14 §21/§42): this read model's calculation shape, bumped whenever
+   * the aggregation logic changes so a cached/exported value can be told apart from a re-run.
+   * Not a cache key by itself — just a version stamp on the output.
+   */
+  calculationVersion: 1;
+  /**
+   * Coverage/warnings (§21): accounts whose currency isn't `currencyCode` are excluded from every
+   * total above (§22 — never summed across currencies), not silently merged in. The UI must
+   * surface this, not hide it.
+   */
+  coverage: { excludedCurrencies: string[] };
 };
 
 const MONTHS_ES_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -111,6 +115,8 @@ export function createReportService(database = db) {
         );
       const netWorth = liquidAssets.subtract(debtOutstanding);
 
+      const excludedCurrencies = [...new Set(liquidRows.map((row) => row.account.currencyCode).filter((code) => code !== currencyCode))];
+
       const months: MonthPoint[] = monthSpans.map((span, index) => {
         const rows = pickBase(monthlyBack[index] as Array<{ currencyCode: string; incomeTotal: string; expenseTotal: string; netExpense?: string }>);
         const income = rows.reduce((total, row) => total.add(Money.fromString(row.incomeTotal, currencyCode)), zero());
@@ -176,6 +182,13 @@ export function createReportService(database = db) {
         months,
         expenseByCategory,
         incomeByCategory,
+        netWorthDetail: {
+          liquidAssets: liquidAssets.toString(),
+          debtOutstanding: debtOutstanding.toString(),
+          netWorth: netWorth.toString(),
+        },
+        calculationVersion: 1,
+        coverage: { excludedCurrencies },
       };
     },
   };

@@ -7,7 +7,7 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Requirement | Spec | Domain / Owner | API (action/service) | DB | Code (UI/route) | Tests | Status |
 |---|---|---|---|---|---|---|---|
 | Aritmética decimal exacta | 14 §4.1 | `packages/finance/money` | — | `numeric(20,6)` | — | `packages/finance` unit | IMPLEMENTED |
-| No sumar monedas sin FX | 14 §4.2, §22 | `Money.assertSameCurrency`, `calculateSpendable` | dashboard/reports services | — | `/dashboard`, `/reports` | unit ✓ / KPI multimoneda ✗ | PARTIAL |
+| No sumar monedas sin FX | 14 §4.2, §22 | `Money.assertSameCurrency`, `calculateSpendable` | dashboard/reports services | — | `/dashboard`, `/reports` | unit ✓ / reports `coverage.excludedCurrencies` ✓ / dashboard KPI multimoneda ✗ | PARTIAL |
 | Balance derivado del ledger, incl. transferencias | 14 §4.5, PD-004, PD-005 | `calculateAssetAccountBalance`, `ledger-totals.ts` (`buildLedgerTotalColumns`, exhaustivo sobre 8 tipos) | `features/accounts/services`, `features/dashboard/services` | `accounts` (sin col balance) | `/accounts`, `/accounts/[id]`, `/dashboard` | `ledger-total-columns` unit, `transfer-balance` integ (2) | IMPLEMENTED (bug CRITICAL corregido 2026-09-04 — transferencias no movían el saldo mostrado) |
 | Idempotencia del create de transacción | 14 §38, Foundation §14 | `finance` (repo `findByCommandId`) | `create-transaction`, `quickCreateTransactionAction` | `transactions.command_id` + idx único parcial (mig 0039) | form + Quick Add (`commandId` hidden) | `transactions-service` unit, `transaction-idempotency` integ (5) | IMPLEMENTED |
 | Idempotencia de transfer | 14 §38 | `finance`/`db` (repo `findByCommandId`) | `createTransferService`, `transfer-actions` | `transfers.command_id` + idx único parcial (mig 0040) | `transfer-form` (`commandId` hidden) | `transfer-idempotency` integ (4) | IMPLEMENTED |
@@ -29,8 +29,8 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Parser NL español determinístico | 14 §17.2 | `features/capture/lib` | — | — | Quick Add | unit (memoria) | IMPLEMENTED |
 | Dinero disponible explicable | 14 §11.1 | `calculateSpendable` (versionado ✗) | dashboard service | — | `/dashboard` | ✗ | PARTIAL |
 | Saldo proyectado ≠ estilo confirmado | 14 §12 | `calculateCashflow` | dashboard/calendar | — | `/dashboard`, `/calendar` | ✗ | UNVERIFIED |
-| Reportes con drill-down al ledger + calculationVersion | 14 §16, §42 | `features/reports/services` | reports service | sin read model materializado | `/reports` (1 vista) | — | PARTIAL |
-| Reportes P0: gastos/ingresos/cash-flow/categorías | 14 §8, §40 | — | — | — | — | — | MISSING |
+| Reportes con drill-down al ledger + calculationVersion | 14 §16, §42 | `features/reports/services`, `report-shared.tsx` | reports service | sin read model materializado (versión en memoria, no cacheada) | `/reports/*` (6 vistas) | unit ✓ / drill-down `?category=` ✓ | DONE (2026-09-04) |
+| Reportes P0: gastos/ingresos/cash-flow/categorías | 14 §8, §40 | `app/(app)/reports/{expenses,income,cash-flow,categories}` | reports service | — | `/reports/{expenses,income,cash-flow,categories}` | lint ✓ / typecheck ✓ | DONE (2026-09-04) |
 | Insights determinísticos con evidence package | 14 §16, CF-09 | `features/insights/services` | insight-service | sin tabla `insights` | `/insights` | — | UNVERIFIED |
 | IA sólo explica, no genera señal ni escribe | 14 §17 | `packages/ai` capabilities | ai services | `ai_credit_*` | — | package tests | IMPLEMENTED |
 | Core funciona con IA caída | 14 §13, §29 | boundary IA | — | — | — | ✗ degraded-mode | UNVERIFIED |

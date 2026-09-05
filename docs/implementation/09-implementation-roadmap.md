@@ -39,10 +39,10 @@ subvistas, Insights determinísticos).
 
 | WP | Contenido |
 |---|---|
-| WP-READMODEL-CONTRACT | Contrato de read model de Reportes: rango+filtros → output + `calculationVersion` + cobertura/warnings (§21). Sin materialización todavía. |
-| WP-REPORTS-P0 | 4 vistas P0: `/reports/{expenses,income,cash-flow,categories}` con drill-down verificable al ledger. Multimoneda separada + test. |
+| ~~WP-READMODEL-CONTRACT~~ **DONE (2026-09-04)** | `ReportData` gana `calculationVersion: 1` + `coverage.excludedCurrencies` (§21/§22). |
+| ~~WP-REPORTS-P0~~ **DONE** | 5 rutas nuevas `/reports/{expenses,income,cash-flow,categories,net-worth}` (Patrimonio se adelantó junto con P0, ver WP-REPORTS-NETWORTH) + `ReportsNav`; drill-down categoría→`/transactions?category=` verificable al ledger. Multimoneda separada vía `ExcludedCurrenciesNote`. |
 | WP-DASHBOARD-SPEC01 | Reconciliar `/dashboard` con spec 01: dinero disponible explicable (composición), multimoneda separada, secciones degradables, estilo semántico proyección ≠ confirmado. **Horizonte de flujo de caja = 30 días (Foundation §10, decisión de producto).** Sólo parametrizar la ventana de "dinero disponible" si difiere de 30d. |
-| WP-REPORTS-NETWORTH | `/reports/net-worth` (P1). |
+| ~~WP-REPORTS-NETWORTH~~ **DONE** | `/reports/net-worth` (P1) — `netWorthDetail` (activos líquidos, deuda pendiente, patrimonio neto) en moneda base. |
 
 ## Fase D — Futuro financiero: Obligaciones + Calendario
 

@@ -38,7 +38,7 @@ function resolvePeriod(period: string | undefined, timezone: string) {
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; account?: string; page?: string; period?: string }>;
+  searchParams: Promise<{ type?: string; account?: string; page?: string; period?: string; category?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireCurrentUser();
@@ -46,6 +46,7 @@ export default async function TransactionsPage({
   const page = Math.max(1, Number(params.page) || 1);
   const type = params.type === "INCOME" || params.type === "EXPENSE" ? params.type : undefined;
   const accountId = params.account && params.account !== "ALL" ? params.account : undefined;
+  const categoryId = params.category || undefined;
   const { range } = resolvePeriod(params.period, user.timezone);
 
   const [accounts, categories, rows, monthly, categorySpend] = await Promise.all([
@@ -54,6 +55,7 @@ export default async function TransactionsPage({
     transactionRepository.listForUser(user.id, {
       type,
       accountId,
+      categoryId,
       from: range.start,
       to: range.end,
       limit: PAGE_SIZE + 1,
@@ -103,10 +105,13 @@ export default async function TransactionsPage({
     if (params.type) next.set("type", params.type);
     if (params.account) next.set("account", params.account);
     if (params.period) next.set("period", params.period);
+    if (params.category) next.set("category", params.category);
     if (targetPage > 1) next.set("page", String(targetPage));
     const qs = next.toString();
     return qs ? `/transactions?${qs}` : "/transactions";
   };
+
+  const categoryFilterName = categoryId ? categoryName.get(categoryId) ?? "categoría" : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -124,6 +129,15 @@ export default async function TransactionsPage({
       />
 
       <TransactionsSubnav />
+
+      {categoryFilterName ? (
+        <p className="flex items-center gap-2 text-small text-muted-foreground">
+          Filtrado por categoría: <span className="font-medium text-foreground">{categoryFilterName}</span>
+          <Link href={buildHref(1).replace(/[?&]category=[^&]*/, "")} className="text-brand hover:underline">
+            Quitar filtro
+          </Link>
+        </p>
+      ) : null}
 
       <TransactionsFilters accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} />
 

@@ -410,10 +410,58 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
 - **Verificación:** unit 813/813 (+9), integration 23/23 (+4), lint limpio, typecheck 148/148
   (0 nuevos).
 
-## Fases C–H
+## WP-READMODEL-CONTRACT — Contrato de read model de Reportes  ·  P0  ·  **DONE (2026-09-04)**
+
+- **Goal:** que el output de `createReportService().getReport()` lleve un contrato explícito
+  (versión de cálculo + cobertura de monedas), en vez de que cada vista de Reportes reinvente su
+  propia noción de "esto es confiable" (§21/§42).
+- **Resultado:** `ReportData` gana `calculationVersion: 1` (bump manual si la lógica de agregación
+  cambia — no es cache key, es un sello de forma) y `coverage: { excludedCurrencies: string[] }`
+  (cuentas cuya moneda ≠ `baseCurrency`, excluidas de todos los totales por §22 — nunca mezcladas).
+  `netWorthDetail` también se agrega acá (activos líquidos / deuda pendiente / patrimonio neto en
+  moneda base) porque comparte el mismo cálculo que alimenta `kpis.netWorth`.
+- **Implementación:** `apps/web/src/features/reports/services/report-service.ts` — `excludedCurrencies`
+  se deriva de `liquidRows` filtrando `currencyCode !== baseCurrency`; se retiró el `ReportTab`
+  union type (ya sin consumidores tras el split de rutas de WP-REPORTS-P0).
+- **Verificación:** lint limpio, typecheck 148/148 (0 nuevos), unit 817/817 (sin regresión).
+
+## WP-REPORTS-P0 — Vistas P0 de Reportes con drill-down  ·  P0  ·  **DONE (2026-09-04)**
+
+- **Goal:** Reportes deja de ser una sola página con `?tab=` y stubs "NotReady"; cada vista P0 tiene
+  su propia ruta canónica con drill-down verificable al ledger.
+- **Resultado:** rutas nuevas `apps/web/src/app/(app)/reports/{expenses,income,cash-flow,categories}/page.tsx`
+  (P0) + `net-worth/page.tsx` (P1, ver WP-REPORTS-NETWORTH — se implementó en el mismo pase por
+  compartir `netWorthDetail`). `/reports/page.tsx` (Panorama) reescrito para no depender de `?tab=`.
+- **Shared:** `apps/web/src/features/reports/components/report-shared.tsx` (nuevo) —
+  `BreakdownTable` ahora linkea cada fila de categoría a `/transactions?period=X&category=Y`
+  (drill-down real, no decorativo); `ReportsNav` (6 tabs, preserva `?period=`);
+  `ExcludedCurrenciesNote`; helpers de formato compartidos entre vistas.
+- **Drill-down habilitado en destino:** `apps/web/src/app/(app)/transactions/page.tsx` gana
+  `?category=` — filtra `transactionRepository.listForUser`, muestra chip "Filtrado por categoría: X"
+  con link "Quitar filtro", y `buildHref()` preserva el param en paginación.
+- **Cash-flow:** `/reports/cash-flow` reutiliza los 6 meses históricos ya calculados (`months`) —
+  deliberadamente distinto del cashflow *proyectado* del Dashboard (comentario en el archivo cita
+  §16: Reportes describe lo confirmado, Dashboard proyecta).
+- **Nav:** `nav-items.ts` — "Reportes" pasa de link plano a `children` (Panorama/Gastos/Ingresos/
+  Flujo de caja/Patrimonio/Categorías), spec 14 §7.
+- **Verificación:** lint limpio (1 warning de import sin uso corregido en `net-worth/page.tsx`),
+  typecheck 148/148 (0 nuevos), unit 817/817.
+
+## WP-REPORTS-NETWORTH — `/reports/net-worth`  ·  P1  ·  **DONE (2026-09-04)**
+
+- **Goal:** vista de patrimonio neto (activos líquidos − deuda pendiente), moneda base únicamente.
+- **Resultado:** `apps/web/src/app/(app)/reports/net-worth/page.tsx` — 3 `StatCard` (activos
+  líquidos, deuda pendiente, patrimonio neto) desde `report.netWorthDetail`; `ExcludedCurrenciesNote`
+  visible; links de detalle a `/accounts` y `/obligations`. Implementado junto con WP-REPORTS-P0
+  (ver arriba) por compartir el mismo cálculo de `report-service.ts`.
+- **Verificación:** incluida en la corrida conjunta de WP-REPORTS-P0.
+
+## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
-Ninguno arranca antes de que su dependencia esté `DONE` (regla `tasks/README.md`).
+Ninguno arranca antes de que su dependencia esté `DONE` (regla `tasks/README.md`). Próximo en Fase C:
+WP-DASHBOARD-SPEC01 (deferido explícitamente por tamaño — pendiente de decisión del usuario sobre
+cuándo retomarlo).
 
 ## Primer vertical slice recomendado
 
