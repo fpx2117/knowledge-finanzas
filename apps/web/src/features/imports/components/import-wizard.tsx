@@ -20,6 +20,9 @@ export function ImportWizard({ accounts }: { accounts: Array<{ id: string; name:
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [analyzing, startAnalyze] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
+  // One idempotency key per commit attempt (spec 14 §38): a timed-out/double-submitted commit
+  // of the same batch resolves to the original result instead of re-importing every row.
+  const [commandId] = useState(() => crypto.randomUUID());
   const [state, commit, committing] = useActionState(commitImportAction, initial);
 
   function onFile(file: File) {
@@ -143,6 +146,7 @@ export function ImportWizard({ accounts }: { accounts: Array<{ id: string; name:
           <form action={commit}>
             <input type="hidden" name="accountId" value={accountId} />
             <input type="hidden" name="text" value={text} />
+            <input type="hidden" name="commandId" value={commandId} />
             {filename ? <input type="hidden" name="filename" value={filename} /> : null}
             <Button type="submit" disabled={committing || preview.stats.readable === 0}>
               {committing ? "Importando…" : `Importar ${preview.stats.readable} movimientos`}

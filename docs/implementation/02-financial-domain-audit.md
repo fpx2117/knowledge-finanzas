@@ -79,6 +79,12 @@ Severidad: **CRITICAL** (bloquea features dependientes) / **HIGH** / **MEDIUM** 
 | X-2 | Agregación de dashboard / patrimonio | UNVERIFIED / HIGH | Verificar que "saldo total" y "patrimonio" se presentan **separados por moneda** y nunca como "equivalente" sin FX (§22, anti-pattern #3). Falta test de KPI con cuentas ARS+USD. |
 | X-3 | Reportes cross-account | UNVERIFIED | Igual que X-2 para `/reports/*`. |
 
+## 7.1 IMPORT (CF-05) — hallazgo CRITICAL confirmado y resuelto (2026-09-04)
+
+| # | Hallazgo | Severidad | Detalle |
+|---|---|---|---|
+| I-1 | ~~`commitImport` sin idempotencia propia~~ **RESUELTO** | CRITICAL — confirmado, no especulativo | Un test de carrera contra Postgres real (`Promise.all` de dos commits idénticos) probó que el pipeline duplicaba transacciones: **4 filas creadas en vez de 2**. El fingerprint scoring (heurístico) no protege contra dos requests procesando filas en paralelo antes de que ninguna haya persistido nada — cada uno ve "cero existentes" y ambos importan todo. **Fix:** `import_batches.command_id` + patrón "reclamar antes de procesar" (`claim()` inserta un placeholder de contadores en cero antes de tocar cualquier fila; el perdedor de la carrera se retira sin crear nada). Ver WP-IMPORTS-CF05 en `10-work-packages.md`. |
+
 ## 8. Scripts de integridad existentes
 
 `packages/db/src/audit/finance-audit.ts` + `pnpm finance:audit` (5 validadores SQL):

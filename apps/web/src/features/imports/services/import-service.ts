@@ -40,6 +40,8 @@ const PAYMENT_METHOD_BY_ACCOUNT: Record<AccountRecord["type"], string> = {
   SAVINGS: "DEBIT",
 };
 
+type ImportBatchRecord = { id: string; rowCount: number; importedCount: number; skippedCount: number; failedCount: number };
+
 type Dependencies = {
   accounts: { findByIdForUser(id: string, userId: string): Promise<AccountRecord | undefined> };
   transactions: {
@@ -48,7 +50,20 @@ type Dependencies = {
       currencyCode: string; occurredAt: Date; paymentMethod: string | null;
     }>>;
   };
-  importBatches: { create(input: Record<string, unknown>): Promise<{ id: string }> };
+  importBatches: {
+    create(input: Record<string, unknown>): Promise<ImportBatchRecord>;
+    /** Idempotency (spec 14 §38): the batch previously committed under this key, if any. */
+    findByCommandId?(userId: string, commandId: string): Promise<ImportBatchRecord | undefined>;
+    /**
+     * Claims a commandId with a zero-count placeholder before any row processing happens.
+     * `claimed: true` means this call owns the batch and must go on to process rows and call
+     * `updateCounts`; `claimed: false` means a concurrent call already owns it — its (possibly
+     * still in-flight) row is returned as-is, and this call must not process anything.
+     */
+    claim?(input: { userId: string; accountId: string; filename: string | null; commandId: string }): Promise<{ batch: ImportBatchRecord; claimed: boolean }>;
+    /** Fills in real counts on a batch this call claimed (see above). */
+    updateCounts?(batchId: string, counts: { rowCount: number; importedCount: number; skippedCount: number; failedCount: number }): Promise<ImportBatchRecord | undefined>;
+  };
   createTransaction: (
     userId: string,
     type: "INCOME" | "EXPENSE",
@@ -56,6 +71,17 @@ type Dependencies = {
     timezone: string,
   ) => Promise<unknown>;
 };
+
+function toImportResult(batch: ImportBatchRecord): ImportResult {
+  return {
+    batchId: batch.id,
+    total: batch.rowCount,
+    imported: batch.importedCount,
+    skippedDuplicates: batch.skippedCount,
+    unreadable: batch.rowCount - batch.importedCount - batch.skippedCount - batch.failedCount,
+    failed: batch.failedCount,
+  };
+}
 
 export type ImportResult = {
   batchId: string;
@@ -70,11 +96,32 @@ export function createImportService({ accounts, transactions, importBatches, cre
   return {
     async commitImport(
       userId: string,
-      input: { accountId: string; text: string; filename?: string | null; timezone: string },
+      input: { accountId: string; text: string; filename?: string | null; timezone: string; commandId?: string },
     ): Promise<ImportResult> {
+      // Idempotency (spec 14 §38): a retried/double-submitted commit of the same batch returns
+      // the original result instead of re-processing rows and re-creating transactions. Row-level
+      // fingerprint dedup (below) also helps, but it's a scoring heuristic, not a guarantee —
+      // this key is the actual guarantee for "the same commit happened twice."
+      if (input.commandId && importBatches.findByCommandId) {
+        const existing = await importBatches.findByCommandId(userId, input.commandId).catch(() => undefined);
+        if (existing) return toImportResult(existing);
+      }
+
       const account = await accounts.findByIdForUser(input.accountId, userId);
       if (!account) throw new ApplicationError("ACCOUNT_NOT_FOUND", { field: "accountId" });
       if (account.status === "ARCHIVED") throw new ApplicationError("ACCOUNT_ARCHIVED", { field: "accountId" });
+
+      // Claim the idempotency key *before* processing any row: the check above only catches a
+      // retry that arrives after the first commit fully finished. Two genuinely concurrent
+      // commits would otherwise both pass that check and both create every transaction — this
+      // placeholder insert is what the partial unique index actually serializes on, so the
+      // loser is turned away here, before it creates anything.
+      let claimedBatchId: string | null = null;
+      if (input.commandId && importBatches.claim) {
+        const { batch, claimed } = await importBatches.claim({ userId, accountId: account.id, filename: input.filename ?? null, commandId: input.commandId });
+        if (!claimed) return toImportResult(batch);
+        claimedBatchId = batch.id;
+      }
 
       const preview = buildImportPreview(input.text);
       if (!preview.ok) throw new ApplicationError("INVALID_INPUT", { field: "text" });
@@ -139,25 +186,13 @@ export function createImportService({ accounts, transactions, importBatches, cre
         }
       }
 
-      const batch = await importBatches.create({
-        userId,
-        accountId: account.id,
-        source: "csv",
-        filename: input.filename ?? null,
-        rowCount: mapped.length,
-        importedCount: imported,
-        skippedCount: skippedDuplicates,
-        failedCount: failed,
-      });
+      const counts = { rowCount: mapped.length, importedCount: imported, skippedCount: skippedDuplicates, failedCount: failed };
+      const batch = claimedBatchId && importBatches.updateCounts
+        ? await importBatches.updateCounts(claimedBatchId, counts)
+        : await importBatches.create({ userId, accountId: account.id, source: "csv", filename: input.filename ?? null, ...counts, commandId: input.commandId ?? null });
+      if (!batch) throw new ApplicationError("INVALID_INPUT", { field: "text" });
 
-      return {
-        batchId: batch.id,
-        total: mapped.length,
-        imported,
-        skippedDuplicates,
-        unreadable: mapped.length - readable.length,
-        failed,
-      };
+      return toImportResult(batch);
     },
   };
 }

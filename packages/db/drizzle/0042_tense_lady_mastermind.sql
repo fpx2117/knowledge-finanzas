@@ -1,0 +1,2 @@
+ALTER TABLE "import_batches" ADD COLUMN "command_id" uuid;--> statement-breakpoint
+CREATE UNIQUE INDEX "import_batches_user_command_unique" ON "import_batches" USING btree ("user_id","command_id") WHERE "import_batches"."command_id" is not null;

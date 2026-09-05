@@ -32,7 +32,7 @@ subvistas, Insights determinísticos).
 | ~~WP-ROUTES-SUBVIEWS~~ **DONE (parcial)** | Cuentas (`banks/wallets/cash/savings`), Presupuestos (`categories/history`), Obligaciones (`upcoming/installments`), Metas (`active/completed`) — 12 subvistas nuevas, `nav-items.ts` con children. Insights queda pendiente de Fase F (sin detectores reales no hay nada que listar en `/insights/opportunities`). |
 | ~~WP-ACCOUNTS-SPEC~~ **DONE** | Warning archivar con saldo ≠ 0 (OQ-007) agregado a la UI; exclusión de archivadas del balance líquido confirmada con test (ya estaba correcta). |
 | ~~WP-CAPTURE-CMDSURFACE~~ **DONE** | Auditoría confirmó compliance con §25 (no duplica ledger, enruta a owners, IA nunca escribe). Un gap real: `/transactions/new` no advertía duplicados como Quick Add — corregido. |
-| WP-IMPORTS-CF05 | Verificar/completar CF-05: encoding+delimitador, preview sin escritura, batch idempotente (`import_batches`), fingerprint de fila, excepciones → Pendientes, reconciliación de contadores. |
+| ~~WP-IMPORTS-CF05~~ **DONE (Fase B completa 5/5)** | CF-05 confirmado compliant salvo idempotencia del batch, que **no era sólo un gap teórico** — un test de carrera real duplicó transacciones (2 commits concurrentes = 4 filas en vez de 2). Corregido con patrón "reclamar antes de procesar". Excepciones→Pendientes queda pendiente (decisión del usuario: feature aparte). |
 | ~~WP-TRANSACTIONS-EDIT~~ **DONE (alcance acotado)** | Edición de descripción/comercio/categoría/notas (nueva feature — no existía). Monto/fecha/cuenta/tipo quedan fuera (decisión de producto: usar anular + registrar de nuevo). |
 
 ## Fase C — Comprensión: Resumen + Reportes

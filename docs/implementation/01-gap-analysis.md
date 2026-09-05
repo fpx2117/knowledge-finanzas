@@ -65,7 +65,7 @@ convertirse en work package cerrado.
 | Editar → recalcular derivados (CM-02) | §9 | `edit-transaction.ts` + `editTransaction()` | **PARTIAL (alcance acotado 2026-09-04)** | — | Descripción/comercio/categoría/notas editables con recalculo de `taxonomyNodeId`+clasificación; monto/fecha/cuenta/tipo **no editables** (usar anular + registrar de nuevo, decisión de producto). 9 unit + 4 integration. |
 | Anular → revertir sin borrar (CM-03) | §9 | classify VOIDED→delta 0 | PARTIAL | FINANCIAL | Verificar recálculo de budget/report/insight |
 | Refund reduce consumo con vínculo | §13, §5 | `calculateRemainingRefundable`, `relatedTransactionId` | PARTIAL | FINANCIAL | Test refund→budget/report |
-| Import CSV/TSV (CF-05) | §10 | `features/imports` (commit 8d4517e) | PARTIAL | MEDIO | Verificar encoding/delimitador, preview sin escritura, batch idempotente (`import_batches`), fingerprint de fila |
+| Import CSV/TSV (CF-05) | §10 | `features/imports` + `import_batches.command_id` (mig 0042) | **IMPLEMENTED (2026-09-04)** | — | Confirmado: preview sin escritura, delimitador/columnas, fingerprint. Corregido: idempotencia real del batch (test de carrera real encontró duplicación 2x, ver 02-financial-domain-audit). Pendiente (fuera de este WP, decisión del usuario): excepciones ilegibles → Pendientes |
 
 ### 04 Presupuestos
 

@@ -289,9 +289,18 @@ export const importBatches = pgTable("import_batches", {
   importedCount: integer("imported_count").notNull(),
   skippedCount: integer("skipped_count").notNull(),
   failedCount: integer("failed_count").notNull(),
+  // Idempotency key for the commit command (spec 14 §38: "imports tienen batch key y row
+  // fingerprint"). Row-level dedup already exists (fingerprint scoring against existing
+  // transactions); this covers the coarser case — a retried/double-submitted commit of the
+  // same batch must resolve to the original result, not depend on the fingerprint heuristic
+  // catching every row.
+  commandId: uuid("command_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("import_batches_user_idx").on(table.userId, table.createdAt),
+  uniqueIndex("import_batches_user_command_unique")
+    .on(table.userId, table.commandId)
+    .where(sql`${table.commandId} is not null`),
 ]);
 
 // "These two transactions are NOT the same" — remembered so the /duplicados review screen

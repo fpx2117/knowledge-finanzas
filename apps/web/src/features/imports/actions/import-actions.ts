@@ -21,11 +21,13 @@ export async function commitImportAction(_previous: CommitImportState | null, fo
     const accountId = String(formData.get("accountId") ?? "");
     const text = String(formData.get("text") ?? "");
     const filename = formData.get("filename");
+    const commandId = formData.get("commandId");
     const result = await importService.commitImport(user.id, {
       accountId,
       text,
       filename: typeof filename === "string" ? filename : null,
       timezone: user.timezone,
+      commandId: typeof commandId === "string" && commandId ? commandId : undefined,
     });
     emitFinancialEvent({ type: "import.completed" });
     return { ok: true, result };

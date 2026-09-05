@@ -344,7 +344,42 @@ y ya testeados (`findLikelyExpenseDuplicate`/`findLikelyIncomeDuplicate`, cubier
 - **Verificación:** lint limpio, typecheck 148/148 (0 nuevos), unit 813/813 sin cambio (la lógica
   de servicio que se reusa ya estaba testeada; el fix es glue de action/UI, sin patrón de test de
   actions en este repo).
-| WP-IMPORTS-CF05 | P1 `FINANCIAL-RISK` | CF-05 completo y verificado | WP-LEDGER-IDEMP | preview sin escritura, batch idempotente, fingerprint, excepciones→Pendientes |
+| ~~WP-IMPORTS-CF05~~ **DONE (alcance acotado, 2026-09-04) — último WP de Fase B** | P1 `FINANCIAL-RISK` | Ver detalle abajo | WP-LEDGER-IDEMP | migración + 3 unit + 4 integration |
+
+### Detalle de la auditoría
+
+Confirmado ya compliant: preview sin escritura (`buildImportPreview` es pura), detección de
+columnas/delimitador (`detectColumns`/`parseDelimited`), validación de cuenta (existe, no
+archivada), dedup por fingerprint (`duplicateScore` contra existentes Y contra otras filas del
+mismo archivo), reconciliación de contadores en el resultado.
+
+**Gap real encontrado y corregido — idempotencia del batch (§38):** `commitImport` no tenía key
+propia; dependía sólo del fingerprint (heurístico) para no reimportar en un reintento. Peor:
+**un test de carrera contra Postgres real demostró que dos commits concurrentes del mismo archivo
+creaban el doble de transacciones** (4 en vez de 2) — el fingerprint no protege contra dos
+requests procesando filas en paralelo antes de que ninguna haya persistido nada. Fix real, no
+cosmético:
+- `import_batches.command_id` + índice único parcial (migración `0042`).
+- Patrón "reclamar antes de procesar": nuevo `claim()` en el repo inserta un placeholder de
+  contadores en cero **antes** de tocar cualquier fila; si otro commit concurrente ya lo reclamó,
+  éste se retira sin crear nada (`claimed: false`). Al terminar, `updateCounts()` completa los
+  contadores reales. Esto es lo que de verdad serializa la carrera — el chequeo simple de
+  "¿ya existe un batch con esta key?" al principio sólo cubre el caso secuencial (reintento
+  después de que el primero terminó), no el concurrente.
+- `commandId` propagado: schema → repo (`claim`/`updateCounts`/`findByCommandId`) → servicio →
+  action → `import-wizard.tsx` (uuid por intento de commit).
+
+**Gap NO corregido (decisión del usuario):** las filas ilegibles siguen sin enviarse a
+Transacciones > Pendientes — sólo se cuentan (`unreadable`). Documentado como deuda pendiente,
+no como bug — requeriría una tabla nueva + UI, es una feature aparte, no un fix de este WP.
+
+**Tests:** `tests/unit/import-service.test.ts` (+4: replay sin duplicar, key propagada, key nula
+no dedup, retiro cuando otro ya reclamó) + `tests/integration/import-idempotency.test.ts` (3,
+Postgres real — **incluye la prueba de la carrera concurrente real que expuso el bug**).
+Verificación: unit 817/817 (+4), integration 29/29 (+3 nuevos, resto sin regresión), lint limpio,
+typecheck 148/148 (0 nuevos).
+
+**Fase B completa: 5/5 work packages.**
 | ~~WP-TRANSACTIONS-EDIT~~ **DONE (alcance acotado, 2026-09-04)** | P0 `FINANCIAL-RISK` | Ver detalle abajo | WP-EVENT-TAGS | 9 unit + 4 integration |
 
 ### Detalle — alcance acotado (decisión del usuario)

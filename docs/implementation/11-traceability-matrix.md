@@ -23,7 +23,7 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Refund reduce consumo por vínculo | 14 §13, §5 | `calculateRemainingRefundable` | create-transaction (REFUND) | `transactions.originalTransactionId` | `/transactions/*` | ✗ | UNVERIFIED |
 | Anular recalcula derivados | 14 CM-03 | `classifyLedgerEffect` | `void-transaction.ts` | — | `/transactions/[id]` | — | UNVERIFIED |
 | Editar transacción (alcance acotado) | 14 CM-02 | `editTransaction()` | `edit-transaction.ts` | `transactions.updateMetadataForUser` | `/transactions/[id]` | `transactions-service` unit (9), `transaction-edit` integ (4, incl. IDOR) | PARTIAL — descripción/comercio/categoría/notas; monto/fecha/cuenta/tipo no editables por decisión de producto |
-| Import CSV/TSV idempotente + preview | 14 CF-05, §10 | `features/imports` | imports actions | `import_batches`, `duplicate_dismissals` | `/transactions/importaciones` | ✗ | PARTIAL |
+| Import CSV/TSV idempotente + preview | 14 CF-05, §10 | `features/imports` (`claim`/`updateCounts`) | `import-actions.ts` | `import_batches.command_id` (mig 0042) | `/settings/imports` | `import-service` unit (+4), `import-idempotency` integ (3, incl. carrera real) | IMPLEMENTED |
 | Detección de duplicados en captura | spec captura §20/21 | `features/transactions` detection | duplicate-review-actions | `duplicate_dismissals` | `/transactions/duplicados` | — | PARTIAL |
 | Registrar = command surface, no owner | 14 §25, PD-002 | `features/capture` | quick-actions | `quick_templates` | Quick Add global (`N`/`Cmd+K`) | — | PARTIAL |
 | Parser NL español determinístico | 14 §17.2 | `features/capture/lib` | — | — | Quick Add | unit (memoria) | IMPLEMENTED |
