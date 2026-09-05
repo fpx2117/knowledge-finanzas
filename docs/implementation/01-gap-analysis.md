@@ -62,7 +62,7 @@ convertirse en work package cerrado.
 | Rutas `/transactions/{expenses,income,transfers,recurring,pending}` | §8 | `/transactions/{pendientes,recurrentes,importaciones,duplicados}` + `/transfers` aparte | PARTIAL | UX | Decidir ES vs EN canónico; mover transferencias bajo `/transactions/transfers` o documentar divergencia en ADR |
 | Detalle `/transactions/:id` | §8 | `transactions/[transactionId]` | IMPLEMENTED | — | — |
 | Pendientes (excepciones/duplicados) | 03 | `/transactions/pendientes` + `duplicados` | PARTIAL | MEDIO | Verificar pipeline import→pending, resolución |
-| Editar → recalcular derivados (CM-02) | §9 | `transactions/actions` | UNVERIFIED | FINANCIAL | Test integración monto/fecha/cuenta/categoría/tipo |
+| Editar → recalcular derivados (CM-02) | §9 | `edit-transaction.ts` + `editTransaction()` | **PARTIAL (alcance acotado 2026-09-04)** | — | Descripción/comercio/categoría/notas editables con recalculo de `taxonomyNodeId`+clasificación; monto/fecha/cuenta/tipo **no editables** (usar anular + registrar de nuevo, decisión de producto). 9 unit + 4 integration. |
 | Anular → revertir sin borrar (CM-03) | §9 | classify VOIDED→delta 0 | PARTIAL | FINANCIAL | Verificar recálculo de budget/report/insight |
 | Refund reduce consumo con vínculo | §13, §5 | `calculateRemainingRefundable`, `relatedTransactionId` | PARTIAL | FINANCIAL | Test refund→budget/report |
 | Import CSV/TSV (CF-05) | §10 | `features/imports` (commit 8d4517e) | PARTIAL | MEDIO | Verificar encoding/delimitador, preview sin escritura, batch idempotente (`import_batches`), fingerprint de fila |

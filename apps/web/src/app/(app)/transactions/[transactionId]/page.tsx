@@ -21,24 +21,36 @@ export default async function TransactionDetailPage({ params }: { params: Promis
   const transaction = await transactionRepository.findByIdForUser(transactionId, user.id);
   if (!transaction) notFound();
 
-  const [account, category] = await Promise.all([
+  const editableType: "INCOME" | "EXPENSE" | null =
+    transaction.type === "INCOME" || transaction.type === "EXPENSE" ? transaction.type : null;
+  const [account, category, categoryOptions] = await Promise.all([
     accountRepository.findByIdForUser(transaction.accountId, user.id),
     transaction.categoryId ? categoryRepository.findByIdForUser(transaction.categoryId, user.id) : Promise.resolve(undefined),
+    editableType ? categoryRepository.listForUser(user.id, { type: editableType }) : Promise.resolve([]),
   ]);
 
   const negative = transaction.type === "EXPENSE" || transaction.type === "LIABILITY_PAYMENT";
   const categoryExplanation = explainClassification(transaction.classification, { categoryName: category?.name });
-  const repeatPrefill =
-    transaction.type === "INCOME" || transaction.type === "EXPENSE"
-      ? {
-          type: transaction.type,
-          amount: toEditableAmount(transaction.amount),
-          description: transaction.description,
-          merchant: transaction.merchant ?? null,
-          categoryId: transaction.categoryId ?? null,
-          accountId: transaction.accountId,
-        }
-      : null;
+  const repeatPrefill = editableType
+    ? {
+        type: editableType,
+        amount: toEditableAmount(transaction.amount),
+        description: transaction.description,
+        merchant: transaction.merchant ?? null,
+        categoryId: transaction.categoryId ?? null,
+        accountId: transaction.accountId,
+      }
+    : null;
+  const editable = editableType
+    ? {
+        type: editableType,
+        description: transaction.description,
+        merchant: transaction.merchant ?? "",
+        categoryId: transaction.categoryId ?? "",
+        notes: transaction.notes ?? "",
+        categoryOptions: categoryOptions.map((c) => ({ id: c.id, name: c.name })),
+      }
+    : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -47,7 +59,7 @@ export default async function TransactionDetailPage({ params }: { params: Promis
         description={formatLongDate(transaction.occurredAt)}
         actions={
           transaction.status === "POSTED" ? (
-            <TransactionActions transactionId={transaction.id} repeatPrefill={repeatPrefill} />
+            <TransactionActions transactionId={transaction.id} repeatPrefill={repeatPrefill} editable={editable} />
           ) : undefined
         }
       />

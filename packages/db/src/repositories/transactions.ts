@@ -191,8 +191,23 @@ export function createTransactionRepository(database: Database) {
         .offset(options.offset ?? 0);
     },
 
-    updateMetadataForUser(transactionId: string, userId: string, input: { description: string; merchant: string | null; categoryId: string | null; notes: string | null }) {
-      return database.update(transactions).set({ ...input, updatedAt: new Date() })
+    // CM-02 (spec 14 §9): bounded edit — description/merchant/category/notes only, never
+    // amount/date/account/type (those require anular + registrar de nuevo). When the category
+    // changes, `taxonomyNodeId` moves with it and the classification is marked user-explicit —
+    // same provenance `setCategoryForUser` records, so "¿Por qué esta categoría?" stays accurate.
+    updateMetadataForUser(
+      transactionId: string,
+      userId: string,
+      input: { description: string; merchant: string | null; categoryId: string | null; notes: string | null; taxonomyNodeId?: string | null; categoryChanged?: boolean },
+    ) {
+      const { categoryChanged, ...fields } = input;
+      return database.update(transactions).set({
+        ...fields,
+        updatedAt: new Date(),
+        ...(categoryChanged
+          ? { classification: sql`coalesce(${transactions.classification}, '{}'::jsonb) || '{"method":"user_explicit","reviewedByUser":true,"categoryConfidence":1}'::jsonb` }
+          : {}),
+      })
         .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId), eq(transactions.status, "POSTED")))
         .returning().then(([transaction]) => transaction);
     },

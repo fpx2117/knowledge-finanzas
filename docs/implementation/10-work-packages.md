@@ -297,7 +297,35 @@ severidad retroactiva de "HIGH especulativo" a "CRITICAL confirmado".**
 | WP-ACCOUNTS-SPEC | P1 `FINANCIAL-RISK` | Warning archivar saldo≠0 + exclusión de archivadas del balance líquido | WP-LEDGER-EXHAUSTIVE | test OQ-007 |
 | WP-CAPTURE-CMDSURFACE | P1 | `features/capture` es command surface pura §25 | WP-LEDGER-IDEMP | no duplica ledger; valida IDs; enruta a owners |
 | WP-IMPORTS-CF05 | P1 `FINANCIAL-RISK` | CF-05 completo y verificado | WP-LEDGER-IDEMP | preview sin escritura, batch idempotente, fingerprint, excepciones→Pendientes |
-| WP-TRANSACTIONS-EDIT | P0 `FINANCIAL-RISK` | CM-02/03 recalculan todos los derivados | WP-EVENT-TAGS | tests por campo (monto/fecha/cuenta/categoría/tipo) |
+| ~~WP-TRANSACTIONS-EDIT~~ **DONE (alcance acotado, 2026-09-04)** | P0 `FINANCIAL-RISK` | Ver detalle abajo | WP-EVENT-TAGS | 9 unit + 4 integration |
+
+### Detalle — alcance acotado (decisión del usuario)
+
+Al abrir este WP encontramos que **no existía ninguna función de editar transacción** — sólo
+anular, "registrar de nuevo" (crea una transacción nueva) y corregir categoría desde Pendientes.
+El repositorio tenía `updateMetadataForUser` sin usar, y sin soporte para monto/fecha/cuenta/tipo.
+Construir la edición completa (CM-02: monto/fecha/cuenta/categoría/tipo con recalculo de balance
+en una o dos cuentas + presupuesto en mes viejo y nuevo) es una feature nueva del tamaño de otro
+WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
+
+- **Editable:** descripción, comercio, categoría, notas.
+- **No editable acá:** monto, fecha, cuenta, tipo — para corregir esos campos se anula y se
+  registra de nuevo (ya soportado), preservando el trail de auditoría exacto en vez de mutar un
+  hecho confirmado.
+- **Implementación:** `packages/db/src/repositories/transactions.ts` `updateMetadataForUser`
+  extendido (acepta `taxonomyNodeId`/`categoryChanged`, misma marca de proveniencia
+  `user_explicit` que `setCategoryForUser`); `transaction-service.ts` gana `editTransaction`
+  (valida ownership, status POSTED, tipo INCOME/EXPENSE, categoría activa y del tipo correcto,
+  resuelve `taxonomyNodeId` vía `categoryMap` si la categoría cambió); nueva action
+  `edit-transaction.ts` + schema `editTransactionSchema`; UI: diálogo "Editar" en
+  `TransactionActions` con descripción/comercio/categoría/notas — el texto del diálogo aclara
+  explícitamente por qué monto/fecha/cuenta/tipo no están ahí.
+- **Tests:** 9 unit (`transactions-service.test.ts` — incluye rechazo de VOIDED, de tipos no
+  INCOME/EXPENSE, de categoría archivada/de tipo incorrecto, limpieza de categoría) + 4 integration
+  (`transaction-edit.test.ts`, Postgres real — incluye **IDOR**: un usuario no puede editar la
+  transacción de otro).
+- **Verificación:** unit 813/813 (+9), integration 23/23 (+4), lint limpio, typecheck 148/148
+  (0 nuevos).
 
 ## Fases C–H
 

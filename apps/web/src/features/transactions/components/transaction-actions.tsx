@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookmarkIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
+import { BookmarkIcon, PencilIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,25 +24,40 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { voidTransactionAction, type VoidTransactionState } from "../actions/void-transaction";
+import { editTransactionAction, type EditTransactionState } from "../actions/edit-transaction";
 
 const initialState: VoidTransactionState | null = null;
 const initialTemplateState: TemplateActionState | null = null;
+const initialEditState: EditTransactionState | null = null;
+
+export type EditableTransaction = {
+  type: "INCOME" | "EXPENSE";
+  description: string;
+  merchant: string;
+  categoryId: string;
+  notes: string;
+  categoryOptions: Array<{ id: string; name: string }>;
+};
 
 export function TransactionActions({
   transactionId,
   repeatPrefill,
+  editable,
 }: {
   transactionId: string;
   repeatPrefill: RepeatPrefill | null;
+  editable?: EditableTransaction | null;
 }) {
   const router = useRouter();
   const [voidOpen, setVoidOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [voidState, voidAction, voidPending] = useActionState(voidTransactionAction, initialState);
   const [templateState, templateAction, templatePending] = useActionState(
     createTemplateFromTransactionAction,
     initialTemplateState,
   );
+  const [editState, editAction, editPending] = useActionState(editTransactionAction, initialEditState);
 
   useEffect(() => {
     if (!voidState?.ok) return;
@@ -56,8 +71,76 @@ export function TransactionActions({
     toast.success("Acción rápida guardada");
   }, [templateState]);
 
+  useEffect(() => {
+    if (!editState?.ok) return;
+    setEditOpen(false);
+    toast.success("Movimiento actualizado");
+    router.refresh();
+  }, [router, editState]);
+
   return (
     <div className="flex flex-wrap gap-2">
+      {editable ? (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogTrigger render={<Button variant="outline"><PencilIcon className="size-4" /> Editar</Button>} />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar movimiento</DialogTitle>
+              <DialogDescription>
+                Podés corregir la descripción, el comercio, la categoría o las notas. El monto, la fecha, la cuenta y el
+                tipo no se pueden cambiar acá — anulá el movimiento y registralo de nuevo si esos datos están mal.
+              </DialogDescription>
+            </DialogHeader>
+            <form action={editAction} className="flex flex-col gap-4">
+              <input type="hidden" name="transactionId" value={transactionId} />
+              <label className="flex flex-col gap-1.5 text-small font-medium" htmlFor="edit-description">
+                Descripción
+                <input
+                  id="edit-description"
+                  name="description"
+                  required
+                  maxLength={240}
+                  defaultValue={editable.description}
+                  className={fieldControlClass}
+                />
+              </label>
+              {editable.type === "EXPENSE" ? (
+                <label className="flex flex-col gap-1.5 text-small font-medium" htmlFor="edit-merchant">
+                  Comercio
+                  <input id="edit-merchant" name="merchant" maxLength={160} defaultValue={editable.merchant} className={fieldControlClass} />
+                </label>
+              ) : null}
+              <label className="flex flex-col gap-1.5 text-small font-medium" htmlFor="edit-categoryId">
+                Categoría
+                <select id="edit-categoryId" name="categoryId" defaultValue={editable.categoryId} className={fieldControlClass}>
+                  <option value="">Sin categoría</option>
+                  {editable.categoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-small font-medium" htmlFor="edit-notes">
+                Notas
+                <textarea id="edit-notes" name="notes" maxLength={2000} rows={3} defaultValue={editable.notes} className={fieldControlClass} />
+              </label>
+              {editState?.ok === false ? (
+                <p role="alert" className="rounded-md bg-negative-soft px-3 py-2 text-small text-[var(--negative)]">
+                  {editState.error.message}
+                </p>
+              ) : null}
+              <DialogFooter>
+                <DialogClose render={<Button type="button" variant="outline">Cancelar</Button>} />
+                <Button type="submit" disabled={editPending}>
+                  {editPending ? "Guardando…" : "Guardar cambios"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
       {repeatPrefill ? (
         <Button type="button" variant="outline" onClick={() => openQuickAdd(repeatPrefill)}>
           <RefreshCwIcon className="size-4" /> Registrar de nuevo

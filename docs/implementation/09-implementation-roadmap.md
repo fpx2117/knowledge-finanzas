@@ -33,7 +33,7 @@ subvistas, Insights determinísticos).
 | WP-ACCOUNTS-SPEC | Warning archivar con saldo ≠ 0 (OQ-007); exclusión de archivadas del balance líquido verificada + test. |
 | WP-CAPTURE-CMDSURFACE | Auditar `features/capture` como command surface pura (§25): no duplica ledger, enruta a owners, valida IDs contra recursos reales. |
 | WP-IMPORTS-CF05 | Verificar/completar CF-05: encoding+delimitador, preview sin escritura, batch idempotente (`import_batches`), fingerprint de fila, excepciones → Pendientes, reconciliación de contadores. |
-| WP-TRANSACTIONS-EDIT | CM-02/03: editar/anular recalculan **todos** los derivados; tests de integración por campo. |
+| ~~WP-TRANSACTIONS-EDIT~~ **DONE (alcance acotado)** | Edición de descripción/comercio/categoría/notas (nueva feature — no existía). Monto/fecha/cuenta/tipo quedan fuera (decisión de producto: usar anular + registrar de nuevo). |
 
 ## Fase C — Comprensión: Resumen + Reportes
 

@@ -19,5 +19,16 @@ export const createExpenseTransactionSchema = z
   .strict();
 export const voidTransactionSchema = z.object({ transactionId: idSchema }).strict();
 
+// CM-02: bounded edit — description/merchant/category/notes only (never amount/date/account/type).
+export const editTransactionSchema = z
+  .object({
+    transactionId: idSchema,
+    description: z.string().trim().min(1, "Ingresá una descripción").max(240),
+    merchant: z.string().trim().max(160).optional(),
+    categoryId: idSchema.optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
 export type CreateIncomeInput = z.infer<typeof createIncomeTransactionSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseTransactionSchema>;

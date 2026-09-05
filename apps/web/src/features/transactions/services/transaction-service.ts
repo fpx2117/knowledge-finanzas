@@ -40,8 +40,14 @@ type Dependencies = {
     findByIdForUser(
       id: string,
       userId: string,
-    ): Promise<{ id: string; status: "POSTED" | "VOIDED" } | undefined>;
+    ): Promise<{ id: string; status: "POSTED" | "VOIDED"; type: string; categoryId: string | null } | undefined>;
     voidForUser(id: string, userId: string, at: Date): Promise<unknown>;
+    /** CM-02: bounded edit — description/merchant/category/notes only. */
+    updateMetadataForUser?(
+      id: string,
+      userId: string,
+      input: { description: string; merchant: string | null; categoryId: string | null; notes: string | null; taxonomyNodeId?: string | null; categoryChanged?: boolean },
+    ): Promise<unknown>;
     /** Progressive trust (#13): prior non-voided expenses for this merchant on this node. */
     countClassifiedForMerchantNode?(userId: string, merchantId: string, taxonomyNodeId: string): Promise<number>;
     /** Duplicate check (§20): posted income/expense on one account within a date window. */
@@ -423,6 +429,54 @@ export function createTransactionService({
       if (!transaction) throw new ApplicationError("TRANSACTION_NOT_FOUND");
       if (transaction.status === "VOIDED") throw new ApplicationError("TRANSACTION_ALREADY_VOIDED");
       return transactions.voidForUser(transactionId, userId, now());
+    },
+
+    // CM-02 (spec 14 §9): a bounded edit. Amount/date/account/type are never editable here — a
+    // correction to those requires void + re-register (CF-06), which keeps the ledger's audit
+    // trail exact. Only description/merchant/category/notes on an already-POSTED INCOME/EXPENSE
+    // row, since those are the fields a typo or a wrong pick can land on without the movement
+    // itself having been wrong.
+    async editTransaction(
+      userId: string,
+      transactionId: string,
+      input: { description: string; merchant?: string; categoryId?: string; notes?: string },
+    ) {
+      await gate.assertCanWrite(userId);
+      if (!transactions.updateMetadataForUser) throw new ApplicationError("INVALID_INPUT", { field: "transactionId" });
+      const transaction = await transactions.findByIdForUser(transactionId, userId);
+      if (!transaction) throw new ApplicationError("TRANSACTION_NOT_FOUND");
+      if (transaction.status === "VOIDED") throw new ApplicationError("TRANSACTION_ALREADY_VOIDED");
+      if (transaction.type !== "INCOME" && transaction.type !== "EXPENSE") {
+        throw new ApplicationError("INVALID_INPUT", { field: "transactionId" });
+      }
+
+      const description = input.description.trim();
+      if (!description) throw new ApplicationError("INVALID_INPUT", { field: "description" });
+
+      let categoryId: string | null = null;
+      let taxonomyNodeId: string | null = null;
+      const categoryChanged = Boolean(input.categoryId) && input.categoryId !== transaction.categoryId;
+      if (input.categoryId) {
+        const category = await categories.findByIdForUser(input.categoryId, userId);
+        if (!category) throw new ApplicationError("CATEGORY_NOT_FOUND", { field: "categoryId" });
+        if (category.status === "ARCHIVED") throw new ApplicationError("CATEGORY_ARCHIVED", { field: "categoryId" });
+        if (category.type !== transaction.type) throw new ApplicationError("CATEGORY_TYPE_MISMATCH", { field: "categoryId" });
+        categoryId = category.id;
+        if (categoryChanged && categoryMap) {
+          const node = await categoryMap.resolveNodeForUserCategory(category.id, userId).catch(() => undefined);
+          taxonomyNodeId = node?.id ?? null;
+        }
+      }
+
+      const updated = await transactions.updateMetadataForUser(transactionId, userId, {
+        description,
+        merchant: transaction.type === "EXPENSE" ? input.merchant?.trim() || null : null,
+        categoryId,
+        notes: input.notes?.trim() || null,
+        ...(categoryChanged ? { taxonomyNodeId, categoryChanged: true } : {}),
+      });
+      if (!updated) throw new ApplicationError("TRANSACTION_NOT_FOUND");
+      return updated;
     },
   };
 }

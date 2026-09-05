@@ -37,6 +37,95 @@ describe("transaction service", () => {
   });
 });
 
+// CM-02 — bounded edit (description/merchant/category/notes only).
+describe("transaction service — edit (CM-02)", () => {
+  const txId = "30000000-0000-0000-0000-000000000001";
+  const otherCategory = { id: "20000000-0000-0000-0000-000000000002", userId: "user-a", type: "EXPENSE" as const, status: "ACTIVE" as const };
+  const incomeCategory = { ...otherCategory, type: "INCOME" as const };
+  const archivedCategory = { ...otherCategory, status: "ARCHIVED" as const };
+
+  function editSetup(options: {
+    txOverrides?: Partial<{ status: "POSTED" | "VOIDED"; type: string; categoryId: string | null }>;
+    categoryLookup?: (id: string) => Promise<typeof category | undefined>;
+    withCategoryMap?: boolean;
+  } = {}) {
+    const updates: Array<Record<string, unknown>> = [];
+    const resolvedNodes: string[] = [];
+    const service = createTransactionService({
+      accounts: { findByIdForUser: async () => account },
+      categories: { findByIdForUser: options.categoryLookup ?? (async (id: string) => (id === category.id ? category : otherCategory)) },
+      transactions: {
+        create: async (v) => v,
+        findByIdForUser: async () => ({ id: txId, status: "POSTED", type: "EXPENSE", categoryId: category.id, ...options.txOverrides }),
+        updateMetadataForUser: async (id, userId, value) => { updates.push(value); return { id, ...value }; },
+      },
+      ...(options.withCategoryMap
+        ? {
+            categoryMap: {
+              findUserCategoryForNode: async () => undefined,
+              resolveNodeForUserCategory: async (userCategoryId: string) => { resolvedNodes.push(userCategoryId); return { id: `node-for-${userCategoryId}` }; },
+            },
+          }
+        : {}),
+    });
+    return { service, updates, resolvedNodes };
+  }
+
+  it("edits description/merchant/notes without touching the category", async () => {
+    const { service, updates } = editSetup({ withCategoryMap: true });
+    await service.editTransaction("user-a", txId, { description: "Nueva descripción", merchant: "YPF", categoryId: category.id, notes: "actualizado" });
+    expect(updates[0]).toMatchObject({ description: "Nueva descripción", merchant: "YPF", categoryId: category.id, notes: "actualizado" });
+    expect(updates[0]).not.toHaveProperty("categoryChanged");
+  });
+
+  it("marks classification user-explicit and resolves the taxonomy node when the category changes", async () => {
+    const { service, updates, resolvedNodes } = editSetup({ withCategoryMap: true });
+    await service.editTransaction("user-a", txId, { description: "Compra", categoryId: otherCategory.id });
+    expect(updates[0]).toMatchObject({ categoryId: otherCategory.id, categoryChanged: true, taxonomyNodeId: `node-for-${otherCategory.id}` });
+    expect(resolvedNodes).toEqual([otherCategory.id]);
+  });
+
+  it("clears the category when none is supplied", async () => {
+    const { service, updates } = editSetup();
+    await service.editTransaction("user-a", txId, { description: "Compra" });
+    expect(updates[0]).toMatchObject({ categoryId: null });
+  });
+
+  it("rejects editing a voided transaction", async () => {
+    const { service } = editSetup({ txOverrides: { status: "VOIDED" } });
+    await expect(service.editTransaction("user-a", txId, { description: "x" })).rejects.toMatchObject({ code: "TRANSACTION_ALREADY_VOIDED" });
+  });
+
+  it("rejects editing a transfer or other non income/expense type", async () => {
+    const { service } = editSetup({ txOverrides: { type: "TRANSFER_OUT" } });
+    await expect(service.editTransaction("user-a", txId, { description: "x" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  it("rejects a blank description", async () => {
+    const { service } = editSetup();
+    await expect(service.editTransaction("user-a", txId, { description: "   " })).rejects.toMatchObject({ code: "INVALID_INPUT", field: "description" });
+  });
+
+  it("rejects a category whose type doesn't match the transaction", async () => {
+    const { service } = editSetup({ categoryLookup: async () => incomeCategory });
+    await expect(service.editTransaction("user-a", txId, { description: "Compra", categoryId: incomeCategory.id })).rejects.toMatchObject({ code: "CATEGORY_TYPE_MISMATCH" });
+  });
+
+  it("rejects an archived category", async () => {
+    const { service } = editSetup({ categoryLookup: async () => archivedCategory });
+    await expect(service.editTransaction("user-a", txId, { description: "Compra", categoryId: archivedCategory.id })).rejects.toMatchObject({ code: "CATEGORY_ARCHIVED" });
+  });
+
+  it("rejects an unknown transaction", async () => {
+    const service = createTransactionService({
+      accounts: { findByIdForUser: async () => account },
+      categories: { findByIdForUser: async () => category },
+      transactions: { create: async (v) => v, findByIdForUser: async () => undefined, updateMetadataForUser: async () => ({}) },
+    });
+    await expect(service.editTransaction("user-a", txId, { description: "x" })).rejects.toMatchObject({ code: "TRANSACTION_NOT_FOUND" });
+  });
+});
+
 // §38 — idempotency of the create command.
 describe("transaction service — idempotency (§38)", () => {
   const commandId = "aaaaaaaa-0000-0000-0000-000000000001";
