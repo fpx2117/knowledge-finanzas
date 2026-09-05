@@ -131,7 +131,6 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
   const tabs = [
     { key: "resumen", label: "Resumen", href: "/obligations" },
     { key: "todas", label: "Todas", href: "/obligations?tab=todas" },
-    { key: "proximos", label: "Próximos vencimientos", href: "/obligations?tab=proximos" },
     { key: "pagadas", label: "Pagadas", href: "/obligations?tab=pagadas" },
   ];
 
@@ -166,33 +165,10 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
 
       <TabBar tabs={tabs} active={tab} />
 
-      {tab === "proximos" ? (
-        <SectionCard title="Próximos vencimientos">
-          {upcoming.length > 0 ? (
-            <ul className="flex flex-col divide-y divide-border">
-              {upcoming.map((u, i) => (
-                <li key={`${u.debtId}-${i}`} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <span className="flex min-w-0 flex-col">
-                    <Link href={`/obligations/${u.debtId}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
-                      {u.debtName}
-                    </Link>
-                    <span className="text-caption text-muted-foreground">
-                      {formatShortDate(u.dueDate)} · {relativeDueLabel(u.dueDate, today)}
-                    </span>
-                  </span>
-                  <MoneyAmount amount={u.amount} currency={u.currencyCode} variant="compact" className="text-small font-medium" />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="py-6 text-center text-small text-muted-foreground">No hay cuotas pendientes.</p>
-          )}
-        </SectionCard>
-      ) : (
-        <>
+      <>
           {tab === "resumen" ? (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
-              <SectionCard title="Próximos vencimientos" action={{ label: "Ver todos", href: "/obligations?tab=proximos" }}>
+              <SectionCard title="Próximos vencimientos" action={{ label: "Ver próximas", href: "/obligations/upcoming" }}>
                 {upcoming.filter((u) => !u.overdue).length > 0 ? (
                   <ul className="flex flex-col divide-y divide-border">
                     {upcoming
@@ -295,8 +271,7 @@ export default async function DebtsPage({ searchParams }: { searchParams: Promis
               <p className="py-6 text-center text-small text-muted-foreground">Nada para mostrar acá.</p>
             )}
           </SectionCard>
-        </>
-      )}
+      </>
     </div>
   );
 }

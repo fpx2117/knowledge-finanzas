@@ -39,7 +39,7 @@ en su `layout`. Auth: `session required` salvo indicado. Entitlement: `TRIAL|PRO
 | `/budgets/categories/:categoryId` | Detalle categoría | 04 | P0 | — | MISSING | hoy: `/budgets/:budgetId` sirve como detalle (1 budget = 1 categoría) |
 | — | Nuevo budget | 04 | — | `(app)/budgets/new`, `[budgetId]` | extra/OK | — |
 | `/obligations` | Todas | 05 | P0 | `(app)/obligations` | OK | — |
-| `/obligations/upcoming` | Próximas | 05 | P0 | `(app)/obligations/upcoming` | OK | redirige a `/obligations?tab=proximos` |
+| `/obligations/upcoming` | Próximas | 05 | P0 | `(app)/obligations/upcoming` | OK (2026-09-05) | vista real sobre el read model unificado — horizonte 7/15/30/60/90, confirmado/estimado separados, proyección de saldo |
 | `/obligations/debts` | Deudas y préstamos | 05 | P0 | `(app)/obligations` (mismo, sin filtro de tipo propio) | SPLIT | pendiente: filtrar por `type != PURCHASE_INSTALLMENTS` como sub-vista |
 | `/obligations/installments` | Cuotas | 05 | P0 | `(app)/obligations/installments` | OK | filtra `type = PURCHASE_INSTALLMENTS` |
 | `/obligations/subscriptions` | Suscripciones | 05 | P1 | `(app)/obligations/subscriptions` | OK | — |

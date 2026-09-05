@@ -529,6 +529,35 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
 - **Verificación:** lint (web) limpio, typecheck 148/148 (0 nuevos), unit 823/823 (+6), integration
   del WP 2/2.
 
+## WP-OBLIGATIONS-UI — Vistas de Obligaciones sobre el read model  ·  P1  ·  **PARCIAL (2026-09-05)**
+
+- **Goal:** que las vistas de Obligaciones dejen de mirar sólo `debts` y consuman el read model
+  unificado de [[WP-OBLIGATION-READMODEL]].
+- **Hecho — `/obligations/upcoming` ("Próximas", spec 05 §10):** dejó de ser un `redirect` a
+  `/obligations?tab=proximos` (que sólo mostraba cuotas de deuda) y es una vista real sobre
+  `createObligationReadModel().getObligations()`:
+  - Selector de horizonte 7/15/30/60/90 días, default 30 (§10.2) — `?horizon=`, componente
+    `HorizonSelector` en `features/obligations/components/obligations-shared.tsx`.
+  - Resumen: "Comprometido confirmado" y "Estimado" en tarjetas separadas — nunca en el mismo
+    número (§10.3); la de estimado dice cuántas obligaciones tienen monto aproximado.
+  - Línea temporal (§10.4): "Hoy · saldo X" → lista de obligaciones con chip de estado semántico
+    (`OBLIGATION_STATUS_META`) y tipo (`OBLIGATION_TYPE_LABEL`), prefijo "≈" en los estimados →
+    "Saldo proyectado tras compromisos conocidos" (líquido − confirmado). Si hay estimados, muestra
+    "Proyección parcial: N obligaciones tienen un monto por confirmar" + el peor caso.
+  - Riesgo de saldo insuficiente (§10.5): callout de advertencia (no sólo color, no alarmista)
+    cuando el saldo proyectado queda negativo.
+  - Multimoneda: proyección de saldo sólo en la moneda base; nota aparte para obligaciones en otra
+    moneda (no se suman).
+  - Saldo líquido vía `createAccountBalanceQueries(db).getLiquidTotalsForUser()` (query per-moneda
+    ya existente).
+- **`/obligations` principal:** se quitó el tab `proximos` (duplicaba la ruta dedicada) y el enlace
+  "Ver todos" del resumen ahora apunta a `/obligations/upcoming`. El resto de la vista principal
+  (resumen superior, "Necesita atención", detalle) sigue sobre `createDebtService` — cablearla al
+  read model es el resto de este WP, aún pendiente.
+- **Verificación:** lint (web) limpio, typecheck 148/148 (0 nuevos), unit 823/823 (sin cambio — la
+  vista no tiene tests de componente, convención del repo; la lógica está cubierta por los tests de
+  `finance-obligations` + `obligation-read-model`).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
