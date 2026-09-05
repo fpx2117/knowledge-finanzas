@@ -49,8 +49,8 @@ convertirse en work package cerrado.
 | Tipos: banco/billetera/efectivo/ahorro | PD-003 | `account` enum | UNVERIFIED | — | Confirmar enum |
 | Subvistas `/accounts/{banks,wallets,cash,savings}` | §8 | MISSING | MISSING | UX | 4 rutas filtradas server-side |
 | `/accounts/:id` detalle | §8 | `accounts/[accountId]` | IMPLEMENTED | — | — |
-| Warning archivar con saldo ≠ 0 | OQ-007 | UNVERIFIED | UNVERIFIED | FINANCIAL | Confirmar; test |
-| Cuentas archivadas fuera de balance líquido | OQ-007 | `calculate-balance` no filtra por sí | PARTIAL | FINANCIAL | Verificar en query de dashboard |
+| Warning archivar con saldo ≠ 0 | OQ-007 | `account-actions.tsx` (dialog) | **IMPLEMENTED (2026-09-04)** | — | Se permite archivar (no bloquea), con advertencia específica del monto |
+| Cuentas archivadas fuera de balance líquido | OQ-007 | `getAccountBalancesForUser`/`listAccounts` (`status='ACTIVE'` por defecto) | **IMPLEMENTED, confirmado con test** | — | `tests/integration/account-archive.test.ts` (3) |
 
 ### 03 Transacciones
 

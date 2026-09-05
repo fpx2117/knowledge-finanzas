@@ -64,7 +64,11 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       <PageHeader
         title={account.name}
         description={`${TYPE_LABEL[account.type] ?? account.type} · ${account.currencyCode}`}
-        actions={account.status === "ACTIVE" ? <AccountActions accountId={account.id} accountName={account.name} /> : undefined}
+        actions={
+          account.status === "ACTIVE" ? (
+            <AccountActions accountId={account.id} accountName={account.name} balance={account.balance} currencyCode={account.currencyCode} />
+          ) : undefined
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

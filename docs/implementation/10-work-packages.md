@@ -294,7 +294,22 @@ severidad retroactiva de "HIGH especulativo" a "CRITICAL confirmado".**
 - **Verificación:** lint limpio, `pnpm typecheck` estable en los mismos 148 errores preexistentes
   (0 nuevos), unit 804/804 sin cambio (páginas de servidor sin lógica de dominio nueva que testear
   aisladamente — la cobertura real es E2E, no ejecutado en este entorno).
-| WP-ACCOUNTS-SPEC | P1 `FINANCIAL-RISK` | Warning archivar saldo≠0 + exclusión de archivadas del balance líquido | WP-LEDGER-EXHAUSTIVE | test OQ-007 |
+| ~~WP-ACCOUNTS-SPEC~~ **DONE (2026-09-04)** | P1 `FINANCIAL-RISK` | Ver detalle abajo | WP-LEDGER-EXHAUSTIVE | 3 integration (OQ-007) |
+
+### Detalle
+
+- **Warning al archivar con saldo ≠ 0:** `account-actions.tsx` ahora recibe `balance`/`currencyCode`
+  y muestra una advertencia específica en el diálogo de confirmación cuando el saldo no es cero
+  ("al archivarla, ese saldo deja de sumar... el movimiento no se borra"). La decisión de producto
+  (OQ-007) es **permitir** archivar igual, no bloquear — el archivo no destruye ni mueve dinero.
+- **Exclusión de archivadas del balance activo:** ya estaba correctamente implementado
+  (`getAccountBalancesForUser`/`listAccounts` filtran `status = 'ACTIVE'` salvo `includeArchived:
+  true` explícito) — este WP lo **confirmó con test**, no lo corrigió.
+- **Tests:** `tests/integration/account-archive.test.ts` (3, Postgres real) — archivar con saldo
+  no bloquea; el saldo desaparece de `listAccounts()` (activos) pero sigue accesible con
+  `includeArchived: true` (historial preservado, no oculto ni puesto en cero); archivar dos veces
+  es no-op, no error.
+- **Verificación:** unit 813/813 sin cambio, integration +3, lint limpio, typecheck 148/148.
 | WP-CAPTURE-CMDSURFACE | P1 | `features/capture` es command surface pura §25 | WP-LEDGER-IDEMP | no duplica ledger; valida IDs; enruta a owners |
 | WP-IMPORTS-CF05 | P1 `FINANCIAL-RISK` | CF-05 completo y verificado | WP-LEDGER-IDEMP | preview sin escritura, batch idempotente, fingerprint, excepciones→Pendientes |
 | ~~WP-TRANSACTIONS-EDIT~~ **DONE (alcance acotado, 2026-09-04)** | P0 `FINANCIAL-RISK` | Ver detalle abajo | WP-EVENT-TAGS | 9 unit + 4 integration |
