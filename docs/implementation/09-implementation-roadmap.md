@@ -48,7 +48,7 @@ subvistas, Insights determinísticos).
 
 | WP | Contenido |
 |---|---|
-| WP-OBLIGATION-READMODEL | `getObligations(userId, horizon)` unifica deuda+cuota+suscripción+programado (extiende `projections/upcoming`). |
+| ~~WP-OBLIGATION-READMODEL~~ **DONE (2026-09-05)** | `createObligationReadModel().getObligations()` unifica cuotas de deuda + suscripciones detectadas + movimientos programados en una forma per-moneda determinística. Pura en `@know-finanzas/finance` (`buildObligationReadModel` + taxonomía §6 + status derivado + confirmado/estimado separados §10.3 + monedas separadas §22). Expansión de `recurring_transactions` sin fila materializada queda como follow-up (necesita RRULE). |
 | WP-OBLIGATIONS-UI | Rutas `/obligations/*` (post-ADR), `/obligations/upcoming`, detalle unificado. |
 | WP-CALENDAR-LAYERS | Modos Mes/Agenda/Día; capas hechos/programados/obligaciones/estimados con etiqueta semántica (§20); tests timezone borde/DST (§23.2). |
 

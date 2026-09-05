@@ -491,6 +491,44 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
   ningún test cubre directamente el dashboard — no hay tests de componente en el repo, ver
   convención de testing del proyecto).
 
+## WP-OBLIGATION-READMODEL — Read model unificado de Obligaciones  ·  P1  ·  **DONE (2026-09-05)**
+
+- **Goal:** una sola función determinística que las vistas de Obligaciones y la capa "obligaciones"
+  del Calendario consuman por igual, en vez de que cada superficie reinvente cómo junta deuda +
+  suscripción + programado (hoy `/obligations` sólo maneja deudas, las suscripciones viven aparte,
+  el calendario mezcla todo sin taxonomía).
+- **Arquitectura:** lógica pura en `@know-finanzas/finance` (`projections/obligations.ts`):
+  - Taxonomía spec 05 §6: `ObligationType` / `ObligationAmountMode` (FIXED·VARIABLE·ESTIMATED·
+    CONFIRMED) / `ObligationConfidence` (COMMITTED·EXPECTED) / `ObligationSource` / `ObligationStatus`
+    (UPCOMING·DUE_SOON·DUE_TODAY·OVERDUE·PARTIALLY_PAID — los tres del medio derivados de la fecha,
+    no persistidos, §6.4).
+  - `deriveObligationStatus()` — status de presentación desde fecha + pagos.
+  - `buildObligationReadModel()` — filtra a `[today − graceDays, today + horizonDays]`, resta
+    pagos, descarta lo ya saldado, dedupe por `${sourceType}:${sourceId}`, ordena por fecha.
+  - `summariseObligationsByCurrency()` — **nunca** suma FIXED/CONFIRMED con ESTIMATED/VARIABLE en un
+    solo número (§10.3: "comprometido confirmado" vs "estimado"); **nunca** suma monedas (§22 —
+    totales per-moneda, `baseCurrency` primero, resto en `excludedCurrencies`).
+  - `rollForwardRecurringDate()` — adelanta un `nextExpectedOn` de suscripción vencido a la próxima
+    ocurrencia ≥ hoy (maneja fin de mes: 31-ene +1mes → 28/29-feb), para no mostrar un cargo
+    "vencido" fantasma de hace meses.
+- **Wiring (app):** `apps/web/src/features/obligations/services/obligation-read-model.ts` —
+  `createObligationReadModel(db).getObligations({ userId, timezone, baseCurrency, horizonDays=30,
+  overdueGraceDays=90 })`. Tres fuentes: cuotas de deuda (`listDebtInstallmentsForUser`, FIXED/
+  COMMITTED, paidAmount = allocaciones POSTED), programados EXPENSE (`listScheduledForUser`, FIXED/
+  EXPECTED — los INCOME futuros se ignoran, §9.3), suscripciones ACTIVE (`subscriptionRepository`,
+  ESTIMATED/EXPECTED/DETECTED). Anti-doble-conteo: las queries ya excluyen cuotas PAID/CANCELLED y
+  programados no-SCHEDULED, así que un pago ya aplicado no puede volver a contar.
+- **Fuera de alcance (follow-up documentado):** expandir reglas `recurring_transactions` que todavía
+  no tienen fila `scheduled_transactions` materializada — requiere proyección RRULE y se dejó fuera
+  a propósito para mantener el read model determinístico. Ninguna de las vistas actuales lo hace.
+- **Tests:** 6 unit (`tests/unit/finance-obligations.test.ts` — status derivado, no mezclar
+  confirmado/estimado, monedas separadas, resta de pagos + dedupe + descartar saldado, ventana de
+  horizonte + gracia, roll-forward incl. fin de mes) + 2 integration (`obligation-read-model.test.ts`,
+  Postgres real — unifica las 3 fuentes con el wiring de producción, ignora el programado INCOME,
+  respeta el horizonte).
+- **Verificación:** lint (web) limpio, typecheck 148/148 (0 nuevos), unit 823/823 (+6), integration
+  del WP 2/2.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

@@ -14,7 +14,7 @@ convertirse en work package cerrado.
 | 02 | Cuentas | PARTIAL | MEDIO | CRUD + balance derivado + detalle OK; faltan subvistas `/accounts/{banks,wallets,cash,savings}` y warning de archivar con saldo ≠ 0 (UNVERIFIED) |
 | 03 | Transacciones | PARTIAL | ALTO | Ledger sólido; **rutas divergen** (español + transfers separado), **sin idempotency key en `transactions`**, "Pendientes" como sub-vista vs spec, recurrentes/duplicados/importaciones presentes |
 | 04 | Presupuestos | PARTIAL | MEDIO | Dominio + UI + alerts + dashboard existen; faltan `/budgets/categories`, `/budgets/history`, detalle por categoría; semántica refund/transfer/deuda a re-verificar contra §13 |
-| 05 | Obligaciones | PARTIAL / naming | ALTO | Implementado como `/debts` + `/debts/suscripciones`. Cubre deudas/cuotas/pagos parciales/anti-doble-conteo; falta unificación conceptual "Obligación", rutas `/obligations/*`, `/obligations/upcoming` |
+| 05 | Obligaciones | PARTIAL | ALTO | Read model unificado `getObligations()` DONE (2026-09-05, deuda+suscripción+programado, taxonomía §6, confirmado/estimado y monedas separados). Falta: cablear las vistas `/obligations/*` a ese read model (WP-OBLIGATIONS-UI) + detalle unificado |
 | 06 | Calendario | PARTIAL | MEDIO | `/calendar` existe + `features/calendar/services`; modos Mes/Agenda/Día y capas (hechos/programados/estimados) UNVERIFIED |
 | 07 | Metas | PARTIAL | MEDIO | `/goals` + CRUD + aporte/retiro; **`goals.currentAmount` es columna mutable**, no derivada de asignaciones (§15). Sin tabla `goal_allocations`. Subvistas `/goals/active|completed` faltan |
 | 08 | Reportes | DONE (2026-09-04) | — | 6 rutas (`/reports` + `{expenses,income,cash-flow,net-worth,categories}`), drill-down categoría→`/transactions?category=`, `calculationVersion`+`coverage.excludedCurrencies` en el read model |
@@ -83,7 +83,7 @@ convertirse en work package cerrado.
 
 | Capability | Spec | Code | Status | Risk | Trabajo |
 |---|---|---|---|---|---|
-| Concepto unificado "Obligación" | 05 | fragmentado: `debts`, `debt_installments`, `subscriptions`, `scheduled_transactions` | PARTIAL | ARCH | Definir read model `Obligation` que unifique deuda + suscripción + programado + recurrente |
+| Concepto unificado "Obligación" | 05 | `@know-finanzas/finance` `buildObligationReadModel` + `features/obligations/services/obligation-read-model.ts` | **IMPLEMENTED (2026-09-05)** | — | Read model `getObligations()` unifica deuda+cuota+suscripción+programado. Falta expandir reglas recurrentes sin fila materializada (RRULE, follow-up) + cablear las vistas |
 | Deudas/préstamos + cuotas | 05 | `debts` + `generateInstallments` + `installment-status` | IMPLEMENTED | — | — |
 | Pago parcial actualiza outstanding | §14, OQ-006 | `allocatePayment`, `calculateDebtRemaining` | IMPLEMENTED | — | — |
 | Anti doble conteo (§14.1) | §14.1 | `LIABILITY_PAYMENT` en balance, no consumo | **IMPLEMENTED (2026-09-04)** | — | Probado end-to-end contra wiring real: `tests/integration/anti-double-count.test.ts` — saldo 1M − oblig 300k → pago → 700k − 0 = 700k (no 400k); pago parcial también correcto |

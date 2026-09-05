@@ -20,6 +20,26 @@ export type { UpcomingConfidence, UpcomingDirection, UpcomingItem, UpcomingSourc
 export { calculateSpendable } from "./projections/spendable-money";
 export { calculateCashflow } from "./projections/cashflow";
 export {
+  buildObligationList,
+  buildObligationReadModel,
+  deriveObligationStatus,
+  isConfirmedAmountMode,
+  rollForwardRecurringDate,
+  summariseObligationsByCurrency,
+} from "./projections/obligations";
+export type {
+  DerivedObligation,
+  ObligationAmountMode,
+  ObligationConfidence,
+  ObligationCurrencyTotals,
+  ObligationInput,
+  ObligationReadModel,
+  ObligationSource,
+  ObligationSourceType,
+  ObligationStatus,
+  ObligationType,
+} from "./projections/obligations";
+export {
   currencyMetadata,
   getCurrencyMetadata,
   type CurrencyCode,
