@@ -33,7 +33,7 @@ export function StatCard({
   info?: string;
   icon?: LucideIcon;
   tone?: StatTone;
-  hint?: string;
+  hint?: React.ReactNode;
   /** Either pass `value`+`currency` for a money metric, or `children` for anything else. */
   value?: string;
   currency?: string;

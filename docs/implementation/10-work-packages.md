@@ -456,6 +456,41 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
   (ver arriba) por compartir el mismo cálculo de `report-service.ts`.
 - **Verificación:** incluida en la corrida conjunta de WP-REPORTS-P0.
 
+## WP-DASHBOARD-SPEC01 — Reconciliar `/app` con spec 01  ·  P0  ·  **DONE (alcance acotado, 2026-09-04)**
+
+- **Goal:** el dashboard deja de mostrar términos/semántica que la spec no define y deja de elegir
+  arbitrariamente una moneda para sus KPIs.
+- **Alcance tomado (usuario eligió "los 3 P0 juntos" ante el tamaño del WP completo):**
+  1. **KPIs correctos (§8-10):** KPI-1 pasa de "Patrimonio neto" (balance − deuda, un término que
+     la spec no usa en Resumen — vive en `/reports/net-worth`) a **"Saldo total"** (balance
+     confirmado, sin restar deuda, §8.2). Se agrega el KPI-3 **"Resultado del período"** (ingresos
+     − gastos confirmados, §10) que no existía como tarjeta. Fila de KPIs baja de 4 a exactamente
+     **3** (§6.2 regla de densidad: "no mostrar más de 3 KPI primarios"). "Obligaciones pendientes"
+     y "Próximo vencimiento" (antes KPIs sueltos) se replegaron dentro de la card "Obligaciones
+     próximas" (eyebrow con el total a 30 días + lista, sin pérdida de información) y su acción
+     pasa a `/obligations` (antes `/calendar`), conforme a la tabla de navegación contextual §5.3.
+  2. **Multimoneda separada (§8.3/RF-03/D-09):** `currency` ya no es `liquidBalances[0]` arbitrario
+     — se prioriza `baseCurrency` del usuario si tiene cuentas en esa moneda. Cualquier otra moneda
+     con saldo ≠ 0 se muestra explícitamente en una nota aparte ("También tenés saldo en USD 1.250
+     — no se suma al saldo de arriba") en vez de desaparecer silenciosamente de los KPIs.
+  3. **Drawer de explicación de disponible (§9.4):** nuevo `AvailableMoneyDialog`
+     (`features/dashboard/components/available-money-dialog.tsx`, client component) reemplaza el
+     tooltip estático — desglosa saldo confirmado / obligaciones comprometidas / disponible, declara
+     la ventana de cobertura (§9.5, "Después de compromisos... hasta el {fecha}") y cada obligación
+     es expandible mostrando su vencimiento (§9.4 "cada obligación puede expandirse"). Los datos ya
+     existían en `calculateSpendable()` (`liquidBalance`/`committedObligations`/`commitments`/
+     `horizonEnd`) — sin cambios al dominio financiero, sólo se surface en la UI.
+  - `StatCard.hint` amplía su tipo de `string` a `React.ReactNode` (cambio compatible — todos los
+    usos existentes pasan strings) para poder alojar el trigger del drawer y los montos compuestos.
+- **Explícitamente fuera de este incremento** (documentado, no resuelto silenciosamente): estados
+  de calidad de datos (§17 — sin categorizar/duplicados/cuenta sin actividad), degradación parcial
+  por sección con mensajes específicos por fallo (§18.2/§18.3 — hoy sólo hay un `error.tsx` global),
+  empty state "tiene cuenta, sin movimientos" (§19.2), texto equivalente accesible del gráfico de
+  flujo (§24.3). Quedan para un WP de seguimiento si el usuario lo prioriza.
+- **Verificación:** lint limpio, typecheck 148/148 (0 nuevos), unit 817/817 (sin regresión;
+  ningún test cubre directamente el dashboard — no hay tests de componente en el repo, ver
+  convención de testing del proyecto).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

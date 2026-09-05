@@ -10,7 +10,7 @@ convertirse en work package cerrado.
 
 | # | Módulo | Estado global | Riesgo | Nota |
 |---|---|---|---|---|
-| 01 | Resumen | PARTIAL / LEGACY | ALTO | Dashboard V1 existe (`/dashboard`) contra docs previos; ruta, "dinero disponible explicable", multimoneda separada y composición cross-module sin reconciliar con spec 01 |
+| 01 | Resumen | PARTIAL (P0 cerrado 2026-09-04) | MEDIO | `/app` con KPIs correctos (Saldo total/Dinero disponible/Resultado del período), multimoneda separada, drawer de "Ver cálculo". Pendiente (fuera de este WP): estados de calidad de datos §17, degradación por sección §18.2/18.3, empty state "sin movimientos" §19.2, texto accesible del gráfico §24.3 |
 | 02 | Cuentas | PARTIAL | MEDIO | CRUD + balance derivado + detalle OK; faltan subvistas `/accounts/{banks,wallets,cash,savings}` y warning de archivar con saldo ≠ 0 (UNVERIFIED) |
 | 03 | Transacciones | PARTIAL | ALTO | Ledger sólido; **rutas divergen** (español + transfers separado), **sin idempotency key en `transactions`**, "Pendientes" como sub-vista vs spec, recurrentes/duplicados/importaciones presentes |
 | 04 | Presupuestos | PARTIAL | MEDIO | Dominio + UI + alerts + dashboard existen; faltan `/budgets/categories`, `/budgets/history`, detalle por categoría; semántica refund/transfer/deuda a re-verificar contra §13 |

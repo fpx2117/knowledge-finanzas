@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpIcon, CalendarClockIcon, PiggyBankIcon, WalletIcon } from "lucide-react";
+import { ArrowUpIcon, ScaleIcon, WalletIcon } from "lucide-react";
 
 import {
   budgetRepository,
@@ -29,6 +29,7 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatShortDate, relativeDueLabel } from "@/lib/format";
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
 import { getBudgetOverview } from "@/features/dashboard/services/budget-overview";
+import { AvailableMoneyDialog } from "@/features/dashboard/components/available-money-dialog";
 
 const dashboardService = createDashboardService({
   balances: createAccountBalanceQueries(db),
@@ -118,18 +119,26 @@ function DashboardBody({
   categories: CategoryRow[];
   baseCurrency: string;
 }) {
-  const currency = summary.liquidBalances[0]?.currencyCode ?? baseCurrency;
+  // §8.3/RF-03/D-09: never sum currencies implicitly. `currency` drives the
+  // headline KPIs; any other currency the user holds is surfaced separately
+  // below, never merged into it.
+  const currency = summary.liquidBalances.some((b) => b.currencyCode === baseCurrency)
+    ? baseCurrency
+    : (summary.liquidBalances[0]?.currencyCode ?? baseCurrency);
+  const otherCurrencyBalances = summary.liquidBalances.filter((b) => b.currencyCode !== currency && Number(b.total) !== 0);
   const projection = summary.projections.find((p) => p.currencyCode === currency) ?? summary.projections[0];
 
   const liquidTotal = summary.liquidBalances.find((b) => b.currencyCode === currency)?.total ?? "0";
-  const debtTotal = summary.debt.find((d) => d.currencyCode === currency)?.remaining ?? "0";
-  const netWorth = Money.fromString(liquidTotal, currency).subtract(Money.fromString(debtTotal, currency)).toString();
+
+  const primaryMonthly = summary.monthly.find((m) => m.currencyCode === currency);
+  const periodIncome = primaryMonthly?.income ?? "0";
+  const periodExpense = primaryMonthly?.expense ?? "0";
+  const periodResult = Money.fromString(periodIncome, currency).subtract(Money.fromString(periodExpense, currency)).toString();
 
   const upcoming = summary.upcomingObligations.filter((o) => o.currencyCode === currency);
   const obligationsTotal = upcoming
     .reduce((sum, o) => sum.add(Money.fromString(o.amount, currency)), Money.zero(currency))
     .toString();
-  const nextDue = upcoming[0];
 
   // Spending donut — top 5 categories + "Otros", controlled blue/neutral palette (no rainbow).
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
@@ -158,46 +167,71 @@ function DashboardBody({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* KPI row — §11 */}
-      <section aria-label="Indicadores principales" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* KPI row — spec 01 §8-10: exactly 3 KPIs primarios (§6.2 regla de densidad). */}
+      <section aria-label="Indicadores principales" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
-          label="Patrimonio neto"
+          label="Saldo total"
           icon={WalletIcon}
-          value={netWorth}
+          value={liquidTotal}
           currency={currency}
-          hint="Tus activos menos tus deudas"
-          info="La suma de lo que tenés en tus cuentas menos el saldo pendiente de tus obligaciones."
+          hint={`${summary.accounts.length} ${summary.accounts.length === 1 ? "cuenta" : "cuentas"}`}
+          info="Suma de los saldos confirmados de tus cuentas en esta moneda. No incluye ingresos futuros."
         />
         <StatCard
           label="Dinero disponible"
           icon={ArrowUpIcon}
           tone="positive"
-          value={projection?.spendable.spendable.toString() ?? "0"}
+          value={projection?.spendable.spendable.toString() ?? liquidTotal}
           currency={currency}
-          hint="Después de los compromisos de 30 días"
+          hint={
+            projection ? (
+              <AvailableMoneyDialog
+                currency={currency}
+                liquidBalance={projection.spendable.liquidBalance.toString()}
+                committedObligations={projection.spendable.committedObligations.toString()}
+                spendable={projection.spendable.spendable.toString()}
+                horizonEnd={projection.spendable.horizonEnd}
+                commitments={projection.spendable.commitments.map((item) => ({
+                  sourceId: item.sourceId,
+                  title: item.title,
+                  dueDate: item.dueDate,
+                  amount: item.remainingAmount.toString(),
+                  isOverdue: item.isOverdue ?? false,
+                }))}
+              />
+            ) : undefined
+          }
           info="Saldo líquido menos las obligaciones comprometidas de los próximos 30 días. No incluye ingresos futuros."
         />
         <StatCard
-          label="Obligaciones pendientes"
-          icon={PiggyBankIcon}
-          tone="warning"
-          value={obligationsTotal}
+          label="Resultado del período"
+          icon={ScaleIcon}
+          tone={Number(periodResult) >= 0 ? "positive" : "neutral"}
+          value={periodResult}
           currency={currency}
-          hint="A pagar en los próximos 30 días"
+          hint={
+            <>
+              Ingresos <MoneyAmount amount={periodIncome} currency={currency} variant="compact" className="font-medium text-foreground" /> · Gastos{" "}
+              <MoneyAmount amount={periodExpense} currency={currency} variant="compact" className="font-medium text-foreground" />
+            </>
+          }
+          info="Ingresos menos gastos confirmados del período. Excluye transferencias entre tus propias cuentas."
         />
-        <StatCard label="Próximo vencimiento" icon={CalendarClockIcon}>
-          {nextDue ? (
-            <span className="flex flex-col gap-0.5">
-              <span className="truncate text-body-lg font-medium text-foreground">{nextDue.title}</span>
-              <span className="text-small font-normal text-muted-foreground">
-                {formatShortDate(nextDue.dueDate)} · {relativeDueLabel(nextDue.dueDate, summary.today)}
-              </span>
-            </span>
-          ) : (
-            <span className="text-body-lg font-medium text-muted-foreground">Sin vencimientos</span>
-          )}
-        </StatCard>
       </section>
+
+      {otherCurrencyBalances.length > 0 ? (
+        <p className="text-caption text-muted-foreground">
+          También tenés saldo en{" "}
+          {otherCurrencyBalances
+            .map((balance) => `${balance.currencyCode} ${new Intl.NumberFormat("es-AR").format(Number(balance.total))}`)
+            .join(" · ")}{" "}
+          — no se suma al saldo de arriba.{" "}
+          <Link href="/accounts" className="font-medium text-brand hover:underline">
+            Ver cuentas
+          </Link>
+          .
+        </p>
+      ) : null}
 
       {/* Analytical row — §17.1 */}
       <section aria-label="Proyección y gastos" className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
@@ -256,10 +290,14 @@ function DashboardBody({
           </ul>
         </SectionCard>
 
-        <SectionCard title="Obligaciones próximas" action={{ label: "Ver calendario", href: "/calendar" }}>
+        <SectionCard
+          title="Obligaciones próximas"
+          eyebrow={upcoming.length > 0 ? `${new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 0 }).format(Number(obligationsTotal))} en 30 días` : undefined}
+          action={{ label: "Ver todas las obligaciones", href: "/obligations" }}
+        >
           {upcoming.length > 0 ? (
             <ul className="flex flex-col divide-y divide-border">
-              {upcoming.slice(0, 5).map((item) => (
+              {upcoming.slice(0, 3).map((item) => (
                 <li key={item.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-small font-medium text-foreground">{item.title}</span>

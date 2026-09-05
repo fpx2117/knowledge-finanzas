@@ -41,7 +41,7 @@ subvistas, Insights determinísticos).
 |---|---|
 | ~~WP-READMODEL-CONTRACT~~ **DONE (2026-09-04)** | `ReportData` gana `calculationVersion: 1` + `coverage.excludedCurrencies` (§21/§22). |
 | ~~WP-REPORTS-P0~~ **DONE** | 5 rutas nuevas `/reports/{expenses,income,cash-flow,categories,net-worth}` (Patrimonio se adelantó junto con P0, ver WP-REPORTS-NETWORTH) + `ReportsNav`; drill-down categoría→`/transactions?category=` verificable al ledger. Multimoneda separada vía `ExcludedCurrenciesNote`. |
-| WP-DASHBOARD-SPEC01 | Reconciliar `/dashboard` con spec 01: dinero disponible explicable (composición), multimoneda separada, secciones degradables, estilo semántico proyección ≠ confirmado. **Horizonte de flujo de caja = 30 días (Foundation §10, decisión de producto).** Sólo parametrizar la ventana de "dinero disponible" si difiere de 30d. |
+| ~~WP-DASHBOARD-SPEC01~~ **DONE (alcance acotado a los 3 P0, 2026-09-04)** | KPIs correctos (Saldo total ≠ Patrimonio neto; agrega Resultado del período), multimoneda separada explícita (nunca `liquidBalances[0]` arbitrario), drawer de explicación de disponible (§9.4). Secciones degradables / data-quality notices quedan fuera de este incremento. |
 | ~~WP-REPORTS-NETWORTH~~ **DONE** | `/reports/net-worth` (P1) — `netWorthDetail` (activos líquidos, deuda pendiente, patrimonio neto) en moneda base. |
 
 ## Fase D — Futuro financiero: Obligaciones + Calendario
