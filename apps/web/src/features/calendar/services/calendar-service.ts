@@ -9,19 +9,35 @@ import { Money, monthRangeForTimezone, todayInTimezone } from "@know-finanzas/fi
 
 export type CalendarEventKind = "income" | "expense" | "obligation" | "transfer";
 
+/**
+ * spec 06 §0.1 / §5 — every calendar event must state *unambiguously* what kind of
+ * financial reality it is. `kind` is for grouping/colour; `layer` is the temporal-
+ * financial classification the invariant demands.
+ *  - CONFIRMED  §5.1 — backed by a posted ledger movement; affects the real balance.
+ *  - COMMITTED  §5.2 — a known future obligation; reduces conservative available money, not the balance.
+ *  - SCHEDULED  §5.3 — an explicit planned future movement; feeds projection only.
+ *  - ESTIMATED  §5.4 — amount or date is uncertain; must be labelled, never shown as fact.
+ *  - OVERDUE    §5.5 — a commitment whose date passed and is still unpaid; not a confirmed expense.
+ *  - PAID       §5.6 — an obligation resolved by a linked movement.
+ */
+export type CalendarLayer = "CONFIRMED" | "COMMITTED" | "SCHEDULED" | "ESTIMATED" | "OVERDUE" | "PAID";
+
 export type CalendarEvent = {
   id: string;
   /** YYYY-MM-DD in the user's timezone. */
   date: string;
   kind: CalendarEventKind;
+  layer: CalendarLayer;
   title: string;
   /** Positive decimal string. */
   amount: string;
   currencyCode: string;
-  /** True for scheduled / not-yet-posted movements. */
+  /** Convenience: true unless the event is already in the ledger (CONFIRMED / PAID). */
   projected: boolean;
   href?: string;
 };
+
+const LEDGER_LAYERS: ReadonlySet<CalendarLayer> = new Set<CalendarLayer>(["CONFIRMED", "PAID"]);
 
 export type CalendarMonth = {
   period: string;
@@ -34,7 +50,11 @@ export type CalendarMonth = {
     net: string;
     projectedNet: string;
     obligationsDue: string;
+    /** §5 layer breakdown, base currency, this month. Confirmed vs committed vs scheduled are kept apart. */
+    layers: { confirmedNet: string; committed: string; scheduled: string; overdue: string };
   };
+  /** Currencies present among the month's events other than `currencyCode` (§10 — never summed). */
+  excludedCurrencies: string[];
 };
 
 function parsePeriod(period: string | undefined, timezone: string, now: Date): { year: number; month: number; period: string } {
@@ -70,17 +90,21 @@ export function createCalendarService(database = db) {
 
       const events: CalendarEvent[] = [];
 
+      const push = (event: Omit<CalendarEvent, "projected">) => {
+        events.push({ ...event, projected: !LEDGER_LAYERS.has(event.layer) });
+      };
+
       for (const txn of txnRows) {
         if (txn.status !== "POSTED") continue;
         if (txn.type !== "INCOME" && txn.type !== "EXPENSE") continue;
-        events.push({
+        push({
           id: `txn-${txn.id}`,
           date: todayInTimezone(txn.occurredAt, input.timezone),
           kind: txn.type === "INCOME" ? "income" : "expense",
+          layer: "CONFIRMED",
           title: txn.description,
           amount: Money.fromString(txn.amount, txn.currencyCode).toString(),
           currencyCode: txn.currencyCode,
-          projected: false,
           href: `/transactions/${txn.id}`,
         });
       }
@@ -89,27 +113,31 @@ export function createCalendarService(database = db) {
         const remaining = Money.fromString(row.installment.totalAmount, row.debt.currencyCode).subtract(
           Money.fromString(row.allocatedAmount, row.debt.currencyCode),
         );
-        events.push({
+        const partiallyPaid = Money.fromString(row.allocatedAmount, row.debt.currencyCode).amount.gt(0);
+        // §5.5 vencido vs §5.2 comprometido — derived from the date, never persisted.
+        const layer: CalendarLayer = row.installment.dueDate < today ? "OVERDUE" : "COMMITTED";
+        push({
           id: `debt-${row.installment.id}`,
           date: row.installment.dueDate,
           kind: "obligation",
-          title: `${row.debt.name} · cuota ${row.installment.installmentNumber}`,
+          layer,
+          title:
+            `${row.debt.name} · cuota ${row.installment.installmentNumber}` + (partiallyPaid ? " (saldo)" : ""),
           amount: remaining.toString(),
           currencyCode: row.debt.currencyCode,
-          projected: true,
           href: `/obligations/${row.debt.id}`,
         });
       }
 
       for (const row of scheduledRows) {
-        events.push({
+        push({
           id: `sched-${row.id}`,
           date: row.scheduledDate,
           kind: row.type === "INCOME" ? "income" : "expense",
+          layer: "SCHEDULED",
           title: row.description,
           amount: Money.fromString(row.expectedAmount, row.currencyCode).toString(),
           currencyCode: row.currencyCode,
-          projected: true,
         });
       }
 
@@ -118,14 +146,14 @@ export function createCalendarService(database = db) {
         if (date < fromISO || date >= toISO) continue;
         const from = accountName.get(transfer.fromAccountId) ?? "Cuenta";
         const to = accountName.get(transfer.toAccountId) ?? "Cuenta";
-        events.push({
+        push({
           id: `xfer-${transfer.id}`,
           date,
           kind: "transfer",
+          layer: "CONFIRMED",
           title: `${from} → ${to}`,
           amount: Money.fromString(transfer.amount, transfer.currencyCode).toString(),
           currencyCode: transfer.currencyCode,
-          projected: false,
           href: `/transactions/transfers/${transfer.id}`,
         });
       }
@@ -147,6 +175,17 @@ export function createCalendarService(database = db) {
       const net = income.subtract(expense);
       const projectedNet = net.add(scheduledIncome).subtract(scheduledExpense).subtract(obligationsDue);
 
+      // §5 layer breakdown — confirmed reality, committed obligations and planned movements
+      // stay in their own buckets (never a single "future balance" number).
+      const committed = sum((event) => event.layer === "COMMITTED");
+      const overdue = sum((event) => event.layer === "OVERDUE");
+      const scheduledOut = sum((event) => event.layer === "SCHEDULED" && event.kind === "expense");
+      const scheduledIn = sum((event) => event.layer === "SCHEDULED" && event.kind === "income");
+
+      const excludedCurrencies = [...new Set(events.map((event) => event.currencyCode))]
+        .filter((code) => code !== currencyCode)
+        .sort();
+
       return {
         period,
         today,
@@ -158,7 +197,14 @@ export function createCalendarService(database = db) {
           net: net.toString(),
           projectedNet: projectedNet.toString(),
           obligationsDue: obligationsDue.toString(),
+          layers: {
+            confirmedNet: net.toString(),
+            committed: committed.toString(),
+            scheduled: scheduledOut.subtract(scheduledIn).toString(),
+            overdue: overdue.toString(),
+          },
         },
+        excludedCurrencies,
       };
     },
   };

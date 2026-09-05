@@ -15,7 +15,7 @@ convertirse en work package cerrado.
 | 03 | Transacciones | PARTIAL | ALTO | Ledger sólido; **rutas divergen** (español + transfers separado), **sin idempotency key en `transactions`**, "Pendientes" como sub-vista vs spec, recurrentes/duplicados/importaciones presentes |
 | 04 | Presupuestos | PARTIAL | MEDIO | Dominio + UI + alerts + dashboard existen; faltan `/budgets/categories`, `/budgets/history`, detalle por categoría; semántica refund/transfer/deuda a re-verificar contra §13 |
 | 05 | Obligaciones | PARTIAL | BAJO | Read model unificado + `/obligations/upcoming` (§10) + vista principal `/obligations` "Todas" (§9: KPIs, "Necesita atención", lista agrupada por tiempo) sobre el read model (2026-09-05). Falta sólo: detalle unificado (`/obligations/[id]` sigue siendo de deudas) |
-| 06 | Calendario | PARTIAL | MEDIO | `/calendar` existe + `features/calendar/services`; modos Mes/Agenda/Día y capas (hechos/programados/estimados) UNVERIFIED |
+| 06 | Calendario | PARTIAL | BAJO | Taxonomía temporal-financiera §5 (CONFIRMED/COMMITTED/SCHEDULED/OVERDUE…) en cada evento + etiqueta sin color + desglose por capa + monedas separadas + tests DST (2026-09-05). Falta sólo: modos Agenda (§7) y Día (§8) como UI |
 | 07 | Metas | PARTIAL | MEDIO | `/goals` + CRUD + aporte/retiro; **`goals.currentAmount` es columna mutable**, no derivada de asignaciones (§15). Sin tabla `goal_allocations`. Subvistas `/goals/active|completed` faltan |
 | 08 | Reportes | DONE (2026-09-04) | — | 6 rutas (`/reports` + `{expenses,income,cash-flow,net-worth,categories}`), drill-down categoría→`/transactions?category=`, `calculationVersion`+`coverage.excludedCurrencies` en el read model |
 | 09 | Insights | PARTIAL | ALTO | `/insights` + `insight-service` + capability IA `explain-financial-insight`. **Detectores determinísticos con evidence package**: UNVERIFIED / probablemente MISSING. Subvistas `/insights/opportunities|history` faltan |
@@ -98,7 +98,7 @@ convertirse en work package cerrado.
 |---|---|---|---|---|---|
 | `/calendar` única entrada | PD-008 | `/calendar` | IMPLEMENTED | — | — |
 | Modos Mes/Agenda/Día internos | PD-008 | UNVERIFIED | UNVERIFIED | UX | — |
-| Capas: hechos / programados / obligaciones / estimados | 06, §20 | `features/calendar/services` | UNVERIFIED | FINANCIAL | Verificar etiquetado semántico distinto |
+| Capas: hechos / programados / obligaciones / estimados | 06, §5/§0.1 | `calendar-service.ts` `CalendarLayer` + `calendar-grid.tsx` `LAYER_META` | **IMPLEMENTED (2026-09-05)** | — | Cada evento lleva capa (CONFIRMED/COMMITTED/SCHEDULED/OVERDUE/…), glyph + palabra sin depender de color; monedas separadas; tests DST. ESTIMATED cuando el calendario consuma suscripciones (follow-up) |
 | Timezone-aware / cambio de tz (CM-12) | §23 | `dates/timezone` (`monthRangeForTimezone`) | PARTIAL | FINANCIAL | Tests cerca de medianoche / DST |
 
 ### 07 Metas

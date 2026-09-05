@@ -50,7 +50,7 @@ subvistas, Insights determinísticos).
 |---|---|
 | ~~WP-OBLIGATION-READMODEL~~ **DONE (2026-09-05)** | `createObligationReadModel().getObligations()` unifica cuotas de deuda + suscripciones detectadas + movimientos programados en una forma per-moneda determinística. Pura en `@know-finanzas/finance` (`buildObligationReadModel` + taxonomía §6 + status derivado + confirmado/estimado separados §10.3 + monedas separadas §22). Expansión de `recurring_transactions` sin fila materializada queda como follow-up (necesita RRULE). |
 | WP-OBLIGATIONS-UI | **CASI DONE (2026-09-05):** `/obligations/upcoming` (§10 completo) + vista principal `/obligations` "Todas" reconstruida sobre el read model — 4 KPIs multimoneda (§9.3), sección "Necesita atención" (§9.4), lista agrupada por tiempo Vencidas/Hoy/Próximos 7 días/Este mes/Más adelante (§9.5/§9.6). Pestañas Deudas/Pagadas conservan el registro de deudas. **Falta sólo:** detalle unificado — `/obligations/[id]` sigue siendo sólo de deudas (una suscripción/programado no tiene página de detalle propia). |
-| WP-CALENDAR-LAYERS | Modos Mes/Agenda/Día; capas hechos/programados/obligaciones/estimados con etiqueta semántica (§20); tests timezone borde/DST (§23.2). |
+| WP-CALENDAR-LAYERS | **PARCIAL (2026-09-05):** taxonomía temporal-financiera §5 (CONFIRMED/COMMITTED/SCHEDULED/ESTIMATED/OVERDUE/PAID) en cada evento del calendar-service + etiqueta inequívoca sin depender de color (§0.1/§6.4) + desglose por capa en el resumen del mes + monedas separadas (§10) + tests de timezone/DST (spring-forward, fall-back, boundary de mes). Falta: modos Agenda (§7) y Día (§8) como UI. |
 
 ## Fase E — Planificación: Presupuestos + Metas
 

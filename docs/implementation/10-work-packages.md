@@ -570,6 +570,34 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
   del repo); la lógica está cubierta por `finance-obligations` + `obligation-read-model` +
   `obligations-grouping`.
 
+## WP-CALENDAR-LAYERS — Taxonomía temporal-financiera del Calendario  ·  P1  ·  **PARCIAL (2026-09-05)**
+
+- **Goal (spec 06 §0.1):** que TODO evento del calendario indique inequívocamente si es
+  confirmado / comprometido / programado / estimado / vencido / pagado — hoy sólo había un
+  `projected: boolean`.
+- **Hecho:**
+  - `calendar-service.ts`: nuevo `CalendarLayer` (`CONFIRMED`·`COMMITTED`·`SCHEDULED`·`ESTIMATED`·
+    `OVERDUE`·`PAID`, §5). Clasificación: transacción POSTED / transferencia → `CONFIRMED`; cuota de
+    deuda → `OVERDUE` si `dueDate < today` si no `COMMITTED` (derivado, no persistido); programado →
+    `SCHEDULED`. `projected` pasa a ser derivado (`!CONFIRMED && !PAID`). `ESTIMATED` queda en el
+    tipo para cuando el calendario consuma suscripciones (follow-up).
+  - `summary.layers` — desglose por capa en moneda base: `confirmedNet` / `committed` / `scheduled`
+    (neto) / `overdue`, más `excludedCurrencies` (§10 — nunca se suman monedas).
+  - `calendar-grid.tsx`: `LAYER_META` con **glyph + palabra** (`✓` Confirmado, `•` Comprometido,
+    `↻` Programado, `~` Estimado, `!` Vencido) — estado detectable sin color (§6.4). Glyph en el
+    chip de la grilla y en la fila; leyenda en la página.
+  - `calendar/page.tsx`: reemplazó el `InsightCard` "Balance proyectado" por una card "Por estado
+    temporal" con el desglose de capas + aclaración "es una proyección, no un saldo real" +
+    leyenda de glyphs + nota de monedas excluidas.
+- **Tests:** +3 unit DST (`finance-dates.test.ts` — spring-forward buckets al día local correcto,
+  fall-back con hora repetida al mismo día, rangos de mes/día anclados a medianoche local cuando el
+  offset UTC cambia a mitad de rango) + 3 integration (`calendar-layers.test.ts`, Postgres real —
+  clasificación por capa, monedas separadas en el resumen, bucketing por timezone en el boundary de
+  mes cerca del DST).
+- **Falta (follow-up UI, no correctitud):** modos Agenda (§7) y Día (§8, drawer + "Ver cálculo").
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 828/828 (+3), integration
+  del WP 3/3.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

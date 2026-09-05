@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import type { CalendarEvent, CalendarEventKind } from "@/features/calendar/services/calendar-service";
+import type { CalendarEvent, CalendarEventKind, CalendarLayer } from "@/features/calendar/services/calendar-service";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,19 @@ export const EVENT_META: Record<CalendarEventKind, { label: string; dot: string;
   expense: { label: "Gastos", dot: "bg-event-expense", text: "text-event-expense" },
   obligation: { label: "Obligaciones", dot: "bg-event-obligation", text: "text-event-obligation" },
   transfer: { label: "Transferencias", dot: "bg-event-transfer", text: "text-event-transfer" },
+};
+
+/**
+ * spec 06 §0.1 / §6.4 — the temporal-financial state must be detectable *without
+ * colour*. Each layer carries a text glyph and a word.
+ */
+export const LAYER_META: Record<CalendarLayer, { label: string; glyph: string }> = {
+  CONFIRMED: { label: "Confirmado", glyph: "✓" },
+  COMMITTED: { label: "Comprometido", glyph: "•" },
+  SCHEDULED: { label: "Programado", glyph: "↻" },
+  ESTIMATED: { label: "Estimado", glyph: "~" },
+  OVERDUE: { label: "Vencido", glyph: "!" },
+  PAID: { label: "Pagado", glyph: "✓" },
 };
 
 function daysInMonth(year: number, month: number): number {
@@ -90,6 +103,7 @@ export function CalendarGrid({
                 {dayEvents.slice(0, 3).map((event) => (
                   <span key={event.id} className="flex items-center gap-1 truncate text-caption text-foreground-secondary">
                     <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", EVENT_META[event.kind].dot, event.projected && "opacity-50")} />
+                    <span aria-hidden className="shrink-0 font-medium text-muted-foreground">{LAYER_META[event.layer].glyph}</span>
                     <span className="truncate">{event.title}</span>
                   </span>
                 ))}
@@ -114,8 +128,8 @@ export function CalendarEventRow({ event }: { event: CalendarEvent }) {
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-small font-medium text-foreground">{event.title}</span>
           <span className="text-caption text-muted-foreground">
-            {meta.label}
-            {event.projected ? " · previsto" : ""}
+            {meta.label} · <span aria-hidden>{LAYER_META[event.layer].glyph} </span>
+            {LAYER_META[event.layer].label}
           </span>
         </span>
       </span>

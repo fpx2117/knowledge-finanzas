@@ -4,10 +4,9 @@ import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-reac
 import { PageHeader } from "@/components/shared/page-header";
 import { HeaderActions } from "@/components/shared/header-actions";
 import { SectionCard } from "@/components/shared/section-card";
-import { InsightCard } from "@/components/shared/insight-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MoneyAmount } from "@/components/financial/money-amount";
-import { CalendarGrid, CalendarEventRow, EVENT_META } from "@/components/calendar/calendar-grid";
+import { CalendarGrid, CalendarEventRow, EVENT_META, LAYER_META } from "@/components/calendar/calendar-grid";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatLongDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -58,6 +57,7 @@ export default async function CalendarPage({
   });
 
   const { period, today, currencyCode, summary } = month;
+  const layerLegend = ["CONFIRMED", "COMMITTED", "SCHEDULED", "OVERDUE"] as const;
   const activeFilter = FILTERS.some((f) => f.key === filterParam) ? filterParam! : "todos";
   const selectedDay = dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) && dayParam.startsWith(period) ? dayParam : null;
 
@@ -86,6 +86,16 @@ export default async function CalendarPage({
         description="Tus finanzas en el tiempo: ingresos, gastos, cuotas y movimientos previstos."
         actions={<HeaderActions showPeriod={false} />}
       />
+
+      {/* §6.4 / §0.1 — leyenda de estados temporales, detectable sin color */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted-foreground">
+        {layerLegend.map((layer) => (
+          <span key={layer} className="inline-flex items-center gap-1">
+            <span aria-hidden className="font-medium text-foreground">{LAYER_META[layer].glyph}</span>
+            {LAYER_META[layer].label}
+          </span>
+        ))}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
@@ -171,20 +181,42 @@ export default async function CalendarPage({
             </dl>
           </SectionCard>
 
-          <InsightCard title="Balance proyectado">
-            <p>
-              Contando cuotas y movimientos previstos, el mes cierra en{" "}
-              <strong className="text-foreground">
-                <MoneyAmount amount={month.summary.projectedNet} currency={currencyCode} variant="compact" sign="always" />
-              </strong>
-              {Number(summary.obligationsDue) > 0 ? (
-                <>
-                  {" "}· quedan <MoneyAmount amount={summary.obligationsDue} currency={currencyCode} variant="compact" /> en cuotas por pagar
-                </>
+          <SectionCard title="Por estado temporal" eyebrow={currencyCode}>
+            <dl className="flex flex-col gap-2.5 text-small">
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">{LAYER_META.CONFIRMED.glyph} Confirmado (neto)</dt>
+                <dd><MoneyAmount amount={summary.layers.confirmedNet} currency={currencyCode} variant="compact" sign="always" tone="auto" className="font-medium" /></dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">{LAYER_META.COMMITTED.glyph} Comprometido</dt>
+                <dd><MoneyAmount amount={`-${summary.layers.committed}`} currency={currencyCode} variant="compact" className="font-medium" /></dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">{LAYER_META.SCHEDULED.glyph} Programado (neto)</dt>
+                <dd><MoneyAmount amount={`-${summary.layers.scheduled}`} currency={currencyCode} variant="compact" sign="always" tone="auto" className="font-medium" /></dd>
+              </div>
+              {Number(summary.layers.overdue) > 0 ? (
+                <div className="flex items-center justify-between">
+                  <dt className="text-[var(--warning)]">{LAYER_META.OVERDUE.glyph} Vencido</dt>
+                  <dd><MoneyAmount amount={`-${summary.layers.overdue}`} currency={currencyCode} variant="compact" className="font-medium text-[var(--warning)]" /></dd>
+                </div>
               ) : null}
-              .
+              <div className="flex items-center justify-between border-t border-border pt-2.5">
+                <dt className="font-medium text-foreground">Saldo proyectado del mes</dt>
+                <dd><MoneyAmount amount={summary.projectedNet} currency={currencyCode} variant="compact" sign="always" tone="auto" className="font-semibold" /></dd>
+              </div>
+            </dl>
+            <p className="mt-2 text-caption text-muted-foreground">
+              Es una proyección, no un saldo real: el saldo real siempre sale del ledger.
             </p>
-          </InsightCard>
+          </SectionCard>
+
+          {month.excludedCurrencies.length > 0 ? (
+            <p className="text-caption text-muted-foreground">
+              Este resumen es sólo en {currencyCode}. También hay eventos en {month.excludedCurrencies.join(", ")} — visibles en la
+              grilla, sin sumarse (§10).
+            </p>
+          ) : null}
 
           <SectionCard title={selectedDay ? `Eventos del ${formatLongDate(selectedDay)}` : "Próximos eventos"}>
             {(selectedDay ? dayEvents : upcoming).length > 0 ? (
