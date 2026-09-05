@@ -529,7 +529,7 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
 - **Verificación:** lint (web) limpio, typecheck 148/148 (0 nuevos), unit 823/823 (+6), integration
   del WP 2/2.
 
-## WP-OBLIGATIONS-UI — Vistas de Obligaciones sobre el read model  ·  P1  ·  **PARCIAL (2026-09-05)**
+## WP-OBLIGATIONS-UI — Vistas de Obligaciones sobre el read model  ·  P1  ·  **CASI DONE (2026-09-05)**
 
 - **Goal:** que las vistas de Obligaciones dejen de mirar sólo `debts` y consuman el read model
   unificado de [[WP-OBLIGATION-READMODEL]].
@@ -550,13 +550,25 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
     moneda (no se suman).
   - Saldo líquido vía `createAccountBalanceQueries(db).getLiquidTotalsForUser()` (query per-moneda
     ya existente).
-- **`/obligations` principal:** se quitó el tab `proximos` (duplicaba la ruta dedicada) y el enlace
-  "Ver todos" del resumen ahora apunta a `/obligations/upcoming`. El resto de la vista principal
-  (resumen superior, "Necesita atención", detalle) sigue sobre `createDebtService` — cablearla al
-  read model es el resto de este WP, aún pendiente.
-- **Verificación:** lint (web) limpio, typecheck 148/148 (0 nuevos), unit 823/823 (sin cambio — la
-  vista no tiene tests de componente, convención del repo; la lógica está cubierta por los tests de
-  `finance-obligations` + `obligation-read-model`).
+- **Hecho — vista principal `/obligations` "Todas" (spec 05 §9):** reconstruida sobre el read model
+  con horizonte 365 días (cubre "Este mes" y "Más adelante"):
+  - §9.3: 4 KPIs — "Próximos 30 días" (confirmado), "Vencen esta semana" (DUE_TODAY+DUE_SOON),
+    "Atrasado" (vencido sin pagar), "Obligaciones activas" (conteo). Totales sólo en moneda base +
+    nota para el resto (§9.3 multimoneda).
+  - §9.4: sección "Necesita atención" — vencidas + pago parcial + estimadas que vencen en ≤3 días.
+    Sólo se renderiza si hay algo.
+  - §9.5/§9.6: lista agrupada por *tiempo* (Vencidas / Hoy / Próximos 7 días / Este mes / Más
+    adelante — `groupObligationsTemporally` en `obligations-shared.tsx`), no por tipo; cada fila con
+    nombre, tipo, fecha, monto (prefijo "≈" si estimado) y chip de estado semántico.
+  - Pestañas: "Todas" (read model) · "Deudas" (registro de deudas, antes "Todas") · "Pagadas".
+    Se quitó el tab `proximos` (duplicaba `/obligations/upcoming`); "Ver todos" → esa ruta.
+- **Falta sólo:** detalle unificado — `/obligations/[obligationId]` sigue siendo sólo de deudas;
+  una suscripción o un programado no tiene página de detalle propia (sus filas linkean a
+  `/obligations/subscriptions` / `/transactions/scheduled`).
+- **Verificación:** lint (web) limpio, typecheck 148/148 (0 nuevos), unit 825/825 (+2:
+  `tests/unit/obligations-grouping.test.ts`). Las vistas no tienen tests de componente (convención
+  del repo); la lógica está cubierta por `finance-obligations` + `obligation-read-model` +
+  `obligations-grouping`.
 
 ## Fases C–H (restante)
 
