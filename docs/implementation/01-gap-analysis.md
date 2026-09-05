@@ -19,7 +19,7 @@ convertirse en work package cerrado.
 | 07 | Metas | PARTIAL | MEDIO | `/goals` + CRUD + aporte/retiro; **`goals.currentAmount` es columna mutable**, no derivada de asignaciones (§15). Sin tabla `goal_allocations`. Subvistas `/goals/active|completed` faltan |
 | 08 | Reportes | PARTIAL | ALTO | Sólo `/reports` (una vista). Faltan `/reports/{expenses,income,cash-flow,net-worth,categories}`, drill-down verificable al ledger, `calculationVersion` |
 | 09 | Insights | PARTIAL | ALTO | `/insights` + `insight-service` + capability IA `explain-financial-insight`. **Detectores determinísticos con evidence package**: UNVERIFIED / probablemente MISSING. Subvistas `/insights/opportunities|history` faltan |
-| 10 | Registrar | PARTIAL | MEDIO | `features/capture` (Quick Add global, parser NL español, toast-undo) existe. Como *command surface* que valida y delega a owners: parcialmente. Import pipeline en `features/imports`. Route-intercept overlay vs spec §25 UNVERIFIED |
+| 10 | Registrar | PARTIAL | BAJO | `features/capture` (Quick Add global, parser NL español + fallback IA, toast-undo, guard de duplicados) existe y **es command surface pura, auditado 2026-09-04** — no duplica ledger, enruta a owners, IA nunca escribe. Import pipeline en `features/imports`. Route-intercept overlay vs spec §25 sigue UNVERIFIED (no crítico) |
 | 11 | Configuración | PARTIAL | MEDIO | `/settings/{categories,notifications,privacy,rules,referrals,billing}`. Faltan `/settings/{profile,preferences,imports,security,plan}` como rutas canónicas |
 | 12 | Ayuda | MISSING | MEDIO | **No existe `/help` ni `features/help`.** Sin centro de ayuda, diagnósticos read-only, estado del servicio, contacto, feedback |
 | 13 | Application Shell | PARTIAL | ALTO | Sidebar colapsable + mobile bottom bar + nav-items existen. Command palette, search global, notifications center (existe `/notifications` + SSE), billing gates (existen), feature flags, deep-link de dialogs, 404/403 sin fuga: UNVERIFIED contra spec 13 (5957 líneas) |
@@ -138,10 +138,10 @@ convertirse en work package cerrado.
 | Capability | Spec | Code | Status | Risk | Trabajo |
 |---|---|---|---|---|---|
 | Acción global, no módulo sidebar (PD-002) | §7.1 | Quick Add (`N`/`Cmd+K`) en `features/capture` | IMPLEMENTED | — | — |
-| Command surface: valida → previsualiza → delega a owner | §25 | `features/capture/actions` + `services` | PARTIAL | ARCH | Verificar que no duplica lógica de ledger; que enruta expense/income/transfer→Transaction, obligation→Debt, import→pipeline |
+| Command surface: valida → previsualiza → delega a owner | §25 | `features/capture/actions` + `services` | **IMPLEMENTED (auditado 2026-09-04)** | — | Confirmado: delega a `transaction-service` (mismo módulo que el form dedicado, sin lógica de ledger propia); Transferencia/Obligación redirigen a `/transactions/transfers/new`/`/obligations/new` sin intentar crear nada en capture |
 | Parser NL español determinístico | §17.2 | `features/capture/lib` (parser "gasté 14k en nafta con Galicia") | IMPLEMENTED | — | — |
-| Advertir duplicado en captura (CF-02.5) | §20/§21 | commits 6e10914/228c74b, `duplicate_dismissals` | PARTIAL | MEDIO | Verificar guard en create-time |
-| IA fallback estructurada | §17.2 | diseñado, no construido (memoria) | MISSING | — | Opcional; core debe andar sin IA |
+| Advertir duplicado en captura (CF-02.5) | §20/§21 | `findLikelyExpenseDuplicate`/`findLikelyIncomeDuplicate` | **IMPLEMENTED (2026-09-04)** | — | Confirmado en Quick Add; agregado también a `/transactions/new` (no lo tenía — gap real corregido) |
+| IA fallback estructurada | §17.2 | `capture-parser-service.ts` (`parseCaptureWithAI`) | **IMPLEMENTED — corrección de memoria previa** | — | Sí está construido: parser determinístico corre primero, IA sólo en baja confianza, nunca decide TRANSFER, cae al draft determinístico ante cualquier falla (core anda sin IA) |
 | Route-intercept / overlay con deep-link | §10, §25 | UNVERIFIED | UNVERIFIED | UX | — |
 
 ### 11 Configuración

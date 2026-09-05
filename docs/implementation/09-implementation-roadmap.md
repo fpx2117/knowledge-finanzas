@@ -31,7 +31,7 @@ subvistas, Insights determinísticos).
 | ~~WP-ROUTES-RENAME~~ **DONE** | Árbol `app/(app)/` movido a paths canónicos (`git mv`) + redirects 308 en `next.config.ts` + nav-items/TransactionsSubnav reconstruidos + 11 specs E2E actualizados. `/planning` no se plegó en `/transactions/recurring` (contenido distinto) — quedó como `/transactions/scheduled` propia; ver ADR-IMPL-001. |
 | ~~WP-ROUTES-SUBVIEWS~~ **DONE (parcial)** | Cuentas (`banks/wallets/cash/savings`), Presupuestos (`categories/history`), Obligaciones (`upcoming/installments`), Metas (`active/completed`) — 12 subvistas nuevas, `nav-items.ts` con children. Insights queda pendiente de Fase F (sin detectores reales no hay nada que listar en `/insights/opportunities`). |
 | ~~WP-ACCOUNTS-SPEC~~ **DONE** | Warning archivar con saldo ≠ 0 (OQ-007) agregado a la UI; exclusión de archivadas del balance líquido confirmada con test (ya estaba correcta). |
-| WP-CAPTURE-CMDSURFACE | Auditar `features/capture` como command surface pura (§25): no duplica ledger, enruta a owners, valida IDs contra recursos reales. |
+| ~~WP-CAPTURE-CMDSURFACE~~ **DONE** | Auditoría confirmó compliance con §25 (no duplica ledger, enruta a owners, IA nunca escribe). Un gap real: `/transactions/new` no advertía duplicados como Quick Add — corregido. |
 | WP-IMPORTS-CF05 | Verificar/completar CF-05: encoding+delimitador, preview sin escritura, batch idempotente (`import_batches`), fingerprint de fila, excepciones → Pendientes, reconciliación de contadores. |
 | ~~WP-TRANSACTIONS-EDIT~~ **DONE (alcance acotado)** | Edición de descripción/comercio/categoría/notas (nueva feature — no existía). Monto/fecha/cuenta/tipo quedan fuera (decisión de producto: usar anular + registrar de nuevo). |
 

@@ -310,7 +310,40 @@ severidad retroactiva de "HIGH especulativo" a "CRITICAL confirmado".**
   `includeArchived: true` (historial preservado, no oculto ni puesto en cero); archivar dos veces
   es no-op, no error.
 - **Verificación:** unit 813/813 sin cambio, integration +3, lint limpio, typecheck 148/148.
-| WP-CAPTURE-CMDSURFACE | P1 | `features/capture` es command surface pura §25 | WP-LEDGER-IDEMP | no duplica ledger; valida IDs; enruta a owners |
+| ~~WP-CAPTURE-CMDSURFACE~~ **DONE (2026-09-04, auditoría con 1 gap real corregido)** | P1 | Ver detalle abajo | WP-LEDGER-IDEMP | confirmado por lectura de código |
+
+### Detalle de la auditoría
+
+`features/capture` resultó **mayormente compliant** con §25 ya antes de tocar nada:
+
+- **No duplica ledger:** `quick-actions.ts` delega toda escritura a
+  `createTransactionService()` de `features/transactions` (el mismo módulo que usa el form
+  dedicado) — ninguna lógica de balance/clasificación reimplementada en capture.
+- **Enruta a owners, no posee entidades:** cuando el usuario elige Transferencia u Obligación en
+  Registrar, el diálogo **no intenta crear nada** — redirige a `/transactions/transfers/new` u
+  `/obligations/new` (dueños reales). Confirmado en `quick-add.tsx`.
+- **IA nunca escribe ni decide sola:** `capture-parser-service.ts` sólo produce un *draft* de
+  texto (tipo/monto/descripción/comercio/institución/confianza) — nunca un ID. El parser
+  determinístico corre primero; la IA es fallback de baja confianza únicamente, **nunca se le
+  pide ni se acepta un draft de tipo `TRANSFER`** (bloqueado explícitamente dos veces: antes de
+  invocarla y validando su respuesta), y cualquier falla de IA cae de vuelta al draft
+  determinístico sin bloquear la captura (§13/§29 — el núcleo sigue andando sin IA).
+- **Valida IDs contra recursos reales:** la creación final siempre pasa por
+  `transaction-service.create()`, que valida `accountId`/`categoryId` contra la DB del usuario —
+  capture nunca inventa ni confía en un ID sin validar.
+- **Duplicados en creación (CF-02.5/§20):** Quick Add ya bloqueaba duplicados probables antes de
+  crear (`findLikelyExpenseDuplicate`/`findLikelyIncomeDuplicate` + confirmación "Registrar igual").
+
+**Gap real encontrado y corregido:** el form dedicado (`/transactions/new`,
+`create-transaction.ts`) **no tenía este guard** — un usuario podía crear un duplicado sin
+advertencia ahí, mientras que por Quick Add sí se le avisaba. Se agregó el mismo guard
+(`allowDuplicate` + aviso "Puede que ya lo tengas registrado" + botón "Registrar igual") a
+`create-transaction.ts` + `transaction-form.tsx`, reusando los métodos de servicio ya existentes
+y ya testeados (`findLikelyExpenseDuplicate`/`findLikelyIncomeDuplicate`, cubiertos en
+`transactions-service.test.ts` §20).
+- **Verificación:** lint limpio, typecheck 148/148 (0 nuevos), unit 813/813 sin cambio (la lógica
+  de servicio que se reusa ya estaba testeada; el fix es glue de action/UI, sin patrón de test de
+  actions en este repo).
 | WP-IMPORTS-CF05 | P1 `FINANCIAL-RISK` | CF-05 completo y verificado | WP-LEDGER-IDEMP | preview sin escritura, batch idempotente, fingerprint, excepciones→Pendientes |
 | ~~WP-TRANSACTIONS-EDIT~~ **DONE (alcance acotado, 2026-09-04)** | P0 `FINANCIAL-RISK` | Ver detalle abajo | WP-EVENT-TAGS | 9 unit + 4 integration |
 

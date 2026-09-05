@@ -28,7 +28,10 @@ const service = createTransactionService({
   classificationRules: classificationRuleRepository,
 });
 
-export type TransactionActionState = { ok: true } | { ok: false; error: ReturnType<typeof mapErrorToUi> };
+export type TransactionActionState =
+  | { ok: true }
+  | { ok: false; error: ReturnType<typeof mapErrorToUi> }
+  | { ok: false; duplicateOf: { description: string; occurredOn: string; amount: string } };
 
 export async function createTransactionAction(
   _previousState: TransactionActionState | null,
@@ -50,9 +53,17 @@ export async function createTransactionAction(
 
     if (type === "INCOME") {
       const input = createIncomeTransactionSchema.parse(raw);
+      if (formData.get("allowDuplicate") !== "1") {
+        const dup = await service.findLikelyIncomeDuplicate(user.id, { accountId: input.accountId, amount: input.amount, occurredAt: input.occurredAt });
+        if (dup) return { ok: false, duplicateOf: { description: dup.description, occurredOn: dup.occurredOn, amount: dup.amount } };
+      }
       await service.createIncomeTransaction(user.id, input, user.timezone);
     } else {
       const input = createExpenseTransactionSchema.parse(raw);
+      if (formData.get("allowDuplicate") !== "1") {
+        const dup = await service.findLikelyExpenseDuplicate(user.id, { accountId: input.accountId, amount: input.amount, merchant: input.merchant ?? null, occurredAt: input.occurredAt });
+        if (dup) return { ok: false, duplicateOf: { description: dup.description, occurredOn: dup.occurredOn, amount: dup.amount } };
+      }
       await service.createExpenseTransaction(user.id, input, user.timezone);
     }
 
