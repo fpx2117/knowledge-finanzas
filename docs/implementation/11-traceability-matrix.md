@@ -37,7 +37,7 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Reglas personales prevalecen + preview de impacto | 14 §4.9, §42, CM-10 / spec 11 §6.8-6.10 | `classification-rule-service` (`previewRule`/`applyRuleRetroactively`) | classification-rule-actions | `user_classification_rules` | `/settings/rules` | `rule-preview` integ (2) | DONE (2026-09-05, audit-log §6.11 pendiente) |
 | Calendario: capas semánticas + timezone | 14 §20, §23, PD-008 / spec 06 §5 | `finance/dates`, `calendar-service.CalendarLayer` | calendar service | — | `/calendar` | `calendar-layers` integ + `finance-dates` DST | DONE (2026-09-05, Agenda/Día son follow-up UI) |
 | Cambio de timezone no reescribe históricos | 14 §23.2, CM-12 | `dates/timezone` | settings action | — | `/settings/preferences` (✗) | ✗ | UNVERIFIED |
-| Módulo Ayuda + diagnóstico read-only | 14 §8 (12), CF-10, PD-011 | — | — | — | — | — | MISSING |
+| Módulo Ayuda + diagnóstico read-only | 14 §8 (12), CF-10, PD-011 / spec 12 §11 | `help-service` + `help-diagnostics` queries | help-service | — | `/help/*` | `help-balance-diagnostic` integ (2, read-only probado) | PARTIAL (diagnóstico de saldo; presupuesto/proyección follow-up) |
 | Command palette sin mutación financiera | 14 §24, PD-012 | shell | — | — | shell | ✗ | UNVERIFIED |
 | 404/403 no filtran existencia | 14 §8.1, §26 | route loaders | — | — | `(app)/**` | ✗ | UNVERIFIED |
 | Ownership server-side en toda lectura/escritura | 14 §4.14–15, §26 | `packages/shared/permissions` | `requireCurrentUser` + services | — | todas | `security-idor-and-concurrency` (6 dominios) | PARTIAL |

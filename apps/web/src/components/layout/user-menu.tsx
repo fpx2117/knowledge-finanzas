@@ -70,6 +70,8 @@ export function UserMenu({ name, email, image }: { name: string; email: string; 
           <DropdownMenuItem key={link.href} render={<Link href={link.href}>{link.label}</Link>} />
         ))}
         <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/help">Ayuda y soporte</Link>} />
+        <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
           <LogOutIcon className="size-4" /> Cerrar sesión
         </DropdownMenuItem>

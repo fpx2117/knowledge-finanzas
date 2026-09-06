@@ -775,6 +775,32 @@ Alcance elegido: "explicación de insights con IA" (riesgo cero — no toca el l
   tiene costo estable" ahora cubre `insight.explain`.
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845 (+2).
 
+## WP-HELP-MODULE — Módulo 12 "Ayuda" (spec 12)  ·  P2  ·  **PARCIAL (2026-09-05)**
+
+El módulo estaba MISSING por completo. Alcance elegido: hub + getting-started + troubleshoot con
+el diagnóstico de saldo.
+
+- **`/help` (§6):** hub navegable (`HelpShell` con nav lateral — spec §2.3, NUNCA submenú del
+  sidebar §2.4) + 3 artículos FAQ estáticos (dinero disponible, pago de deuda ≠ gasto, multimoneda).
+- **`/help/getting-started` (§9):** checklist de 7 pasos cuyo `done` se computa del **estado real**
+  (`help-diagnostics.ts` `gettingStartedState` — cuentas/movimientos/gastos categorizados/deudas/
+  presupuestos/metas), no de "eventos" trackeados. Sin gamificación. Glosario de una línea (§9.5).
+- **`/help/troubleshoot` (§10):** árbol de problemas (§10.2) + el **diagnóstico de saldo read-only**
+  (§11): `helpService.diagnoseBalance()` sobre `createHelpDiagnosticQueries.balanceSignals` detecta
+  — movimientos sin categoría, importaciones con filas salteadas/con error, ajustes de saldo
+  recientes, movimientos con fecha futura, anulados recientes, cuentas multimoneda — y devuelve
+  "encontramos N posibles causas" con un CTA por causa. **Nunca ejecuta una corrección** (§11.4);
+  cada query es un aggregate targeted, cero mutación.
+- **`/help/{status,contact,about}`:** páginas honestas mínimas — status muestra el principio de
+  degradación §15.4; contact da el canal directo + qué incluir; about lista los invariantes
+  financieros en lenguaje de usuario.
+- **Nav:** link "Ayuda y soporte" en el `UserMenu` (dropdown), no en el sidebar.
+- **Fuera de alcance (follow-up):** diagnósticos de presupuesto/obligaciones/proyección (§12-14),
+  `/help/feedback`, formulario de contacto con backend, búsqueda (§6.4), artículos con CMS/versionado.
+- **Tests:** `tests/integration/help-balance-diagnostic.test.ts` (2, Postgres real) — detecta las
+  señales y **no muta ninguna transacción**.
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845, integration WP 2/2.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

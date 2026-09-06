@@ -73,7 +73,7 @@ subvistas, Insights determinísticos).
 
 | WP | Contenido |
 |---|---|
-| WP-HELP-MODULE | Módulo 12 completo: `/help`, `/help/getting-started`, `/help/troubleshoot` (diagnósticos read-only, CF-10/PD-011), `/help/status`, `/help/contact`, `/help/feedback`. |
+| WP-HELP-MODULE | **PARCIAL (2026-09-05):** `/help` (hub + FAQ), `/help/getting-started` (checklist sobre estado real), `/help/troubleshoot` con el **diagnóstico de saldo read-only** (§11, CF-10/PD-011 — detecta pendientes/imports con excepciones/ajustes/fecha futura/anulados/multimoneda, nunca corrige). `/help/{status,contact,about}` como páginas honestas mínimas. Link en el user-menu (no en el sidebar, §2.4). Falta: árboles de diagnóstico de presupuesto/proyección/obligaciones (§12-14), `/help/feedback`, formulario de contacto real. |
 | WP-SETTINGS-MISSING | `/settings/{profile,preferences,security}`; ubicación canónica de imports/plan. |
 | WP-SHELL-PALETTE | Command palette (navega/inicia flujo, nunca muta — PD-012); search global degradable. |
 | WP-SHELL-403 | Tests 404/403 no filtran existencia (§8.1); deep-link de dialogs route-aware. |
