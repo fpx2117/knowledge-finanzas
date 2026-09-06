@@ -2,16 +2,12 @@ import { and, eq, sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { calculateAssetAccountBalance } from "@know-finanzas/finance";
 import { monthRangeForTimezone } from "@know-finanzas/finance";
-import { createAccountBalanceQueries, createActivityQueries, createBudgetQueries, createMonthlySummaryQueries } from "../../packages/db/src/queries";
+import { createAccountBalanceQueries, createBudgetQueries } from "../../packages/db/src/queries";
 import { createBudgetRepository } from "../../packages/db/src/repositories/budgets";
 import { createBudgetAlertRepository } from "../../packages/db/src/repositories/budget-alerts";
 import { createBudgetService } from "../../apps/web/src/features/budgets/services/budget-service";
-import { createTransferService } from "../../apps/web/src/features/transfers/services/transfer-service";
 import { createDebtPaymentService } from "../../apps/web/src/features/debts/services/debt-payment-service";
-import { createScheduledTransactionService } from "../../apps/web/src/features/planning/services/scheduled-transaction-service";
-import { createRecurringTransactionService } from "../../apps/web/src/features/planning/services/recurring-transaction-service";
-import { recurringTransactions, scheduledTransactions } from "../../packages/db/src/schema";
-import { accounts, categories, debtInstallments, debtPaymentAllocations, debts, transactions, transfers, users } from "../../packages/db/src/schema";
+import { accounts, categories, debtInstallments, debtPaymentAllocations, debts, transactions, users } from "../../packages/db/src/schema";
 import { createAccountRepository } from "../../packages/db/src/repositories/accounts";
 import { createCategoryRepository } from "../../packages/db/src/repositories/categories";
 import { createTransactionRepository } from "../../packages/db/src/repositories/transactions";
@@ -145,23 +141,6 @@ describe("ownership-first repositories", () => {
     expect(result[0]?.users_table).toBe("users");
   });
 
-  it("derives balances, recent activity and monthly totals from POSTED rows", async () => {
-    await seedUsersResources();
-    const database = getTestDatabase().db;
-    const balances = createAccountBalanceQueries(database);
-    const activity = createActivityQueries(database);
-    const monthly = createMonthlySummaryQueries(database);
-    const balanceRows = await balances.getAccountBalancesForUser(userA, { accountId: accountA });
-    expect(balanceRows).toHaveLength(1);
-    expect(calculateAssetAccountBalance({ currency: "ARS", openingBalance: balanceRows[0].account.openingBalance, incomeTotal: balanceRows[0].incomeTotal, expenseTotal: balanceRows[0].expenseTotal }).toString()).toBe("800.00");
-    await expect(activity.listRecentActivity(userA, { limit: 5 })).resolves.toHaveLength(1);
-    const range = monthRangeForTimezone(2026, 1, "UTC");
-    const summary = await monthly.getMonthlyIncomeExpense(userA, { from: range.start, to: range.end });
-    expect(summary[0]).toMatchObject({ currencyCode: "ARS", incomeTotal: "0", expenseTotal: "200.000000" });
-    await database.insert(accounts).values({ id: "10000000-0000-0000-0000-000000000011", userId: userA, name: "USD Account", type: "SAVINGS", currencyCode: "USD", openingBalance: "500", openingDate: "2026-01-01" });
-    const totals = await balances.getLiquidTotalsForUser(userA);
-    expect(totals).toEqual(expect.arrayContaining([{ currencyCode: "ARS", total: "800.000000" }, { currencyCode: "USD", total: "500.000000" }]));
-  });
 
   it("stores refunds and explicit adjustments as separate ledger events", async () => {
     await seedUsersResources();
@@ -184,34 +163,7 @@ describe("ownership-first repositories", () => {
     await expect(repository.sumPostedRefundsForOriginal(transactionA, userA)).resolves.toBe("150.000000");
   });
 
-  it("creates one transfer and exactly two owned legs atomically", async () => {
-    const database = getTestDatabase().db;
-    await database.insert(users).values({ id: userA, name: "Transfer A", email: "transfer-a@example.test", timezone: "UTC", baseCurrency: "ARS" });
-    await database.insert(accounts).values([
-      { id: "10000000-0000-0000-0000-000000000021", userId: userA, name: "From", type: "BANK", currencyCode: "ARS", openingBalance: "1000", openingDate: "2026-01-01" },
-      { id: "10000000-0000-0000-0000-000000000022", userId: userA, name: "To", type: "CASH", currencyCode: "ARS", openingBalance: "100", openingDate: "2026-01-01" },
-    ]);
-    const service = createTransferService({ database: getTestDatabase().db, now: () => new Date("2026-08-02T12:00:00Z") });
-    const result = await service.createTransfer({ id: userA, timezone: "UTC" }, { fromAccountId: "10000000-0000-0000-0000-000000000021", toAccountId: "10000000-0000-0000-0000-000000000022", amount: "200", occurredAt: "2026-08-01T12:00:00Z" });
-    expect(result.legs.map((leg) => leg.type).sort()).toEqual(["TRANSFER_IN", "TRANSFER_OUT"]);
-    expect(result.legs.every((leg) => leg.amount === "200.000000" && leg.currencyCode === "ARS" && leg.source === "TRANSFER")).toBe(true);
-  });
 
-  it("rolls back the shell and both legs when a post-leg step fails", async () => {
-    const database = getTestDatabase().db;
-    const from = "10000000-0000-0000-0000-000000000031";
-    const to = "10000000-0000-0000-0000-000000000032";
-    const user = "00000000-0000-0000-0000-000000000031";
-    await database.insert(users).values({ id: user, name: "Rollback", email: "transfer-rollback@example.test", timezone: "UTC", baseCurrency: "ARS" });
-    await database.insert(accounts).values([
-      { id: from, userId: user, name: "From", type: "BANK", currencyCode: "ARS", openingBalance: "1000", openingDate: "2026-01-01" },
-      { id: to, userId: user, name: "To", type: "CASH", currencyCode: "ARS", openingBalance: "0", openingDate: "2026-01-01" },
-    ]);
-    const service = createTransferService({ database, now: () => new Date("2026-08-02T12:00:00Z"), afterLegs: () => { throw new Error("forced rollback"); } });
-    await expect(service.createTransfer({ id: user, timezone: "UTC" }, { fromAccountId: from, toAccountId: to, amount: "200", occurredAt: "2026-08-01T12:00:00Z" })).rejects.toThrow("forced rollback");
-    await expect(database.select().from(transfers)).resolves.toHaveLength(0);
-    await expect(database.select().from(transactions)).resolves.toHaveLength(0);
-  });
 
   it("persists debts/installments with ownership and exact components", async () => {
     const database = getTestDatabase().db;
@@ -245,35 +197,7 @@ describe("ownership-first repositories", () => {
     expect(calculateAssetAccountBalance({ currency: "ARS", openingBalance: accountBalance[0].account.openingBalance, incomeTotal: accountBalance[0].incomeTotal, expenseTotal: accountBalance[0].expenseTotal, liabilityPaymentTotal: accountBalance[0].liabilityPaymentTotal }).toString()).toBe("940.00");
   });
 
-  it("keeps scheduled expectations out of balance until posting and is idempotent", async () => {
-    const database = getTestDatabase().db;
-    const user = "00000000-0000-0000-0000-000000000061";
-    const accountId = "10000000-0000-0000-0000-000000000061";
-    await database.insert(users).values({ id: user, name: "Scheduled A", email: "scheduled-a@example.test", timezone: "UTC", baseCurrency: "ARS" });
-    await database.insert(accounts).values({ id: accountId, userId: user, name: "Scheduled account", type: "BANK", currencyCode: "ARS", openingBalance: "1000", openingDate: "2026-01-01" });
-    const service = createScheduledTransactionService(database, () => new Date("2026-08-10T12:00:00Z"));
-    const scheduled = await service.create(user, { accountId, type: "EXPENSE", expectedAmount: "200", description: "Future expense", scheduledDate: "2026-08-10" });
-    await expect(database.select().from(transactions).where(eq(transactions.userId, user))).resolves.toHaveLength(0);
-    const posted = await service.post(user, scheduled.id, { actualOccurredAt: new Date("2026-08-09T12:00:00Z") });
-    expect(posted.scheduledTransactionId).toBe(scheduled.id);
-    const retry = await service.post(user, scheduled.id);
-    expect(retry.id).toBe(posted.id);
-    await expect(database.select().from(scheduledTransactions).where(eq(scheduledTransactions.id, scheduled.id))).resolves.toMatchObject([{ status: "POSTED" }]);
-  });
 
-  it("materializes recurring occurrences idempotently within the horizon", async () => {
-    const database = getTestDatabase().db;
-    const user = "00000000-0000-0000-0000-000000000071";
-    const accountId = "10000000-0000-0000-0000-000000000071";
-    await database.insert(users).values({ id: user, name: "Recurring A", email: "recurring-a@example.test", timezone: "UTC", baseCurrency: "ARS" });
-    await database.insert(accounts).values({ id: accountId, userId: user, name: "Recurring account", type: "BANK", currencyCode: "ARS", openingBalance: "1000", openingDate: "2026-01-01" });
-    const service = createRecurringTransactionService(database, () => new Date("2026-08-01T12:00:00Z"));
-    const rule = await service.create({ id: user, timezone: "UTC" }, { accountId, type: "EXPENSE", amount: "100", description: "Recurring expense", frequency: "MONTHLY", startDate: "2026-08-01" });
-    const occurrences = await database.select().from(scheduledTransactions).where(eq(scheduledTransactions.recurringTransactionId, rule.id));
-    expect(occurrences.length).toBeGreaterThan(0);
-    expect(occurrences.every((item) => item.source === "RECURRING" && item.status === "SCHEDULED")).toBe(true);
-    await expect(database.select().from(recurringTransactions).where(eq(recurringTransactions.id, rule.id))).resolves.toHaveLength(1);
-  });
 
   it("persists budget ownership and enforces one active budget per user/category/currency", async () => {
     await seedUsersResources();

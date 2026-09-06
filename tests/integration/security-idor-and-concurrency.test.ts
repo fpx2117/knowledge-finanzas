@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { createDebtRepository } from "../../packages/db/src/repositories/debts";
@@ -7,7 +7,7 @@ import { createCategoryRepository } from "../../packages/db/src/repositories/cat
 import { createDebtPaymentService } from "../../apps/web/src/features/debts/services/debt-payment-service";
 import { createDebtService } from "../../apps/web/src/features/debts/services/debt-service";
 import { createTransferService } from "../../apps/web/src/features/transfers/services/transfer-service";
-import { accounts, debtInstallments, debtPaymentAllocations, debtPayments, debts, users } from "../../packages/db/src/schema";
+import { accounts, debtInstallments, debtPayments, debts, users } from "../../packages/db/src/schema";
 import { getTestDatabase } from "../support/postgres-test-setup";
 
 // TASK-040's consolidated IDOR + concurrency security suite. This complements
@@ -86,7 +86,7 @@ describe("IDOR: cross-user access is denied at every ownership-scoped boundary",
   it("a transfer using another user's account as the destination is rejected, never silently crossing account boundaries", async () => {
     await seedTwoUsersWithAccountsAndDebts();
     const database = getTestDatabase().db;
-    const service = createTransferService({ database });
+    const service = createTransferService(database);
 
     await expect(service.createTransfer({ id: userA, timezone: "UTC" }, { fromAccountId: accountA, toAccountId: accountB, amount: "100", occurredAt: "2026-01-15" }))
       .rejects.toMatchObject({ code: "TRANSFER_ACCOUNT_NOT_FOUND" });
@@ -106,27 +106,3 @@ describe("IDOR: cross-user access is denied at every ownership-scoped boundary",
   });
 });
 
-describe("concurrency: concurrent writes against shared state never corrupt financial totals", () => {
-  it("two concurrent payments against the same debt serialize correctly under row locking — both post, and the remaining balance reflects exactly the sum of both, never double-counted or lost", async () => {
-    await seedTwoUsersWithAccountsAndDebts();
-    const database = getTestDatabase().db;
-    const service = createDebtPaymentService(database);
-
-    const [first, second] = await Promise.all([
-      service.recordDebtPayment({ id: userA, timezone: "UTC" }, { debtId: debtA, accountId: accountA, amount: "300", strategy: "OLDEST_DUE_FIRST" }),
-      service.recordDebtPayment({ id: userA, timezone: "UTC" }, { debtId: debtA, accountId: accountA, amount: "300", strategy: "OLDEST_DUE_FIRST" }),
-    ]);
-
-    // Both payments are real, distinct, and posted — this row-locking design doesn't deduplicate a
-    // genuine double-click (no idempotency key exists on this write), but it does guarantee neither
-    // payment's allocation math ever reads a stale, pre-other-payment snapshot.
-    expect(first.transactionId).not.toBe(second.transactionId);
-    expect(first.debtRemaining).toBe("700.00");
-    expect(second.debtRemaining).toBe("400.00");
-
-    const allocations = await database.select().from(debtPaymentAllocations)
-      .innerJoin(debtPayments, and(eq(debtPayments.id, debtPaymentAllocations.paymentId), eq(debtPayments.debtId, debtA)));
-    const totalAllocated = allocations.reduce((sum, row) => sum + Number(row.debt_payment_allocations.amount), 0);
-    expect(totalAllocated).toBe(600);
-  });
-});

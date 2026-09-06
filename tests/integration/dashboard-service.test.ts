@@ -16,7 +16,8 @@ function buildService(database: ReturnType<typeof getTestDatabase>["db"]) {
     balances: createAccountBalanceQueries(database),
     monthly: createMonthlySummaryQueries(database),
     activity: createActivityQueries(database),
-    projections: { debts: createDebtSummaryQueries(database), scheduled: createUpcomingObligationQueries(database) },
+    debts: createDebtSummaryQueries(database),
+    scheduled: createUpcomingObligationQueries(database),
   });
 }
 

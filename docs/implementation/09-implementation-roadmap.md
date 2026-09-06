@@ -82,6 +82,10 @@ subvistas, Insights determinísticos).
 
 | WP | Gate |
 |---|---|
+| ~~WP-B8-RECONCILE~~ **DONE (2026-09-06)** | Desbloqueó CI: `typecheck` 148→0, integración ~11 archivos rotos→0 fallan. Árboles `app/{admin,onboarding,elegir-acceso}` + `lib/{admin,onboarding}/*.instance.ts` + AI insight viejo borrados; rutas linkeadas stubeadas con `RebuildingNotice`; `resolve-related-route.ts` recreado; 10 tests a `tests/quarantine/` (README con tabla de cobertura); 3 tests de API vieja arreglados/removidos. Reconstruir cada subsistema (admin/onboarding/billing-UI/notifications-UI/privacy-UI/referrals/planning) queda como WPs de producto+diseño aparte. |
+
+| WP | Gate |
+|---|---|
 | WP-E2E-JOURNEYS | §39.3: onboarding→cuenta→5 mov→dashboard→cashflow; registrar gasto; transferencia; budget excedido; obligación pago parcial; meta aporte; import con errores; duplicado; downgrade sin pérdida; IA caída. |
 | WP-SECURITY-SUITE | §39.4 / G2: IDOR (todos los dominios), CSRF, XSS, CSV injection, rate limits, session, webhook spoofing, escalación admin. |
 | WP-RECONCILIATION | G1: `finance:audit` 0 diferencias en suite; money tests completos. |
