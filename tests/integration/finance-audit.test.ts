@@ -164,6 +164,6 @@ describe("runFinanceAudit detects each documented corruption class", () => {
     await seedUsersAndAccounts();
     const database = getTestDatabase().db;
     const report = await runFinanceAudit(database);
-    expect(report.scannedCounts).toEqual({ transfers: 0, transactions: 0, debtPayments: 0, debtInstallments: 0, scheduledTransactions: 0 });
+    expect(report.scannedCounts).toEqual({ transfers: 0, transactions: 0, debtPayments: 0, debtInstallments: 0, scheduledTransactions: 0, goalAllocations: 0 });
   });
 });

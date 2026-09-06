@@ -302,6 +302,13 @@
       "when": 1788570946159,
       "tag": "0042_tense_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1788652765882,
+      "tag": "0043_powerful_surge",
+      "breakpoints": true
     }
   ]
 }

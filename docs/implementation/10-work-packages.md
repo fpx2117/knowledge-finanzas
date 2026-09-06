@@ -623,6 +623,37 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
   que se excluyen todos (conservador, alineado con §18.2). Documentado, no inventado.
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 828/828, integration del WP 2/2.
 
+## WP-GOALS-ALLOC — Progreso de meta derivado de asignaciones  ·  P1 · FINANCIAL  ·  **DONE (2026-09-05)**
+
+- **Blocker del checkpoint original:** `goals.current_amount` era una columna mutable que cualquier
+  caller podía setear — no derivada de asignaciones explícitas (spec 07 §6.2, §15).
+- **Diseño (elegido por el usuario): cache mantenido transaccionalmente + audit check.**
+  `goal_allocations` es la verdad; `goals.current_amount` queda como cache, re-sincronizado dentro
+  de la MISMA transacción que cada escritura de allocation, y un check de `finance:audit` garantiza
+  que jamás diverjan. No toca los read paths de metas (siguen leyendo el cache).
+- **Schema (`0043_powerful_surge.sql`):** `goal_allocation_kind` enum (INITIAL·CONTRIBUTION·
+  WITHDRAWAL) + tabla `goal_allocations` (`amount > 0`, `currencyCode`, `occurredOn`, `note`,
+  `accountId?` §15.2, `relatedTransactionId?` §16.1 — evidencia opcional, la semántica no depende de
+  ella). Backfill: una allocation `INITIAL` por cada meta con `current_amount > 0`.
+- **Derivación:** `currentAmount = Σ(INITIAL+CONTRIBUTION).amount − Σ WITHDRAWAL.amount`
+  (`createGoalAllocationRepository.derivedCurrentAmount`).
+- **Servicio (`goal-service.ts`):** `applyAllocation()` hace `insert allocation → recompute →
+  syncDerivedProgressForUser` en `database.transaction`. `createGoal` con monto inicial → allocation
+  INITIAL (la meta nace con `current_amount = 0`). `contribute()` → CONTRIBUTION. Nuevo `withdraw()`
+  → WITHDRAWAL (rechaza si dejaría el progreso < 0 con `GOAL_WITHDRAWAL_EXCEEDS_PROGRESS`; puede
+  re-abrir una meta COMPLETED a ACTIVE). Nuevo `listAllocations()` para el historial (§14).
+- **CM-08 (aporte ≠ gasto):** un aporte/retiro no toca `transactions` en absoluto — probado con un
+  assert de que no se crea ninguna fila de ledger.
+- **Audit (`checkGoalAllocationConsistency`):** cache vs Σ allocations; moneda de allocation vs meta;
+  ownership de allocation vs meta. Cableado en `runFinanceAudit` + `scannedCounts.goalAllocations`.
+- **UI:** diálogo "Retirar" nuevo en `GoalActions` (con copy que aclara que no mueve dinero ni
+  registra un gasto) + campo "Nota" en aporte/retiro. `withdrawGoalAction` + `withdrawGoalSchema`.
+- **Tests:** `tests/integration/goal-allocations.test.ts` (4, Postgres real) — derivación + CM-08 +
+  audit limpio; completar/re-abrir; rechazo de retiro excesivo con rollback; audit detecta drift del
+  cache.
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 828/828, integration del WP
+  4/4 + `finance-audit` 8/8.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

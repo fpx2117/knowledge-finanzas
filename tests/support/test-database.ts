@@ -113,6 +113,8 @@ export async function cleanTestDatabase(database: TestDatabase) {
       "scheduled_transactions",
       "recurring_transactions",
       "reminders",
+      "goal_allocations",
+      "goals",
       "notification_deliveries",
       "notification_preferences",
       "notification_whatsapp_consent",

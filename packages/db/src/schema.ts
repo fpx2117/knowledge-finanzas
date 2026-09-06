@@ -663,6 +663,35 @@ export const goals = pgTable("goals", {
   check("goals_currency_code_length_check", sql`char_length(${table.currencyCode}) = 3`),
 ]);
 
+// WP-GOALS-ALLOC (spec 07 §6.2 / §15 / §16). A goal's progress is the sum of explicit
+// allocations, never a number the user or a caller sets directly:
+//   currentAmount = Σ (INITIAL + CONTRIBUTION).amount − Σ WITHDRAWAL.amount
+// `goals.current_amount` stays as a cache, recomputed in the same transaction as every
+// allocation write and guarded by `checkGoalAllocationConsistency` in finance:audit.
+// An allocation is an assignment to the goal — it never posts to the ledger (§15.1, CM-08).
+// `relatedTransactionId` is optional evidence that money moved (a transfer, §16.1); the
+// allocation's semantics don't depend on it.
+export const goalAllocationKindEnum = pgEnum("goal_allocation_kind", ["INITIAL", "CONTRIBUTION", "WITHDRAWAL"]);
+
+export const goalAllocations = pgTable("goal_allocations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  goalId: uuid("goal_id").notNull().references(() => goals.id, { onDelete: "cascade" }),
+  kind: goalAllocationKindEnum("kind").notNull(),
+  amount: numeric("amount", { precision: 20, scale: 6 }).notNull(),
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  occurredOn: date("occurred_on").notNull(),
+  note: text("note"),
+  accountId: uuid("account_id").references(() => accounts.id, { onDelete: "set null" }),
+  relatedTransactionId: uuid("related_transaction_id").references(() => transactions.id, { onDelete: "set null" }),
+  ...timestamps,
+}, (table) => [
+  index("goal_allocations_goal_idx").on(table.goalId, table.occurredOn),
+  index("goal_allocations_user_idx").on(table.userId),
+  check("goal_allocations_amount_positive_check", sql`${table.amount} > 0`),
+  check("goal_allocations_currency_code_length_check", sql`char_length(${table.currencyCode}) = 3`),
+]);
+
 // One-tap capture shortcuts. Some created by the user ("Guardar como acción rápida" on a
 // transaction), some auto-created from repeated shapes. `amountHints` holds the last few amounts
 // used for this template so the UI can offer quick-amount chips.

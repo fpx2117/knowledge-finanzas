@@ -1,7 +1,63 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 
 import type { Database } from "../client";
-import { goals } from "../schema";
+import { goalAllocations, goals } from "../schema";
+
+export type GoalAllocationKind = "INITIAL" | "CONTRIBUTION" | "WITHDRAWAL";
+
+/**
+ * WP-GOALS-ALLOC — `goal_allocations` is the source of truth for a goal's progress.
+ * `goals.current_amount` is a cache; `derivedCurrentAmount` recomputes it and the
+ * goal service updates the cache in the same transaction as every allocation write.
+ */
+export function createGoalAllocationRepository(database: Database) {
+  const signedSum = sql<string>`coalesce(sum(case when ${goalAllocations.kind} = 'WITHDRAWAL' then -${goalAllocations.amount} else ${goalAllocations.amount} end), 0)`;
+  return {
+    record(input: {
+      userId: string;
+      goalId: string;
+      kind: GoalAllocationKind;
+      amount: string;
+      currencyCode: string;
+      occurredOn: string;
+      note: string | null;
+      accountId?: string | null;
+      relatedTransactionId?: string | null;
+    }) {
+      return database
+        .insert(goalAllocations)
+        .values({
+          userId: input.userId,
+          goalId: input.goalId,
+          kind: input.kind,
+          amount: input.amount,
+          currencyCode: input.currencyCode,
+          occurredOn: input.occurredOn,
+          note: input.note,
+          accountId: input.accountId ?? null,
+          relatedTransactionId: input.relatedTransactionId ?? null,
+        })
+        .returning()
+        .then(([row]) => row);
+    },
+
+    async derivedCurrentAmount(goalId: string): Promise<string> {
+      const [row] = await database
+        .select({ total: signedSum })
+        .from(goalAllocations)
+        .where(eq(goalAllocations.goalId, goalId));
+      return row?.total ?? "0";
+    },
+
+    listForGoal(goalId: string, userId: string) {
+      return database
+        .select()
+        .from(goalAllocations)
+        .where(and(eq(goalAllocations.goalId, goalId), eq(goalAllocations.userId, userId)))
+        .orderBy(desc(goalAllocations.occurredOn), desc(goalAllocations.createdAt));
+    },
+  };
+}
 
 export type GoalCategory =
   | "EMERGENCY_FUND"
@@ -75,6 +131,21 @@ export function createGoalRepository(database: Database) {
         .update(goals)
         .set({ ...input, updatedAt: new Date() })
         .where(and(eq(goals.id, goalId), eq(goals.userId, userId), eq(goals.status, "ACTIVE")))
+        .returning()
+        .then(([goal]) => goal);
+    },
+
+    // WP-GOALS-ALLOC — sync the cached progress after an allocation write. Works on ACTIVE and
+    // COMPLETED goals (a withdrawal can re-open a completed goal); never touches ARCHIVED ones.
+    syncDerivedProgressForUser(
+      goalId: string,
+      userId: string,
+      input: { currentAmount: string; status: "ACTIVE" | "COMPLETED"; completedAt: Date | null },
+    ) {
+      return database
+        .update(goals)
+        .set({ ...input, updatedAt: new Date() })
+        .where(and(eq(goals.id, goalId), eq(goals.userId, userId), ne(goals.status, "ARCHIVED")))
         .returning()
         .then(([goal]) => goal);
     },

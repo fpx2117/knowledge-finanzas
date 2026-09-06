@@ -28,7 +28,7 @@ export { createDuplicateDismissalRepository, duplicatePairKey } from "./duplicat
 export { createImportBatchRepository } from "./import-batches";
 export { createBudgetRepository } from "./budgets";
 export { createBudgetAlertRepository } from "./budget-alerts";
-export { createGoalRepository, type GoalCategory } from "./goals";
+export { createGoalRepository, createGoalAllocationRepository, type GoalCategory, type GoalAllocationKind } from "./goals";
 export { createBillingPlanRepository } from "./billing-plans";
 export { createBillingSubscriptionRepository } from "./billing-subscriptions";
 export { createBillingPeriodRepository } from "./billing-periods";

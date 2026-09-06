@@ -19,6 +19,7 @@ import {
   createCategoryTaxonomyRepository,
   createClassificationRuleRepository,
   createGoalRepository,
+  createGoalAllocationRepository,
   createMerchantRepository,
   createMerchantUserDefaultRepository,
   createQuickTemplateRepository,
@@ -45,3 +46,4 @@ export const importBatchRepository = createImportBatchRepository(db);
 export const budgetRepository = createBudgetRepository(db);
 export const budgetAlertRepository = createBudgetAlertRepository(db);
 export const goalRepository = createGoalRepository(db);
+export const goalAllocationRepository = createGoalAllocationRepository(db);

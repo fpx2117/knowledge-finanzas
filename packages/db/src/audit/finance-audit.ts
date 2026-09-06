@@ -7,6 +7,8 @@ import {
   debtInstallments,
   debtPaymentAllocations,
   debtPayments,
+  goalAllocations,
+  goals,
   scheduledTransactions,
   transactions,
   transfers,
@@ -175,13 +177,55 @@ export async function checkScheduledTransactionPostedLink(database: Database): P
   ];
 }
 
+// WP-GOALS-ALLOC (spec 07 §6.2): `goal_allocations` is the source of truth for a goal's
+// progress. `goals.current_amount` is a cache the goal service re-syncs inside the same
+// transaction as every allocation write — this check is the guarantee it never drifts:
+// the cache must equal Σ(INITIAL + CONTRIBUTION) − Σ(WITHDRAWAL), every allocation's currency
+// must match the goal's, and every allocation must belong to the goal's owner.
+export async function checkGoalAllocationConsistency(database: Database): Promise<AuditFinding[]> {
+  const driftRows = await database
+    .select({
+      goalId: goals.id,
+      cached: goals.currentAmount,
+      derived: sql<string>`coalesce(sum(case when ${goalAllocations.kind} = 'WITHDRAWAL' then -${goalAllocations.amount} else ${goalAllocations.amount} end), 0)`,
+    })
+    .from(goals)
+    .leftJoin(goalAllocations, eq(goalAllocations.goalId, goals.id))
+    .groupBy(goals.id, goals.currentAmount)
+    .having(sql`${goals.currentAmount} <> coalesce(sum(case when ${goalAllocations.kind} = 'WITHDRAWAL' then -${goalAllocations.amount} else ${goalAllocations.amount} end), 0)`);
+
+  const mismatchRows = await database
+    .select({ allocationId: goalAllocations.id })
+    .from(goalAllocations)
+    .innerJoin(goals, eq(goals.id, goalAllocations.goalId))
+    .where(sql`${goalAllocations.userId} <> ${goals.userId} or ${goalAllocations.currencyCode} <> ${goals.currencyCode}`);
+
+  return [
+    ...driftRows.map((row) => ({
+      severity: "ERROR" as const,
+      check: "goal_allocation_cache_consistency",
+      entityType: "goal",
+      entityId: row.goalId,
+      message: `cached current_amount ${row.cached} does not equal the sum of its allocations ${row.derived}`,
+    })),
+    ...mismatchRows.map((row) => ({
+      severity: "ERROR" as const,
+      check: "goal_allocation_ownership_currency",
+      entityType: "goal_allocation",
+      entityId: row.allocationId,
+      message: "allocation's user or currency does not match its goal",
+    })),
+  ];
+}
+
 export async function runFinanceAudit(database: Database): Promise<AuditReport> {
-  const [transferFindings, allocationFindings, overpaidFindings, ownershipFindings, scheduledFindings] = await Promise.all([
+  const [transferFindings, allocationFindings, overpaidFindings, ownershipFindings, scheduledFindings, goalFindings] = await Promise.all([
     checkTransferLegPairing(database),
     checkDebtPaymentAllocationEquality(database),
     checkInstallmentNotOverpaid(database),
     checkTransactionOwnershipAndCurrency(database),
     checkScheduledTransactionPostedLink(database),
+    checkGoalAllocationConsistency(database),
   ]);
 
   const [transferCount] = await database.select({ count: sql<number>`count(*)` }).from(transfers);
@@ -189,15 +233,17 @@ export async function runFinanceAudit(database: Database): Promise<AuditReport> 
   const [debtPaymentCount] = await database.select({ count: sql<number>`count(*)` }).from(debtPayments);
   const [installmentCount] = await database.select({ count: sql<number>`count(*)` }).from(debtInstallments);
   const [scheduledCount] = await database.select({ count: sql<number>`count(*)` }).from(scheduledTransactions);
+  const [goalAllocationCount] = await database.select({ count: sql<number>`count(*)` }).from(goalAllocations);
 
   return {
-    findings: [...transferFindings, ...allocationFindings, ...overpaidFindings, ...ownershipFindings, ...scheduledFindings],
+    findings: [...transferFindings, ...allocationFindings, ...overpaidFindings, ...ownershipFindings, ...scheduledFindings, ...goalFindings],
     scannedCounts: {
       transfers: Number(transferCount?.count ?? 0),
       transactions: Number(transactionCount?.count ?? 0),
       debtPayments: Number(debtPaymentCount?.count ?? 0),
       debtInstallments: Number(installmentCount?.count ?? 0),
       scheduledTransactions: Number(scheduledCount?.count ?? 0),
+      goalAllocations: Number(goalAllocationCount?.count ?? 0),
     },
   };
 }

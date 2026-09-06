@@ -46,7 +46,9 @@ export const updateGoalSchema = z
   })
   .strict();
 
-export const contributeGoalSchema = z.object({ goalId: idSchema, amount: moneyInputSchema }).strict();
+export const contributeGoalSchema = z.object({ goalId: idSchema, amount: moneyInputSchema, note: notesSchema }).strict();
+
+export const withdrawGoalSchema = z.object({ goalId: idSchema, amount: moneyInputSchema, note: notesSchema }).strict();
 
 export const archiveGoalSchema = z.object({ goalId: idSchema }).strict();
 

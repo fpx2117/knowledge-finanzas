@@ -11,6 +11,7 @@ import {
   contributeGoalSchema,
   createGoalSchema,
   updateGoalSchema,
+  withdrawGoalSchema,
 } from "../schemas/goal-schemas";
 
 const service = createGoalService();
@@ -54,8 +55,28 @@ export async function contributeGoalAction(
     const input = contributeGoalSchema.parse({
       goalId: formData.get("goalId"),
       amount: formData.get("amount"),
+      note: optional(formData.get("note")),
     });
-    await service.contribute(user, input.goalId, input.amount);
+    await service.contribute(user, input.goalId, input.amount, { note: input.note });
+    emitFinancialEvent({ type: "goal.updated", entityPaths: [`/goals/${input.goalId}`] });
+  } catch (error) {
+    return { ok: false, error: mapErrorToUi(error) };
+  }
+  return { ok: true };
+}
+
+export async function withdrawGoalAction(
+  _previous: GoalActionState | null,
+  formData: FormData,
+): Promise<GoalActionState> {
+  try {
+    const user = await requireCurrentUser();
+    const input = withdrawGoalSchema.parse({
+      goalId: formData.get("goalId"),
+      amount: formData.get("amount"),
+      note: optional(formData.get("note")),
+    });
+    await service.withdraw(user, input.goalId, input.amount, { note: input.note });
     emitFinancialEvent({ type: "goal.updated", entityPaths: [`/goals/${input.goalId}`] });
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };

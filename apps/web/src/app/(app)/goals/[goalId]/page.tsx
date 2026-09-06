@@ -50,7 +50,7 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ goa
       <PageHeader
         title={goal.name}
         description={meta.label}
-        actions={<GoalActions goalId={goal.id} currencyCode={goal.currencyCode} remainingAmount={goal.remainingAmount} status={goal.status} />}
+        actions={<GoalActions goalId={goal.id} currencyCode={goal.currencyCode} remainingAmount={goal.remainingAmount} currentAmount={goal.currentAmount} status={goal.status} />}
       />
 
       <SectionCard title="Progreso">

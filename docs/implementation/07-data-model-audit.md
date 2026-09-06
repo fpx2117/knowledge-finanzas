@@ -15,7 +15,7 @@ Detalle de constraints/índices por tabla: parcialmente `UNVERIFIED` (schema le�
 | ScheduledTransaction | `scheduled_transactions` | ✅ |
 | Budget | `budgets`, `budget_alerts` | ✅ |
 | Obligation | `debts`, `debt_installments`, `debt_payments`, `debt_payment_allocations`, `subscriptions` | ✅ fragmentado (ver D-3) |
-| Goal | `goals` (`targetAmount`, `currentAmount` mutable, `targetDate`, enum category/status, checks de positividad) | ⚠️ ver D-2 |
+| Goal | `goals` + `goal_allocations` (INITIAL/CONTRIBUTION/WITHDRAWAL); `current_amount` es cache re-sincronizado + audit check | ✅ D-2 cerrado 2026-09-05 |
 | Category | `categories`, `category_taxonomy`, `category_map` | ✅ |
 | Merchant | `merchants`, `merchant_aliases`, `merchant_user_defaults` | ✅ |
 | PersonalRule | `user_classification_rules` | ✅ |
@@ -43,13 +43,15 @@ referrals tienen keys de idempotencia.
 Server actions de create/void aceptan y propagan la key; retry se resuelve por lookup de la key.
 Mismo tratamiento para el application service de transfer y de debt payment (verificar si ya lo tienen).
 
-### D-2 — `goals.currentAmount` es estado mutable, no derivado  · **HIGH**
-Spec §15: "el progreso se deriva de asignaciones a la meta". Hoy `currentAmount` es una columna que se
-actualiza directamente → no reconstruible, no auditable, drift posible.
-**Propuesta:** nueva tabla `goal_allocations` `{ id, goalId, userId, direction: CONTRIBUTION|WITHDRAWAL, amount, currency, occurredLocalDate, linkedTransactionId? (nullable, no crea EXPENSE), note, commandId, createdAt }`.
-`currentAmount` pasa a ser derivado (columna cache con invalidación explícita, o vista). Migración + backfill
-(cada goal existente → una allocation `CONTRIBUTION` inicial por su `currentAmount`).
-Validador nuevo en `finance:audit`: `currentAmount == Σ allocations`.
+### ~~D-2~~ — `goals.currentAmount` mutable → **CERRADO (2026-09-05, WP-GOALS-ALLOC)**
+Spec §6.2/§15: "el progreso se deriva de asignaciones a la meta".
+**Resuelto:** tabla `goal_allocations` `{ id, userId, goalId, kind: INITIAL|CONTRIBUTION|WITHDRAWAL,
+amount (>0), currencyCode, occurredOn, note, accountId?, relatedTransactionId? (nullable, no crea
+EXPENSE — CM-08), createdAt }` (mig 0043 + backfill: una `INITIAL` por meta con progreso).
+`current_amount` queda como **cache re-sincronizado dentro de la misma transacción** que cada
+escritura de allocation (`goal-service.applyAllocation`). Validador
+`checkGoalAllocationConsistency` en `finance:audit`: `current_amount == Σ signed allocations` +
+ownership/moneda. `withdraw()` nuevo. Probado end-to-end en `tests/integration/goal-allocations.test.ts`.
 
 ### D-3 — Obligación sin read model unificado  · **MEDIUM (arquitectura)**
 Spec 05 trata deuda + cuota + suscripción + programado como una superficie "Obligaciones".
