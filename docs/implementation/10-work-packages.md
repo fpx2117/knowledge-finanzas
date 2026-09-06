@@ -965,6 +965,34 @@ el diagnóstico de saldo.
   cambia.
 - **Verificación:** lint web limpio · typecheck 0 · unit 856/856 (+6) · integración 203/203 (+6, 1 skip).
 
+## WP-A11Y — Gate G4: flujos críticos operables por teclado + screen reader  ·  P1  ·  **DONE (2026-09-06)**
+
+- **Fix real encontrado:** no había **skip link**. Con una sidebar llena de links de navegación
+  antes de `<main>`, un usuario de teclado tenía que tabular por toda la nav en cada página
+  (WCAG 2.4.1 Bypass Blocks). Agregado a `AppShell` como primer elemento focusable —
+  `sr-only` hasta recibir foco, luego visible arriba-izquierda; apunta a `#main-content`
+  (`<main tabIndex={-1}>`). Además: el `sr-only` del botón de cerrar en `dialog.tsx` y `sheet.tsx`
+  decía "Close" (inglés) → "Cerrar".
+- **`tests/e2e/a11y-keyboard.spec.ts`** (5 tests, manejan interacción de teclado real, no sólo
+  estructura):
+  1. El skip link es el primer tab stop; activarlo mueve el foco a `#main-content` (el siguiente
+     Tab ya está dentro del contenido, no en la sidebar).
+  2. La paleta de comandos es 100% teclado: `Ctrl+K` abre y enfoca el input, `ArrowDown` + `Enter`
+     navega, reabrir + `Escape` cierra sin perder el foco.
+  3. Un movimiento se registra sólo con teclado (focus + `keyboard.type` + `Tab` entre campos +
+     `Enter` en el botón) y aterriza en `/transactions`.
+  4. Un form con campo `required` vacío bloquea el submit (no navega) y el navegador mueve el foco
+     al campo inválido — un lector de pantalla sabe exactamente qué corregir.
+  5. Un diálogo (aporte a meta) atrapa el foco (Tab nunca escapa al fondo) y lo **restaura al
+     botón trigger** al presionar `Escape`.
+- Los contratos estructurales de a11y (un `<h1>` por ruta, controles etiquetados, landmarks,
+  un control focusable) ya los cubren `final-route-regression.spec.ts` (desktop + mobile) y
+  `final-accessibility-audit.spec.ts` — no se duplican aquí.
+- **Follow-ups (no bloquean G4):** auditoría con axe-core por ruta; `aria-live` explícito en los
+  toasts con undo; foco al `<h1>` en navegación SPA (Next App Router ya trae un route announcer);
+  revisar contraste de tokens en tema oscuro.
+- **Verificación:** lint web limpio · typecheck 0 · unit 856/856 · e2e 11/11.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

@@ -25,4 +25,6 @@ component), which belongs to an Accounts/Dashboard E2E WP, not to WP-E2E-JOURNEY
 
 `journeys.spec.ts` (3 critical financial journeys), `final-route-regression.spec.ts` (every
 canonical authenticated route renders with one `<h1>` + labeled controls, desktop + mobile),
-`final-accessibility-audit.spec.ts` (structural a11y contracts).
+`final-accessibility-audit.spec.ts` (structural a11y contracts), `a11y-keyboard.spec.ts`
+(WP-A11Y / G4 — skip link, keyboard-driven command palette, register a movement without a
+mouse, native validation moving focus, dialog focus trap + restore).
