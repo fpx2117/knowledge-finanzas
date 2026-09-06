@@ -294,6 +294,34 @@ export function createTransactionRepository(database: Database) {
         .then((rows) => rows.length);
     },
 
+    /**
+     * WP-SHELL-PALETTE (spec 13 §15.3 "Buscar entidad", §22 ownership at source) — a small
+     * text search over the user's own movements for the command palette. Read-only.
+     */
+    searchForUser(userId: string, query: string, limit = 6) {
+      const needle = query.trim().toLowerCase();
+      if (needle.length < 2) return Promise.resolve([] as Array<{ id: string; description: string; merchant: string | null; amount: string; currencyCode: string; type: string; occurredAt: Date }>);
+      const escaped = needle.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+      return database
+        .select({
+          id: transactions.id,
+          description: transactions.description,
+          merchant: transactions.merchant,
+          amount: transactions.amount,
+          currencyCode: transactions.currencyCode,
+          type: transactions.type,
+          occurredAt: transactions.occurredAt,
+        })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.status, "POSTED"),
+          sql`(lower(${transactions.description}) like ${`%${escaped}%`} or lower(coalesce(${transactions.merchant}, '')) like ${`%${escaped}%`})`,
+        ))
+        .orderBy(desc(transactions.occurredAt))
+        .limit(limit);
+    },
+
     setCategoryForUser(transactionId: string, userId: string, categoryId: string, taxonomyNodeId: string | null) {
       return database
         .update(transactions)

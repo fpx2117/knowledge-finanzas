@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar";
 import { MobileNav } from "./mobile-nav";
 import { QuickAddRoot } from "@/features/capture/components/quick-add-root";
+import { CommandPaletteRoot } from "@/features/shell/components/command-palette-root";
 
 type ShellUser = { name: string; email: string; image?: string | null };
 
@@ -21,6 +22,7 @@ export function AppShell({
         <main className="mx-auto w-full max-w-[1280px] px-4 py-6 sm:px-6 lg:px-10 lg:py-9">{children}</main>
       </div>
       <QuickAddRoot />
+      <CommandPaletteRoot />
     </div>
   );
 }

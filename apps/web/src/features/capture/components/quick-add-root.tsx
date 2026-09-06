@@ -8,7 +8,8 @@ import type { RepeatPrefill } from "../actions/quick-actions";
 /**
  * Mounts the global Quick Add dialog once and wires its entry points:
  * the `quickadd:open` window event (from any trigger button, optionally carrying
- * a prefill), the `N` shortcut (when not typing), and Cmd/Ctrl+K.
+ * a prefill) and the `N` shortcut (when not typing). Cmd/Ctrl+K opens the command
+ * palette instead (spec 13 §15.2), owned by CommandPaletteRoot.
  */
 export function QuickAddRoot() {
   const [open, setOpen] = useState(false);
@@ -31,12 +32,6 @@ export function QuickAddRoot() {
           target.tagName === "SELECT" ||
           target.isContentEditable);
 
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPrefill(null);
-        setOpen(true);
-        return;
-      }
       if (!typing && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "n") {
         event.preventDefault();
         setPrefill(null);

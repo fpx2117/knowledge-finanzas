@@ -22,7 +22,7 @@ convertirse en work package cerrado.
 | 10 | Registrar | PARTIAL | BAJO | `features/capture` (Quick Add global, parser NL español + fallback IA, toast-undo, guard de duplicados) existe y **es command surface pura, auditado 2026-09-04** — no duplica ledger, enruta a owners, IA nunca escribe. Import pipeline en `features/imports`. Route-intercept overlay vs spec §25 sigue UNVERIFIED (no crítico) |
 | 11 | Configuración | PARTIAL | MEDIO | `/settings` hub + `/settings/{profile,preferences}` (2026-09-06, tabla `user_preferences`) + categories/rules(preview §6.8-10)/notifications/privacy/referrals/imports/plan. Falta: `/settings/security`, cambio de email §3.3, cablear preferencias a la UI, audit-log de reglas §6.11 |
 | 12 | Ayuda | PARTIAL (2026-09-05) | BAJO | `/help` hub + `/help/getting-started` (checklist sobre estado real) + `/help/troubleshoot` con diagnóstico de saldo read-only (§11, CF-10) + status/contact/about mínimos. Link en user-menu. Falta: diagnósticos presupuesto/proyección/obligaciones §12-14, feedback, búsqueda |
-| 13 | Application Shell | PARTIAL | ALTO | Sidebar colapsable + mobile bottom bar + nav-items existen. Command palette, search global, notifications center (existe `/notifications` + SSE), billing gates (existen), feature flags, deep-link de dialogs, 404/403 sin fuga: UNVERIFIED contra spec 13 (5957 líneas) |
+| 13 | Application Shell | PARTIAL | MEDIO | Sidebar + mobile bar + nav-items + **command palette `Cmd+K`** (navega/Registrar, cero mutación PD-012, search degradable §15) + notifications center. Falta: 404/403 sin fuga de existencia (§8.1, WP-SHELL-403), feature flags, deep-link de dialogs |
 
 ## Tabla detallada
 

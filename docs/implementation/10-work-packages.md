@@ -825,6 +825,28 @@ el diagnóstico de saldo.
   parcial + `updateBasicProfile` + la regla §4.3.
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845, integration WP 3/3.
 
+## WP-SHELL-PALETTE — Command palette (spec 13 §15, PD-012)  ·  P2  ·  **DONE (2026-09-06)**
+
+- **`CommandPalette` + `CommandPaletteRoot`** (`features/shell/components/`): montado una vez en
+  `app-shell.tsx`, es dueño del shortcut `Cmd/Ctrl+K` (§15.2). `Cmd+K` **dejó de abrir Quick Add** —
+  eso ahora es sólo `N`; se sacó el handler de `quick-add-root.tsx`.
+- **Sólo acciones seguras (§15.5, PD-012 "el command palette nunca muta"):**
+  - "Ir a": todas las rutas de `NAV_ITEMS` + sus `children` + `/settings/*` + `/help/*`. `router.push`.
+  - "Registrar un movimiento": dispara `openQuickAdd()` (abre el diálogo, no crea nada).
+  - Estructuralmente no hay ningún `onSelect` que llame a una acción de escritura.
+- **Búsqueda de entidad degradable (§15.3, §2771):** al tipear ≥2 chars, debounce 220ms →
+  `searchEntitiesAction(query)` (server action, `requireCurrentUser` + `transactionRepository
+  .searchForUser` con ILIKE escapado sobre `description`/`merchant`, POSTED, ownership en origen
+  §22/§3596). Resultados linkean a `/transactions/[id]`. Si la acción falla → mensaje "búsqueda no
+  disponible, navegá a Transacciones" y la paleta sigue usable para navegar.
+- `Command` con `shouldFilter={false}` — el filtrado de destinos es propio; cmdk sólo maneja la
+  navegación por teclado. Footer que dice explícitamente "sólo navega e inicia flujos — nunca
+  modifica tus datos".
+- **Tests:** `tests/integration/command-palette-search.test.ts` (3, Postgres real) — matchea los
+  movimientos propios por descripción/comercio, **nunca** los de otro usuario, ignora queries de
+  <2 chars.
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845, integration WP 3/3.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
