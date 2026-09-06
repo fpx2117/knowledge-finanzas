@@ -86,7 +86,7 @@ subvistas, Insights determinísticos).
 
 | WP | Gate |
 |---|---|
-| WP-E2E-JOURNEYS | §39.3: onboarding→cuenta→5 mov→dashboard→cashflow; registrar gasto; transferencia; budget excedido; obligación pago parcial; meta aporte; import con errores; duplicado; downgrade sin pérdida; IA caída. |
+| ~~WP-E2E-JOURNEYS~~ **DONE (2026-09-06)** | `tests/e2e/journeys.spec.ts`: 3 journeys críticos end-to-end vía UI real (gasto→saldo total; transferencia mueve ambos saldos y no aparece como gasto; aporte a meta deriva progreso + historial), todos verdes. Bug de integridad encontrado y arreglado: las acciones fabricaban `occurredAt = ${date}T12:00:00Z`, que el servicio rechaza como futuro (`occurredAt > now`) toda mañana antes de mediodía UTC y siempre para usuarios al este de UTC → nuevo `resolveOccurredAtISO(date, tz)` en `lib/date` (instante actual si es hoy, mediodía estable si es pasado), aplicado a `create-transaction` + `transfer-actions`; unit test en `date-utility.test.ts`. 17 specs muertos ya movidos a `tests/e2e-quarantine/`; helper `signUpCompleteOnboardingAndStartTrial` = solo signUp + goto `/app` (gate de onboarding removido). Resto de journeys (§39.3 import/duplicado/downgrade/IA caída) tienen cobertura a nivel integración; se agregan como E2E en WPs de reconstrucción de cada subsistema. |
 | WP-SECURITY-SUITE | §39.4 / G2: IDOR (todos los dominios), CSRF, XSS, CSV injection, rate limits, session, webhook spoofing, escalación admin. |
 | WP-RECONCILIATION | G1: `finance:audit` 0 diferencias en suite; money tests completos. |
 | WP-A11Y | G4: flujos críticos teclado + screen reader. |

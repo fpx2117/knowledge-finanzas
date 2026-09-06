@@ -3,7 +3,8 @@ import { HeaderActions } from "@/components/shared/header-actions";
 import { SectionCard } from "@/components/shared/section-card";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createReportService } from "@/features/reports/services/report-service";
-import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav, periodLabel } from "@/features/reports/components/report-shared";
+import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { periodLabel } from "@/features/reports/components/report-format";
 
 const service = createReportService();
 

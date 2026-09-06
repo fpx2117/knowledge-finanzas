@@ -45,4 +45,19 @@ export function buildLedgerTotalColumns() {
   return columns;
 }
 
+/**
+ * Same columns, each given an explicit SQL alias. Required when the totals are selected inside a
+ * subquery whose fields are later referenced by name (`subquery.incomeTotal`) — drizzle throws
+ * "raw SQL field … doesn't have an alias declared" otherwise. Use `buildLedgerTotalColumns()` for
+ * a plain top-level select; use this for `.select({...}).as("alias")`.
+ */
+export function buildAliasedLedgerTotalColumns() {
+  const columns = {} as Record<LedgerTotalKey, ReturnType<SQL<string>["as"]>>;
+  for (const type of transactionTypeEnum.enumValues) {
+    const key = TOTAL_KEY_BY_TYPE[type];
+    columns[key] = sql<string>`coalesce(sum(case when ${transactions.type} = ${type} then ${transactions.amount} else 0 end), 0)`.as(key);
+  }
+  return columns;
+}
+
 export const LEDGER_TOTAL_KEYS = Object.values(TOTAL_KEY_BY_TYPE) as readonly LedgerTotalKey[];

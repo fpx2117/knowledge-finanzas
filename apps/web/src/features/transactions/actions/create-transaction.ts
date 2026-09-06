@@ -13,6 +13,7 @@ import {
 } from "@know-finanzas/db";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { resolveOccurredAtISO } from "@/lib/date";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransactionService } from "../services/transaction-service";
@@ -46,7 +47,7 @@ export async function createTransactionAction(
       description: formData.get("description"),
       categoryId: formData.get("categoryId") || undefined,
       merchant: formData.get("merchant") || undefined,
-      occurredAt: `${String(formData.get("occurredAt"))}T12:00:00Z`,
+      occurredAt: resolveOccurredAtISO(String(formData.get("occurredAt")), user.timezone),
       notes: formData.get("notes") || undefined,
       commandId: formData.get("commandId") || undefined,
     };

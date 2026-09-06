@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { resolveOccurredAtISO } from "@/lib/date";
 import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransferService } from "../services/transfer-service";
 import { createTransferSchema, voidTransferSchema } from "../schemas/transfer-schemas";
@@ -22,7 +23,7 @@ export async function createTransferAction(
       fromAccountId: formData.get("fromAccountId"),
       toAccountId: formData.get("toAccountId"),
       amount: formData.get("amount"),
-      occurredAt: `${String(formData.get("occurredAt"))}T12:00:00Z`,
+      occurredAt: resolveOccurredAtISO(String(formData.get("occurredAt")), user.timezone),
       notes: formData.get("notes") || undefined,
       commandId: formData.get("commandId") || undefined,
     });

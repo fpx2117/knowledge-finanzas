@@ -1,4 +1,12 @@
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
+import path from "node:path";
 import { defineConfig } from "@playwright/test";
+
+const rootEnvFile = path.resolve(__dirname, ".env");
+if (existsSync(rootEnvFile)) {
+  loadEnvFile(rootEnvFile);
+}
 
 const port = 3100;
 const baseURL = `http://127.0.0.1:${port}`;

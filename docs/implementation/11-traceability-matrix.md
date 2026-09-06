@@ -45,7 +45,8 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Redirect de checkout no confirma pago | 14 §28, PD-015 | `packages/billing` webhooks | `/api/webhooks/mercadopago` | `billing_webhook_events` | `/billing/return` | package tests | IMPLEMENTED |
 | Webhooks verificables e idempotentes | 14 §4.16, §38 | `packages/billing`/`notifications` | route handlers | `billing_webhook_events` | `/api/webhooks/*` | package/integration | IMPLEMENTED |
 | Analytics sin datos financieros sensibles | 14 §34 | `packages/analytics` (Zod `.strict()`) | `AnalyticsService.track` | `analytics_event_log` | — | package tests | IMPLEMENTED |
-| Onboarding → primera cuenta → 5 mov → dashboard → cashflow | 14 CF-01, §39.3 | — | — | `user_onboarding` | `/onboarding/*`, `/elegir-acceso` | E2E (~13 specs) | PARTIAL |
+| Journeys financieros críticos end-to-end vía UI real | 14 §39.3 | `resolveOccurredAtISO` (`lib/date`) + acciones de captura/transferencia/meta | actions | — | `/transactions/new`, `/transactions/transfers/new`, `/goals/[id]` | `tests/e2e/journeys.spec.ts` (3: gasto→saldo total, transferencia mueve 2 saldos y no es gasto, aporte a meta→progreso+historial) + `date-utility` unit (2) | DONE (2026-09-06; import/duplicado/downgrade/IA-caída → E2E al reconstruir cada subsistema) |
+| Movimiento con fecha "hoy" no se rechaza como futuro | 14 §23, §35 | `resolveOccurredAtISO(date, tz)` — instante actual si es hoy en el huso del usuario | `create-transaction`, `transfer-actions` | — | `/transactions/new`, `/transactions/transfers/new` | `date-utility` unit (2) + journeys e2e | DONE (2026-09-06 — antes `${date}T12:00:00Z` fallaba toda mañana antes de mediodía UTC) |
 | Backup/restore + auditoría de integridad | (tasks 42–44) | `packages/db/audit` | scripts | — | — | `finance-audit`, `recovery-validate` | IMPLEMENTED (local) |
 
 ## Cómo se mantiene

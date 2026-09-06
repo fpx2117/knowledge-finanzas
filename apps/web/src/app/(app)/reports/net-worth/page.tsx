@@ -6,7 +6,8 @@ import { HeaderActions } from "@/components/shared/header-actions";
 import { StatCard } from "@/components/shared/stat-card";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createReportService } from "@/features/reports/services/report-service";
-import { ExcludedCurrenciesNote, ReportsNav, periodLabel } from "@/features/reports/components/report-shared";
+import { ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { periodLabel } from "@/features/reports/components/report-format";
 
 const service = createReportService();
 

@@ -869,6 +869,37 @@ el diagnóstico de saldo.
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 847/847 (+2). Fase G
   cerrada (4/4).
 
+## WP-E2E-JOURNEYS — Journeys financieros críticos end-to-end (spec 14 §39.3)  ·  P1 · FINANCIAL  ·  **DONE (2026-09-06)**
+
+- **`tests/e2e/journeys.spec.ts`** (3 tests, todos verdes) — recorren la UI real con IA
+  deshabilitada (`AI_ENABLED=false`), así prueban que el núcleo funciona sin IA:
+  1. *Registrar un gasto se refleja en el saldo total* — cuenta con apertura + gasto vía
+     `/transactions/new` → redirect a `/transactions`, el movimiento en el ledger, y el saldo
+     total del dashboard = apertura − gasto (no scoping por período).
+  2. *Transferencia entre cuentas propias* — `/transactions/transfers/new` mueve ambos saldos
+     (origen −monto, destino +monto) y **no** aparece como ingreso/gasto en `/transactions` (§10).
+  3. *Aporte a una meta* — dialog "Registrar ahorro" → progreso derivado (25%) + fila "Aporte"
+     en el historial (WP-GOALS-ALLOC).
+- **Bug de integridad financiera encontrado y arreglado:** `create-transaction` y
+  `transfer-actions` construían `occurredAt` como `` `${date}T12:00:00Z` ``. El servicio de
+  transacciones rechaza `occurredAt > now` (`INVALID_INPUT` field `occurredAt`), así que
+  **cualquier gasto/ingreso/transferencia con fecha "hoy" fallaba toda mañana antes de las
+  12:00 UTC**, y siempre para usuarios en husos al este de UTC. Nuevo
+  **`resolveOccurredAtISO(date, timeZone)`** en `apps/web/src/lib/date.ts`: si la fecha elegida
+  es hoy en el huso del usuario devuelve el instante actual (`new Date().toISOString()`); si es
+  pasada, mantiene un mediodía-UTC estable (la fecha de calendario nunca se corre). Aplicado en
+  ambas acciones.
+- **Tests:** 2 casos nuevos en `tests/unit/date-utility.test.ts` (hoy → instante actual dentro
+  del rango `[before, after]`; fecha pasada → `T12:00:00Z` estable sin corrimiento de día).
+- **Infra E2E:** 17 specs muertos ya en `tests/e2e-quarantine/`; `playwright.config.ts` carga
+  `.env`; `signUpCompleteOnboardingAndStartTrial` = `signUp` + `goto('/app')` (gate de
+  onboarding removido en el rebuild greenfield); `final-route-regression.spec.ts` con la lista
+  de rutas canónicas actualizada.
+- **Journeys §39.3 restantes** (import con errores, duplicado, downgrade sin pérdida, IA caída)
+  tienen cobertura a nivel integración/unit; se agregan como E2E cuando se reconstruya cada
+  subsistema (import UI, billing UI, IA cableada).
+- **Verificación:** lint web limpio · typecheck 0 errores · unit 849/849 (+2) · e2e journeys 3/3.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

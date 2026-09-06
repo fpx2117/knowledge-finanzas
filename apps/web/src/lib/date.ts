@@ -25,3 +25,15 @@ export function formatDateInTimezone(date: Date, timeZone?: string): string {
 export function getTodayInTimezone(timeZone?: string): string {
   return formatDateInTimezone(new Date(), timeZone);
 }
+
+/**
+ * Turns a `<input type="date">` value (YYYY-MM-DD, in the user's timezone) into an
+ * instant to persist as `occurredAt`. If the user picked today, the movement happened
+ * "now" — fabricating a fixed noon-UTC timestamp would read as future-dated for anyone
+ * whose wall clock is still before that instant, and the service rejects future dates.
+ * Past dates keep a stable mid-day timestamp so the calendar day never shifts.
+ */
+export function resolveOccurredAtISO(date: string, timeZone?: string): string {
+  if (date === getTodayInTimezone(timeZone)) return new Date().toISOString();
+  return `${date}T12:00:00Z`;
+}

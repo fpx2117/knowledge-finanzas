@@ -1,7 +1,7 @@
 import { and, asc, eq, lte, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { accounts, transactions } from "../schema";
-import { buildLedgerTotalColumns } from "./ledger-totals";
+import { buildAliasedLedgerTotalColumns, buildLedgerTotalColumns } from "./ledger-totals";
 
 export function createAccountBalanceQueries(database: Database) {
   return {
@@ -22,7 +22,7 @@ export function createAccountBalanceQueries(database: Database) {
     getLiquidTotalsForUser(userId: string, options: { includeArchived?: boolean; asOf?: Date } = {}) {
       const movementTotals = database.select({
         accountId: transactions.accountId,
-        ...buildLedgerTotalColumns(),
+        ...buildAliasedLedgerTotalColumns(),
       }).from(transactions)
         .where(and(eq(transactions.userId, userId), eq(transactions.status, "POSTED"), options.asOf ? lte(transactions.occurredAt, options.asOf) : undefined))
         .groupBy(transactions.accountId).as("movement_totals");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateInTimezone, getTodayInTimezone } from "../../apps/web/src/lib/date";
+import { formatDateInTimezone, getTodayInTimezone, resolveOccurredAtISO } from "../../apps/web/src/lib/date";
 
 describe("formatDateInTimezone", () => {
   it("does not shift the calendar day when it's already tomorrow in UTC but still today in a western timezone", () => {
@@ -36,5 +36,23 @@ describe("getTodayInTimezone", () => {
 
   it("defaults to the environment's local timezone when none is given", () => {
     expect(getTodayInTimezone()).toBe(formatDateInTimezone(new Date()));
+  });
+});
+
+describe("resolveOccurredAtISO", () => {
+  it("uses the current instant (not a fabricated noon) when the user picked today", () => {
+    // The transaction service rejects `occurredAt > now`. Fabricating `${today}T12:00:00Z`
+    // reads as future-dated for anyone whose wall clock is still before noon UTC.
+    const before = Date.now();
+    const iso = resolveOccurredAtISO(getTodayInTimezone("UTC"), "UTC");
+    const after = Date.now();
+    const t = new Date(iso).getTime();
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(after);
+  });
+
+  it("keeps a stable mid-day timestamp for a past date so the calendar day never shifts", () => {
+    expect(resolveOccurredAtISO("2026-01-15", "America/Argentina/Buenos_Aires")).toBe("2026-01-15T12:00:00Z");
+    expect(formatDateInTimezone(new Date("2026-01-15T12:00:00Z"), "America/Argentina/Buenos_Aires")).toBe("2026-01-15");
   });
 });

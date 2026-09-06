@@ -6,7 +6,8 @@ import { BarComparisonChart } from "@/components/charts/bar-comparison-chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createReportService } from "@/features/reports/services/report-service";
-import { ExcludedCurrenciesNote, ReportsNav, periodLabel } from "@/features/reports/components/report-shared";
+import { ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { periodLabel } from "@/features/reports/components/report-format";
 
 const service = createReportService();
 const HEAD = "text-caption font-semibold uppercase tracking-wider text-muted-foreground";

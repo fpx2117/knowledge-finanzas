@@ -11,7 +11,8 @@ import { BarComparisonChart } from "@/components/charts/bar-comparison-chart";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createReportService } from "@/features/reports/services/report-service";
-import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav, compactTotal, periodLabel, toSegments } from "@/features/reports/components/report-shared";
+import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { compactTotal, periodLabel, toSegments } from "@/features/reports/components/report-format";
 
 const service = createReportService();
 
