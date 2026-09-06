@@ -11,7 +11,7 @@ subvistas, Insights determinísticos).
 |---|---|---|
 | ~~B-1 Recuperar `docs/00-product-foundation.md`~~ **HECHO 2026-09-03** | Autoridad de precedencia (§1). | Archivo presente; consistente con spec 14; sin ADR de invariantes necesaria. |
 | ~~ADR-IMPL-001 Reconciliación de rutas y naming~~ **HECHO 2026-09-03** | `/app`↔`/dashboard`, `/obligations`↔`/debts`, ES↔EN, transfers separado. | `docs/adr/ADR-IMPL-001` (Accepted): rutas en inglés = spec §8; ejecución en WP-ROUTES-RENAME (P1, temprano). |
-| **Spike Insights** | Saber si hay detectores determinísticos reales o sólo scaffolding IA. | Nota de 1 pág. en `docs/implementation/`. |
+| ~~Spike Insights~~ **HECHO 2026-09-05** | `docs/implementation/12-insights-spike.md`. Hallazgo: scaffolding determinístico OK, pero NO hay motor spec-09 (sin tabla `insights`, sin evidence package, sin gate de suficiencia, sin materialidad, sin lifecycle). El "Financial Health Score" actual viola D-07 → retirar. Plan por incrementos en el spike. |
 | **Spike verificación financiera** | Confirmar atomicidad + presencia/ausencia de idempotency en transfer y debt-payment application services; correr `pnpm finance:audit` + suite integración. | Estado real de T-4 / O-3 / L-6. |
 
 ## Fase A — Integridad del núcleo (CRITICAL, bloquea gates G1/G3)

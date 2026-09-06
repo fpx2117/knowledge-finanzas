@@ -127,7 +127,7 @@ convertirse en work package cerrado.
 
 | Capability | Spec | Code | Status | Risk | Trabajo |
 |---|---|---|---|---|---|
-| Detección determinística con evidence package | §16, CF-09 | `features/insights/services/insight-service.ts` (TASK-038 P3) | UNVERIFIED | ALTO | Auditar si hay detectores reales con evidencia/materialidad/cooldown/dedupe o sólo scaffolding |
+| Detección determinística con evidence package | §16, CF-09 | `features/insights/services/insight-service.ts` | **VERIFICADO (spike 2026-09-05, `docs/implementation/12-insights-spike.md`)** | ALTO | Scaffolding determinístico OK pero NO hay motor spec-09: falta tabla `insights`, evidence package, gate de suficiencia, materialidad, lifecycle. El "health score" actual viola D-07 → retirar. Plan por incrementos en el spike |
 | IA sólo redacta explicación | §17.2 | `packages/ai/.../explain-financial-insight.ts` | IMPLEMENTED (boundary) | — | Verificar que no genera la señal |
 | Lifecycle de insight (open/actuado/cerrado) | §9 | UNVERIFIED | UNVERIFIED | MEDIO | — |
 | `/insights/opportunities`, `/insights/history`, `/insights/:id` | §8 | sólo `/insights` | PARTIAL | UX | 3 rutas |
