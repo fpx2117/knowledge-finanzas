@@ -316,6 +316,13 @@
       "when": 1788658281109,
       "tag": "0044_flat_steel_serpent",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1788668209449,
+      "tag": "0045_ordinary_tomas",
+      "breakpoints": true
     }
   ]
 }

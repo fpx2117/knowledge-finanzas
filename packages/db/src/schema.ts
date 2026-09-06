@@ -1435,6 +1435,28 @@ export const userFinancialProfiles = pgTable("user_financial_profiles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// WP-SETTINGS-MISSING (spec 11 §4) — per-user presentation/behaviour preferences. These NEVER
+// change financial semantics (§4.3): no toggle here can make a transfer count as income, include
+// future income in available money, or sum currencies. One row per user, upserted.
+export const preferenceThemeEnum = pgEnum("preference_theme", ["SYSTEM", "LIGHT", "DARK"]);
+export const preferenceReportPeriodEnum = pgEnum("preference_report_period", ["THIS_MONTH", "LAST_MONTH", "LAST_30_DAYS"]);
+export const preferenceCaptureModeEnum = pgEnum("preference_capture_mode", ["QUICK", "FULL"]);
+
+export const userPreferences = pgTable("user_preferences", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  theme: preferenceThemeEnum("theme").notNull().default("SYSTEM"),
+  defaultReportPeriod: preferenceReportPeriodEnum("default_report_period").notNull().default("THIS_MONTH"),
+  weekStartsOn: integer("week_starts_on").notNull().default(1),
+  showCents: boolean("show_cents").notNull().default(true),
+  compactLargeNumbers: boolean("compact_large_numbers").notNull().default(true),
+  rememberLastAccount: boolean("remember_last_account").notNull().default(true),
+  rememberLastCategory: boolean("remember_last_category").notNull().default(true),
+  captureMode: preferenceCaptureModeEnum("capture_mode").notNull().default("QUICK"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check("user_preferences_week_starts_on_check", sql`${table.weekStartsOn} in (0, 1)`),
+]);
+
 export type User = typeof users.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type Category = typeof categories.$inferSelect;

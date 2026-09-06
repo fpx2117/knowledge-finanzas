@@ -29,6 +29,7 @@ import {
   createRecurringSeriesRepository,
   createSubscriptionRepository,
   createTransactionRepository,
+  createUserPreferencesRepository,
 } from "./repositories";
 
 export const accountRepository = createAccountRepository(db);
@@ -49,3 +50,4 @@ export const budgetAlertRepository = createBudgetAlertRepository(db);
 export const goalRepository = createGoalRepository(db);
 export const goalAllocationRepository = createGoalAllocationRepository(db);
 export const insightRepository = createInsightRepository(db);
+export const userPreferencesRepository = createUserPreferencesRepository(db);

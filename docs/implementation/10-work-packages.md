@@ -801,6 +801,30 @@ el diagnóstico de saldo.
   señales y **no muta ninguna transacción**.
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845, integration WP 2/2.
 
+## WP-SETTINGS-MISSING — Rutas canónicas de Configuración (spec 11 §3/§4/§17)  ·  P2  ·  **PARCIAL (2026-09-06)**
+
+- **`/settings` (hub):** una página que agrupa todas las secciones (Perfil, Preferencias, Privacidad,
+  Suscripción, Categorías, Reglas, Importaciones, Notificaciones, Referidos). Link "Ver todo" +
+  Perfil/Preferencias agregados al `UserMenu`.
+- **`/settings/profile` (§3):** form real sobre `userRepository.updateBasicProfile` — nombre visible,
+  país, zona horaria, idioma, **moneda base de presentación** (con el copy §3.6: "sólo la moneda en
+  la que se muestran los totales — NO convierte ni combina monedas"). Email read-only (cambiarlo es
+  un flujo aparte §3.3, follow-up). Zona horaria con la aclaración §3.5 (no reinterpreta fechas
+  históricas).
+- **`/settings/preferences` (§4):** tabla nueva `user_preferences` (mig `0045_ordinary_tomas.sql`) —
+  `theme` (SYSTEM/LIGHT/DARK), `defaultReportPeriod`, `weekStartsOn` (0|1, con check), `showCents`,
+  `compactLargeNumbers`, `rememberLastAccount`, `rememberLastCategory`, `captureMode` (QUICK/FULL).
+  `createUserPreferencesRepository` (`getForUser` devuelve `DEFAULT_USER_PREFERENCES` si no hay fila,
+  `upsert` mergea). **Ninguna preferencia puede romper un invariante** (§4.3) — un test verifica que
+  ninguna clave contiene "transfer/income/available/currency/balance/sum".
+- **Fuera de alcance (follow-up):** `/settings/security` (sesiones + revocar-otras + cambio de
+  contraseña vía better-auth), cambio de email verificado (§3.3), y **cablear las preferencias a la
+  UI** (hoy se persisten pero `theme`/`defaultReportPeriod`/`showCents` todavía no se consumen — el
+  app no tiene theme provider y `DateSelector` es month-only).
+- **Tests:** `tests/integration/user-preferences.test.ts` (3, Postgres real) — defaults + upsert
+  parcial + `updateBasicProfile` + la regla §4.3.
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845, integration WP 3/3.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

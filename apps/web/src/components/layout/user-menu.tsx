@@ -16,6 +16,8 @@ import {
 import { signOut } from "@/lib/auth/client";
 
 const SETTINGS_LINKS = [
+  { label: "Perfil", href: "/settings/profile" },
+  { label: "Preferencias", href: "/settings/preferences" },
   { label: "Categorías", href: "/settings/categories" },
   { label: "Reglas automáticas", href: "/settings/rules" },
   { label: "Notificaciones", href: "/settings/notifications" },
@@ -66,6 +68,7 @@ export function UserMenu({ name, email, image }: { name: string; email: string; 
         <DropdownMenuLabel className="flex items-center gap-2 text-caption font-normal uppercase tracking-wider text-muted-foreground">
           <SettingsIcon className="size-3.5" /> Configuración
         </DropdownMenuLabel>
+        <DropdownMenuItem render={<Link href="/settings">Ver todo</Link>} />
         {SETTINGS_LINKS.map((link) => (
           <DropdownMenuItem key={link.href} render={<Link href={link.href}>{link.label}</Link>} />
         ))}

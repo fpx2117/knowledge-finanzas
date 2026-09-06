@@ -74,7 +74,7 @@ subvistas, Insights determinísticos).
 | WP | Contenido |
 |---|---|
 | WP-HELP-MODULE | **PARCIAL (2026-09-05):** `/help` (hub + FAQ), `/help/getting-started` (checklist sobre estado real), `/help/troubleshoot` con el **diagnóstico de saldo read-only** (§11, CF-10/PD-011 — detecta pendientes/imports con excepciones/ajustes/fecha futura/anulados/multimoneda, nunca corrige). `/help/{status,contact,about}` como páginas honestas mínimas. Link en el user-menu (no en el sidebar, §2.4). Falta: árboles de diagnóstico de presupuesto/proyección/obligaciones (§12-14), `/help/feedback`, formulario de contacto real. |
-| WP-SETTINGS-MISSING | `/settings/{profile,preferences,security}`; ubicación canónica de imports/plan. |
+| WP-SETTINGS-MISSING | **PARCIAL (2026-09-06):** `/settings` hub + `/settings/profile` (nombre/país/timezone/moneda base/idioma sobre `updateBasicProfile`, con la advertencia §3.6 de que la moneda base no convierte) + `/settings/preferences` (tabla `user_preferences` nueva — tema/período por defecto/semana/mostrar centavos/recordar cuenta-categoría/modo captura; ninguna toggle rompe invariantes §4.3). `imports`/`plan` ya eran canónicas. Falta: `/settings/security` (sesiones+revocar+contraseña, better-auth), cambio de email (§3.3), consumo de las preferencias en la UI. |
 | WP-SHELL-PALETTE | Command palette (navega/inicia flujo, nunca muta — PD-012); search global degradable. |
 | WP-SHELL-403 | Tests 404/403 no filtran existencia (§8.1); deep-link de dialogs route-aware. |
 

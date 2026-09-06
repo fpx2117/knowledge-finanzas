@@ -49,6 +49,7 @@ export { createAdminRoleRepository } from "./admin-roles";
 export { createAuditLogRepository } from "./audit-log";
 export { createAdminOverviewRepository } from "./admin-overview";
 export { createUserRepository } from "./users";
+export { createUserPreferencesRepository, DEFAULT_USER_PREFERENCES, type UserPreferences } from "./user-preferences";
 export { createAICreditRepository } from "./ai-credits";
 export type { AICreditPool, PoolBalances } from "./ai-credits";
 export { createNotificationRepository } from "./notifications";
