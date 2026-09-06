@@ -748,6 +748,33 @@ Precedido por el spike `docs/implementation/12-insights-spike.md`. Alcance elegi
   (protegidas / ya-en-categoría / cambiarían) y el apply retroactivo no toca la corrección manual.
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 843/843, integration WP 2/2.
 
+## WP-AI-WIRE — Cablear IA al flujo (spec 09 §19-20)  ·  P2  ·  **PARCIAL (2026-09-05)**
+
+Alcance elegido: "explicación de insights con IA" (riesgo cero — no toca el ledger).
+
+- **Nueva capability `insight.explain`** (`packages/ai/src/capabilities/insight-explanation/`):
+  `explainInsight(provider, {family, title, body, evidence})` → `{ explanation, caveats? }`. Un
+  solo `generateStructured` role FAST, sin tools, sin loop. El prompt (`buildInsightExplanationPrompt`)
+  ordena: usar SÓLO el evidence package, nunca recomputar/inventar un número, nunca contradecir el
+  `body`, describir toda proyección como proyección, 2-4 oraciones, sin consejo financiero.
+  Registrada en `AI_CAPABILITIES` + `CREDIT_COSTS` (2) + `capability-entitlement-map` (`ai.assistant`).
+- **Wiring app:** `lib/ai/explain-insight.instance.ts` `explainInsightWithAI()` pasa por
+  `executeAICapability` (acceso → entitlement → costo → rate-limit → reserve → execute →
+  commit/release → telemetría — mismas invariantes que las otras capabilities). Nueva action
+  `explainInsightAction` en `insight-actions.ts` (operationId con `randomUUID` para no chocar con
+  la deduplicación de créditos entre clicks).
+- **UI (`/insights/[id]`):** `InsightExplain` — botón "Explicar con IA"; al éxito muestra la
+  explicación en una card marcada "generada con IA · basada en la evidencia de arriba"; al fallo
+  muestra el motivo y aclara que la evidencia sigue disponible. **Fallback determinístico:** el
+  `body` del insight y el evidence package se renderizan siempre, con o sin IA (spec §20 "si falla
+  el LLM, usar plantilla determinística" — acá la plantilla es lo que ya está en pantalla).
+- **Fuera de alcance (follow-up):** `transaction.categorize` / `merchant.normalize` como sugerencia
+  (nunca auto-aplicada) en la cola de `/transactions/pending`.
+- **Tests:** 2 unit (`ai-insight-explanation.test.ts` — el prompt prohíbe recomputar y no
+  contradice el body; `explainInsight` hace un solo call FAST). El test existente "cada capability
+  tiene costo estable" ahora cubre `insight.explain`.
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845 (+2).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

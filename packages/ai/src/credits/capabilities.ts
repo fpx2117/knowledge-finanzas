@@ -8,6 +8,7 @@ export const AI_CAPABILITIES = [
   "cashflow.explain",
   "budget.explain",
   "debt.explain",
+  "insight.explain",
   "action.prepare",
   "scenario.simulate",
   "import.map",

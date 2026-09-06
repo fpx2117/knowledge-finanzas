@@ -96,6 +96,15 @@ export {
 } from "./capabilities/insights";
 
 export {
+  explainInsight,
+  buildInsightExplanationPrompt,
+  INSIGHT_EXPLANATION_PROMPT_VERSION,
+  insightExplanationSchema,
+  type InsightExplanation,
+  type InsightExplanationInput,
+} from "./capabilities/insight-explanation";
+
+export {
   normalizeMerchant,
   DEFAULT_MIN_CONFIDENCE as MERCHANT_NORMALIZATION_DEFAULT_MIN_CONFIDENCE,
   MERCHANT_NORMALIZATION_PROMPT_VERSION,

@@ -12,6 +12,7 @@ const CREDIT_COSTS: Record<AICapability, number> = {
   "cashflow.explain": 2,
   "budget.explain": 2,
   "debt.explain": 2,
+  "insight.explain": 2,
   "action.prepare": 2,
   "assistant.query.complex": 4,
   "scenario.simulate": 4,

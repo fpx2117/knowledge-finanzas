@@ -13,6 +13,7 @@ const AI_CAPABILITY_TO_ENTITLEMENT: Record<AICapability, CapabilityKey> = {
   "cashflow.explain": "ai.assistant",
   "budget.explain": "ai.assistant",
   "debt.explain": "ai.assistant",
+  "insight.explain": "ai.assistant",
   "action.prepare": "ai.actionPreparation",
   "scenario.simulate": "ai.scenarios",
   "import.map": "ai.categorization",

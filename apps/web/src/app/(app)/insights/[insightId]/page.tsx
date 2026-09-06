@@ -9,6 +9,7 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatLongDate } from "@/lib/format";
 import { createInsightService } from "@/features/insights/services/insight-service";
 import { InsightCard } from "@/features/insights/components/insight-card";
+import { InsightExplain } from "@/features/insights/components/insight-explain";
 import { INSIGHT_CONFIDENCE_LABEL, INSIGHT_FAMILY_META } from "@/features/insights/insight-meta";
 import type { InsightEvidence } from "@know-finanzas/finance";
 
@@ -105,6 +106,10 @@ export default async function InsightDetailPage({ params }: { params: Promise<{ 
             ))}
           </p>
         ) : null}
+
+        <div className="mt-3 border-t border-border pt-3">
+          <InsightExplain insightId={insight.id} />
+        </div>
       </SectionCard>
     </div>
   );
