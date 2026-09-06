@@ -48,7 +48,9 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Analytics sin datos financieros sensibles | 14 §34 | `packages/analytics` (Zod `.strict()`) | `AnalyticsService.track` | `analytics_event_log` | — | package tests | IMPLEMENTED |
 | Journeys financieros críticos end-to-end vía UI real | 14 §39.3 | `resolveOccurredAtISO` (`lib/date`) + acciones de captura/transferencia/meta | actions | — | `/transactions/new`, `/transactions/transfers/new`, `/goals/[id]` | `tests/e2e/journeys.spec.ts` (3: gasto→saldo total, transferencia mueve 2 saldos y no es gasto, aporte a meta→progreso+historial) + `date-utility` unit (2) | DONE (2026-09-06; import/duplicado/downgrade/IA-caída → E2E al reconstruir cada subsistema) |
 | Movimiento con fecha "hoy" no se rechaza como futuro | 14 §23, §35 | `resolveOccurredAtISO(date, tz)` — instante actual si es hoy en el huso del usuario | `create-transaction`, `transfer-actions` | — | `/transactions/new`, `/transactions/transfers/new` | `date-utility` unit (2) + journeys e2e | DONE (2026-09-06 — antes `${date}T12:00:00Z` fallaba toda mañana antes de mediodía UTC) |
-| Backup/restore + auditoría de integridad | (tasks 42–44) | `packages/db/audit` | scripts | — | — | `finance-audit`, `recovery-validate` | IMPLEMENTED (local) |
+| Backup/restore + auditoría de integridad | (tasks 42–44) | `packages/db/audit` | scripts | — | — | `finance-audit` (11), `recovery-validate` | IMPLEMENTED (local) |
+| G1: el ledger reconcilia entero (0 diferencias en `finance:audit`) | 14 §39 (G1), §14 | `runFinanceAudit` + servicios reales | — | — | — | `finance-reconciliation` (3: dataset multi-dominio vía servicios reales → 0 findings; reconciliado tras voids) | DONE (2026-09-06, WP-RECONCILIATION) |
+| Money: precisión exacta, settle-once, superficie completa | 14 §4.1, §21 | `packages/finance/src/money` | — | — | — | `finance-money` (18: add/sub/compare/equals/zero/isZero, HALF_UP ±, settle-once, split + guardas, JPY) | DONE (2026-09-06) |
 
 ## Cómo se mantiene
 

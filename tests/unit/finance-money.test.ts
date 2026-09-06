@@ -89,4 +89,49 @@ describe("Money", () => {
       expect(a.subtract(b).amount.isZero()).toBe(true);
     });
   });
+
+  // WP-RECONCILIATION (gate G1): lock down the remaining Money surface so every method that a
+  // financial calculation can reach has an explicit expectation.
+  describe("full surface", () => {
+    it("zero() is the additive identity and formats to the currency scale", () => {
+      expect(Money.zero("USD").toString()).toBe("0.00");
+      expect(Money.zero("JPY").toString()).toBe("0");
+      expect(Money.zero("USD").isZero()).toBe(true);
+      expect(Money.zero("USD").add(Money.fromString("5.00", "USD")).toString()).toBe("5.00");
+    });
+
+    it("equals is currency-aware and value-exact (compares unrounded amounts)", () => {
+      expect(Money.fromString("1.00", "USD").equals(Money.fromString("1.00", "USD"))).toBe(true);
+      expect(Money.fromString("1.00", "USD").equals(Money.fromString("1.00", "ARS"))).toBe(false);
+      // Same settled value, different exact amount → not equal (equals does not round).
+      expect(Money.fromString("1.004", "USD").equals(Money.fromString("1.00", "USD"))).toBe(false);
+    });
+
+    it("rounds half up at the minor-unit boundary, symmetrically for negatives", () => {
+      expect(Money.fromString("2.005", "USD").toString()).toBe("2.01");
+      expect(Money.fromString("-2.005", "USD").toString()).toBe("-2.01");
+      expect(Money.fromString("2.004", "USD").toString()).toBe("2.00");
+    });
+
+    it("formats negative values with the sign and full scale", () => {
+      expect(Money.fromString("10.00", "USD").subtract(Money.fromString("16.75", "USD")).toString()).toBe("-6.75");
+    });
+
+    it("normalises accepted decimal-string forms", () => {
+      expect(Money.fromString("+1.5", "USD").toString()).toBe("1.50");
+      expect(Money.fromString("  1.5  ", "USD").toString()).toBe("1.50");
+      expect(Money.fromString(".5", "USD").toString()).toBe("0.50");
+    });
+
+    it("splits a zero-decimal currency into whole units", () => {
+      const parts = Money.fromPositiveString("100", "JPY").split(3);
+      expect(parts.map((p) => p.toString())).toEqual(["33", "33", "34"]);
+    });
+
+    it("rejects invalid split counts and negative amounts", () => {
+      expect(() => Money.fromPositiveString("100", "USD").split(0)).toThrow("positive integer");
+      expect(() => Money.fromPositiveString("100", "USD").split(2.5)).toThrow("positive integer");
+      expect(() => Money.zero("USD").subtract(Money.fromString("1.00", "USD")).split(2)).toThrow("must not be negative");
+    });
+  });
 });

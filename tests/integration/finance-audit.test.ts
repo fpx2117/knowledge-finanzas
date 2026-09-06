@@ -8,6 +8,8 @@ import {
   debtPaymentAllocations,
   debtPayments,
   debts,
+  goalAllocations,
+  goals,
   scheduledTransactions,
   transactions,
   transfers,
@@ -158,6 +160,50 @@ describe("runFinanceAudit detects each documented corruption class", () => {
 
     const report = await runFinanceAudit(database);
     expect(report.findings).toContainEqual(expect.objectContaining({ check: "scheduled_transaction_posted_link", entityId: scheduledId }));
+  });
+
+  it("flags a POSTED scheduled transaction linked to a transaction owned by a different user", async () => {
+    await seedUsersAndAccounts();
+    const database = getTestDatabase().db;
+
+    // The posted transaction is userB's; the scheduled item claims to be userA's — the unique
+    // index on posted_transaction_id can't express "and it's the same owner".
+    const postedTxId = "30000000-0000-0000-0000-000000000561";
+    const scheduledId = "70000000-0000-0000-0000-000000000561";
+    await database.insert(transactions).values({ id: postedTxId, userId: userB, accountId: accountB, type: "EXPENSE", status: "POSTED", amount: "50", currencyCode: "USD", description: "Gasto de B", occurredAt: new Date("2026-01-25T00:00:00Z"), postedAt: new Date("2026-01-25T00:00:00Z") });
+    await database.insert(scheduledTransactions).values({ id: scheduledId, userId: userA, accountId: accountA, type: "EXPENSE", expectedAmount: "50", currencyCode: "ARS", description: "Gasto programado", scheduledDate: "2026-01-25", status: "POSTED", postedTransactionId: postedTxId });
+
+    const report = await runFinanceAudit(database);
+    expect(report.findings).toContainEqual(expect.objectContaining({ check: "scheduled_transaction_posted_link", entityId: scheduledId }));
+  });
+
+  it("flags a transaction whose category belongs to a different user", async () => {
+    await seedUsersAndAccounts();
+    const database = getTestDatabase().db;
+
+    const categoryB = "80000000-0000-0000-0000-000000000562";
+    const transactionId = "30000000-0000-0000-0000-000000000562";
+    await database.insert(categories).values({ id: categoryB, userId: userB, name: "Cat de B", type: "EXPENSE", parentId: null });
+    // userA's transaction, userA's account (ARS), but categorised with userB's category.
+    await database.insert(transactions).values({ id: transactionId, userId: userA, accountId: accountA, categoryId: categoryB, type: "EXPENSE", status: "POSTED", amount: "50", currencyCode: "ARS", description: "Gasto", occurredAt: new Date("2026-01-15T00:00:00Z"), postedAt: new Date("2026-01-15T00:00:00Z") });
+
+    const report = await runFinanceAudit(database);
+    expect(report.findings).toContainEqual(expect.objectContaining({ check: "transaction_category_ownership", entityId: transactionId }));
+  });
+
+  it("flags a goal allocation whose currency does not match its goal", async () => {
+    await seedUsersAndAccounts();
+    const database = getTestDatabase().db;
+
+    const goalId = "90000000-0000-0000-0000-000000000563";
+    const allocationId = "91000000-0000-0000-0000-000000000563";
+    await database.insert(goals).values({ id: goalId, userId: userA, name: "Meta", category: "OTHER", currencyCode: "ARS", targetAmount: "1000", currentAmount: "100", status: "ACTIVE" });
+    // currency mismatch: goal is ARS, allocation claims USD (and the cache is kept consistent so
+    // only the ownership/currency check should fire).
+    await database.insert(goalAllocations).values({ id: allocationId, userId: userA, goalId, kind: "CONTRIBUTION", amount: "100", currencyCode: "USD", occurredOn: "2026-01-10" });
+
+    const report = await runFinanceAudit(database);
+    expect(report.findings).toContainEqual(expect.objectContaining({ check: "goal_allocation_ownership_currency", entityId: allocationId }));
   });
 
   it("also reports scanned counts alongside findings", async () => {

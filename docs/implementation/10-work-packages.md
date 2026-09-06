@@ -938,6 +938,33 @@ el diagnóstico de saldo.
   borrado en el rebuild) no son gaps accionables hoy. Follow-ups listados ahí.
 - **Verificación:** lint web limpio · typecheck 0 · unit 849/849 · integración 197/197 (+7, 1 skip).
 
+## WP-RECONCILIATION — Gate G1: el ledger reconcilia entero  ·  P1 · FINANCIAL  ·  **DONE (2026-09-06)**
+
+- **`tests/integration/finance-reconciliation.test.ts`** (3 tests). Los WPs anteriores prueban una
+  invariante cada uno en aislamiento; esto prueba que **todo el sistema reconcilia a la vez**:
+  - Un dataset que toca **cada dominio que `finance:audit` valida** (transferencias, pagos de deuda
+    + allocations, cuotas, ownership/moneda de transacción, links de programadas, cache de meta)
+    construido **a través de los servicios reales** — `createTransactionService`,
+    `createTransferService`, `createDebtPaymentService`, `createGoalService` — no filas insertadas
+    a mano. `runFinanceAudit(database).findings` debe ser `[]`, y `scannedCounts` confirma que el
+    dataset efectivamente ejercitó cada dominio (una auditoría silenciosa sobre una DB vacía no
+    prueba nada).
+  - Sigue reconciliado tras `voidForUser` de una transacción y `voidTransfer` de una transferencia
+    (ambas patas pasan a VOIDED juntas).
+  - El cache `goals.current_amount` == Σ firmada de allocations, a la escala de la moneda.
+  - Si algún servicio empieza a escribir un valor derivado/cacheado que deriva de su fuente, este
+    test se pone rojo.
+- **`finance-audit.test.ts` 8 → 11 tests.** Cubre las clases de corrupción que faltaban:
+  scheduled POSTED linkeada a una transacción de otro usuario; transacción con categoría de otro
+  usuario; goal allocation con moneda ≠ la de su meta.
+- **`finance-money.test.ts` 12 → 18 tests.** Cierra la superficie de `Money`: `zero()` como
+  identidad aditiva, `equals` currency-aware y value-exact (no redondea), redondeo HALF_UP
+  simétrico en negativos (`-2.005 → -2.01`), normalización de `+1.5` / `"  1.5  "` / `.5`, split de
+  JPY (0 decimales) en unidades enteras, y las guardas de `split` (parts 0 / no entero / Money
+  negativo). Todas las aserciones pasaron sin tocar `Money` — confirma el comportamiento, no lo
+  cambia.
+- **Verificación:** lint web limpio · typecheck 0 · unit 856/856 (+6) · integración 203/203 (+6, 1 skip).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
