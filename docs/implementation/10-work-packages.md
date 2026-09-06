@@ -911,6 +911,33 @@ el diagnóstico de saldo.
 - **Verificación:** lint web limpio · typecheck 0 · unit 849/849 (+2) · integración balances 26/26
   (+1) · e2e viva 6/6. Commit `34fddfc`.
 
+## WP-SECURITY-SUITE — Suite de seguridad G2 (spec 14 §39.4)  ·  P1 · SECURITY  ·  **DONE (2026-09-06)**
+
+- **Alcance elegido con el usuario:** cerrar el riesgo concreto de integridad financiera (IDOR en
+  los dominios que la suite no tocaba) y **documentar** por qué el resto de G2 no es accionable
+  hoy o dónde ya queda cubierto — no inflar con tests de garantías del framework.
+- **`tests/integration/security-idor-and-concurrency.test.ts` — de 6 a 13 tests.** Nuevo bloque
+  "los dominios agregados después del rebuild son ownership-scoped":
+  - **Metas + `goal_allocations`:** `contribute`/`withdraw`/`getGoalDetail`/`listAllocations`/
+    `archiveGoal` sobre meta ajena → `GOAL_NOT_FOUND`; el `currentAmount` de la víctima nunca se
+    mueve. Además: rechazo de meta ajena = misma forma que meta inexistente (§8.1).
+  - **Reglas de clasificación:** `applyRuleRetroactively`/`previewExistingRule`/`deleteRule`
+    sobre regla ajena → `RULE_NOT_FOUND`; un apply retroactivo propio nunca recategoriza filas de
+    otro usuario (el bulk update es `userId`-scoped en el repo).
+  - **Insights:** `getDetail` nunca devuelve el insight ajeno; `dismiss`/`resolve` no cambian su
+    estado (WHERE con `and(eq(id), eq(userId))` → 0 filas actualizadas).
+  - **Editar/anular transacción:** `editTransaction`/`voidTransaction` sobre txn ajena →
+    `TRANSACTION_NOT_FOUND`; la fila queda intacta.
+  - **Import CSV:** `commitImport` a cuenta ajena → `ACCOUNT_NOT_FOUND`, cero transacciones
+    escritas (ni para el atacante ni para la víctima).
+- **`docs/implementation/13-security-g2-coverage.md`** (nuevo): tabla de qué cubre la suite IDOR +
+  por qué CSV-export (no existe ninguna ruta de export en la app), XSS (React escapa; 0
+  `dangerouslySetInnerHTML` en `apps/web/src`), CSRF (better-auth valida Origin/Referer + Server
+  Actions rechazan cross-origin), rate limits (`executeAICapability` + tests de `packages/ai`),
+  session (better-auth), webhook spoofing (`packages/billing`) y escalación admin (subsistema
+  borrado en el rebuild) no son gaps accionables hoy. Follow-ups listados ahí.
+- **Verificación:** lint web limpio · typecheck 0 · unit 849/849 · integración 197/197 (+7, 1 skip).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

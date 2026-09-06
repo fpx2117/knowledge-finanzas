@@ -176,7 +176,8 @@ convertirse en work package cerrado.
 | Notifications center | 13 | `/notifications` + `/api/notifications/stream` (SSE) | IMPLEMENTED | — | — |
 | Billing gates informativos + backend enforce | §28.1 | `ProductAccessResolver`, layout guard | PARTIAL | SECURITY | Verificar cada escritura premium gateada server-side |
 | Feature flags | 13 | `config` capability flags | PARTIAL | — | — |
-| 404/403 sin filtrar existencia | §8.1, §26 | UNVERIFIED | UNVERIFIED | SECURITY | Test IDOR de rutas |
+| 404/403 sin filtrar existencia | §8.1, §26 | DONE (2026-09-06, WP-SHELL-403) | DONE | SECURITY | `resourceIdOr404` + IDOR integ (metas prueba forma idéntica no-tuyo/no-existe) |
+| Suite de seguridad G2 (§39.4) | §39.4 | DONE / DOCUMENTADO (2026-09-06, WP-SECURITY-SUITE) | DONE | SECURITY | IDOR 13 tests (todos los dominios de escritura); resto de G2 en `13-security-g2-coverage.md` |
 | Onboarding gate | 13 | `(app)/layout` + `resolveOnboardingGate` | IMPLEMENTED | — | — |
 
 ## Blockers (ver también 09-implementation-roadmap §0)
