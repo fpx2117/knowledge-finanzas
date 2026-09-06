@@ -39,7 +39,7 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Cambio de timezone no reescribe históricos | 14 §23.2, CM-12 | `dates/timezone` | settings action | — | `/settings/preferences` (✗) | ✗ | UNVERIFIED |
 | Módulo Ayuda + diagnóstico read-only | 14 §8 (12), CF-10, PD-011 / spec 12 §11 | `help-service` + `help-diagnostics` queries | help-service | — | `/help/*` | `help-balance-diagnostic` integ (2, read-only probado) | PARTIAL (diagnóstico de saldo; presupuesto/proyección follow-up) |
 | Command palette sin mutación financiera | 14 §24, PD-012 / spec 13 §15 | `features/shell/components/command-palette` | `searchEntitiesAction` (read-only) | — | `Cmd+K` global | `command-palette-search` integ (3) | DONE (2026-09-06) |
-| 404/403 no filtran existencia | 14 §8.1, §26 | route loaders | — | — | `(app)/**` | ✗ | UNVERIFIED |
+| 404/403 no filtran existencia | 14 §8.1, §26 / spec 13 §8.1 | `lib/http/resource-id.ts` `resourceIdOr404` en las 8 páginas de detalle | — | — | `(app)/**/[id]` | `resource-id-or-404` unit (2) + IDOR integ | DONE (2026-09-06) |
 | Ownership server-side en toda lectura/escritura | 14 §4.14–15, §26 | `packages/shared/permissions` | `requireCurrentUser` + services | — | todas | `security-idor-and-concurrency` (6 dominios) | PARTIAL |
 | Entitlement server-side; downgrade sin pérdida | 14 §28 | `ProductAccessResolver` | `(app)/layout` guard | `billing_subscriptions` | shell / `/settings/billing` | package tests | PARTIAL |
 | Redirect de checkout no confirma pago | 14 §28, PD-015 | `packages/billing` webhooks | `/api/webhooks/mercadopago` | `billing_webhook_events` | `/billing/return` | package tests | IMPLEMENTED |

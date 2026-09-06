@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { resourceIdOr404 } from "@/lib/http/resource-id";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 
 import { accountRepository } from "@know-finanzas/db";
@@ -17,7 +18,8 @@ import { TransferActions } from "@/features/transfers/components/transfer-action
 const service = createTransferService();
 
 export default async function TransferDetailPage({ params }: { params: Promise<{ transferId: string }> }) {
-  const { transferId } = await params;
+  const { transferId: transferIdParam } = await params;
+  const transferId = resourceIdOr404(transferIdParam);
   const user = await requireCurrentUser();
 
   let aggregate: Awaited<ReturnType<typeof service.getTransfer>>;

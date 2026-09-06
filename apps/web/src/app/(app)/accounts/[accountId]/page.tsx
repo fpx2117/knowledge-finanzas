@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { resourceIdOr404 } from "@/lib/http/resource-id";
 
 import { accountRepository, createActivityQueries, db } from "@know-finanzas/db";
 import { Money } from "@know-finanzas/finance";
@@ -37,7 +38,8 @@ const ACTIVITY_KIND: Record<string, TxnKind> = {
 };
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ accountId: string }> }) {
-  const { accountId } = await params;
+  const { accountId: accountIdParam } = await params;
+  const accountId = resourceIdOr404(accountIdParam);
   const user = await requireCurrentUser();
 
   let account;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { resourceIdOr404 } from "@/lib/http/resource-id";
 
 import { accountRepository, categoryRepository, transactionRepository } from "@know-finanzas/db";
 
@@ -15,7 +16,8 @@ import { explainClassification } from "@/features/transactions/lib/explain-class
 import { toEditableAmount } from "@/features/capture/lib/amount-text";
 
 export default async function TransactionDetailPage({ params }: { params: Promise<{ transactionId: string }> }) {
-  const { transactionId } = await params;
+  const { transactionId: transactionIdParam } = await params;
+  const transactionId = resourceIdOr404(transactionIdParam);
   const user = await requireCurrentUser();
 
   const transaction = await transactionRepository.findByIdForUser(transactionId, user.id);

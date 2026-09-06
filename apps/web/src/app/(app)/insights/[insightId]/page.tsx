@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { resourceIdOr404 } from "@/lib/http/resource-id";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -30,7 +31,8 @@ const METRIC_LABEL: Record<string, string> = {
 };
 
 export default async function InsightDetailPage({ params }: { params: Promise<{ insightId: string }> }) {
-  const { insightId } = await params;
+  const { insightId: insightIdParam } = await params;
+  const insightId = resourceIdOr404(insightIdParam);
   const user = await requireCurrentUser();
   const insight = await service.getDetail(user, insightId);
   if (!insight) notFound();

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { resourceIdOr404 } from "@/lib/http/resource-id";
 import { ArrowLeftIcon, CalendarIcon } from "lucide-react";
 
 import { todayInTimezone } from "@know-finanzas/finance";
@@ -26,7 +27,8 @@ const STATUS_META: Record<GoalDetail["status"], { label: string; tone: ChipTone 
 };
 
 export default async function GoalDetailPage({ params }: { params: Promise<{ goalId: string }> }) {
-  const { goalId } = await params;
+  const { goalId: goalIdParam } = await params;
+  const goalId = resourceIdOr404(goalIdParam);
   const user = await requireCurrentUser();
   const today = todayInTimezone(new Date(), user.timezone);
 

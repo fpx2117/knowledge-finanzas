@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { accountRepository } from "@know-finanzas/db";
 import { isApplicationError } from "@know-finanzas/shared";
 
+import { resourceIdOr404 } from "@/lib/http/resource-id";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatusChip, type ChipTone } from "@/components/shared/status-chip";
@@ -34,14 +36,17 @@ const INSTALLMENT_STATUS: Record<string, { label: string; tone: ChipTone }> = {
 
 const HEAD = "text-caption font-semibold uppercase tracking-wider text-muted-foreground";
 
-export default async function DebtDetailPage({ params }: { params: Promise<{ debtId: string }> }) {
-  const { debtId } = await params;
+export default async function DebtDetailPage({ params }: { params: Promise<{ obligationId: string }> }) {
+  const { obligationId } = await params;
+  const debtId = resourceIdOr404(obligationId);
   const user = await requireCurrentUser();
 
   let debt;
   try {
     debt = await service.getDebtDetail(user, debtId);
   } catch (error) {
+    // §8.1 — "isn't yours" and "doesn't exist" both render a plain 404 (getDebtDetail throws
+    // INVALID_INPUT for a debt that isn't in the caller's own set), never a 403.
     if (isApplicationError(error) && error.code === "INVALID_INPUT") notFound();
     throw error;
   }

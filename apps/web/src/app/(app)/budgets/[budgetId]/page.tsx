@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { resourceIdOr404 } from "@/lib/http/resource-id";
 
 import { budgetRepository, categoryRepository, createBudgetQueries, db } from "@know-finanzas/db";
 import { isApplicationError } from "@know-finanzas/shared";
@@ -28,7 +29,8 @@ const STATUS_META = {
 };
 
 export default async function BudgetDetailPage({ params }: { params: Promise<{ budgetId: string }> }) {
-  const { budgetId } = await params;
+  const { budgetId: budgetIdParam } = await params;
+  const budgetId = resourceIdOr404(budgetIdParam);
   const user = await requireCurrentUser();
 
   let detail;

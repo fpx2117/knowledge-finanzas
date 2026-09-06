@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { resourceIdOr404 } from "@/lib/http/resource-id";
 
 import { todayInTimezone } from "@know-finanzas/finance";
 import { isApplicationError } from "@know-finanzas/shared";
@@ -11,7 +12,8 @@ import { createGoalService, type GoalDetail } from "@/features/goals/services/go
 const service = createGoalService();
 
 export default async function EditGoalPage({ params }: { params: Promise<{ goalId: string }> }) {
-  const { goalId } = await params;
+  const { goalId: goalIdParam } = await params;
+  const goalId = resourceIdOr404(goalIdParam);
   const user = await requireCurrentUser();
   const today = todayInTimezone(new Date(), user.timezone);
 

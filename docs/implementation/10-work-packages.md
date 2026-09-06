@@ -847,6 +847,28 @@ el diagnóstico de saldo.
   <2 chars.
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 845/845, integration WP 3/3.
 
+## WP-SHELL-403 — 404/403 no filtran existencia (spec 13 §8.1 / §26)  ·  P2 · SECURITY  ·  **DONE (2026-09-06)**
+
+- **Principio (§8.1):** una ruta de recurso responde igual a "no existe", "no es tuyo" y "id
+  malformado" — un 404 plano, nunca un 403 (que confirmaría que el recurso existe) ni un 500.
+- **`resourceIdOr404(id)`** (`apps/web/src/lib/http/resource-id.ts`): valida que el param sea un
+  UUID; si no, `notFound()`. Las 8 páginas de detalle lo llaman sobre el param crudo ANTES de
+  tocar cualquier servicio, así que `/transactions/xxx` rinde 404 en vez de un error de Postgres
+  (`invalid input syntax for type uuid`).
+- **Aplicado a:** `accounts/[accountId]`, `budgets/[budgetId]`, `goals/[goalId]` (+ `/edit`),
+  `transactions/[transactionId]`, `transactions/transfers/[transferId]`, `insights/[insightId]`,
+  `obligations/[obligationId]`. Todas ya caían en `notFound()` para "no encontrado" vía el catch
+  de `*_NOT_FOUND` / `INVALID_INPUT` (que los servicios lanzan igual para no-existe y no-tuyo).
+- **Bug corregido de paso:** `/obligations/[obligationId]/page.tsx` destructuraba `params.debtId`
+  (nombre del segmento antiguo, `undefined` tras WP-ROUTES-RENAME) → `getDebtDetail(user, undefined)`
+  → toda página de obligación daba 404. Ahora lee `obligationId`.
+- **`not-found.tsx`** ya es genérico ("Esta página no existe") — no filtra qué recurso faltaba.
+- **Tests:** `tests/unit/resource-id-or-404.test.ts` (2 — UUID válido pasa; malformado/vacío/
+  inyección → 404) + un caso nuevo en `security-idor-and-concurrency.test.ts` (el detalle de
+  obligación rechaza la deuda de otro user con la MISMA forma que una inexistente → misma 404).
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 847/847 (+2). Fase G
+  cerrada (4/4).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

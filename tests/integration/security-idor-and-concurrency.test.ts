@@ -5,6 +5,7 @@ import { createDebtRepository } from "../../packages/db/src/repositories/debts";
 import { createBudgetRepository } from "../../packages/db/src/repositories/budgets";
 import { createCategoryRepository } from "../../packages/db/src/repositories/categories";
 import { createDebtPaymentService } from "../../apps/web/src/features/debts/services/debt-payment-service";
+import { createDebtService } from "../../apps/web/src/features/debts/services/debt-service";
 import { createTransferService } from "../../apps/web/src/features/transfers/services/transfer-service";
 import { accounts, debtInstallments, debtPaymentAllocations, debtPayments, debts, users } from "../../packages/db/src/schema";
 import { getTestDatabase } from "../support/postgres-test-setup";
@@ -47,6 +48,17 @@ describe("IDOR: cross-user access is denied at every ownership-scoped boundary",
 
     await expect(repository.findByIdForUser(debtB, userA)).resolves.toBeUndefined();
     await expect(repository.findByIdForUser(debtA, userA)).resolves.toMatchObject({ id: debtA });
+  });
+
+  it("the obligation detail service rejects another user's debt the same way it rejects a missing one (§8.1 — page renders 404, not 403)", async () => {
+    await seedTwoUsersWithAccountsAndDebts();
+    const service = createDebtService(getTestDatabase().db);
+
+    const notYours = await service.getDebtDetail({ id: userA, timezone: "UTC" }, debtB).catch((e) => e);
+    const missing = await service.getDebtDetail({ id: userA, timezone: "UTC" }, "40000000-0000-0000-0000-0000000009ff").catch((e) => e);
+    expect(notYours).toMatchObject({ code: "INVALID_INPUT" });
+    expect(missing).toMatchObject({ code: "INVALID_INPUT" }); // identical shape → identical 404
+    expect(await service.getDebtDetail({ id: userA, timezone: "UTC" }, debtA)).toMatchObject({ id: debtA });
   });
 
   it("recording a debt payment against another user's debt is rejected, not silently redirected to the caller's own debt", async () => {
