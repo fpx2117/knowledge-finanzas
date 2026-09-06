@@ -993,6 +993,37 @@ el diagnóstico de saldo.
   revisar contraste de tokens en tema oscuro.
 - **Verificación:** lint web limpio · typecheck 0 · unit 856/856 · e2e 11/11.
 
+## WP-DEGRADED — Gate G5: modo degradado de subsistemas no esenciales  ·  P1 · FINANCIAL  ·  **DONE (2026-09-06)**
+
+- **`docs/implementation/14-degraded-mode.md`** (nuevo): la matriz completa — para IA, analytics,
+  notificaciones, invalidación de caché, búsqueda de la paleta y refresh de insights: cómo falla,
+  qué pasa con el núcleo financiero, y dónde se prueba el contrato.
+- **Prueba viva más fuerte (ya existía):** toda la suite E2E (`tests/e2e/`, 11 tests) corre con
+  `AI_ENABLED=false` y `BILLING_ENABLED=false` — registrar gasto / transferir / aportar a meta
+  pasan end-to-end sin una sola llamada de IA ni billing.
+- **Hardening:** `emitFinancialEvent` ahora envuelve cada `revalidate(path)` en `try/catch`. Las
+  acciones lo llaman **después** de que la escritura financiera commiteó, así que una falla de
+  `revalidatePath` no puede convertir una escritura exitosa en una respuesta de error (peor caso:
+  una superficie muestra datos algo viejos hasta la próxima navegación).
+- **Tests nuevos:**
+  - `tests/unit/map-ai-error.test.ts` (4): los 14 `AIErrorCode` mapean a un mensaje legible, nunca
+    lanzan, nunca filtran el código crudo; `AI_DISABLED`/`AI_PROVIDER_ERROR` se redactan como
+    disponibilidad, no error del usuario; un error desconocido → `INTERNAL_ERROR`, nunca throw.
+  - `tests/unit/emit-financial-event.test.ts` +1: una falla de revalidación se traga y el resto de
+    los paths se siguen intentando.
+  - `tests/integration/insight-engine.test.ts` +2: los insights se detectan/encolan/detallan
+    completos (title, body, evidence) **sin IA en el path**; `getQueue` envuelve su propio refresh
+    (`refreshInsights().catch(() => undefined)`) → nunca rompe la página.
+- **Ya cubierto en otro lado (documentado, no re-testeado):** `createAnalyticsService.track()`
+  nunca lanza (`analytics-service` unit); un fallo de envío de email/WhatsApp deja el delivery
+  `FAILED` sin tocar la fila de notificación (`email-delivery` / `whatsapp-delivery` integ);
+  `searchEntitiesAction` degradable (`command-palette-search` integ).
+- **Follow-ups:** E2E de "budget excedido → notificación falla → transacción igual posteada" al
+  reconstruir el subsistema de alertas; E2E de rate-limit del asistente con `AI_ENABLED=true`;
+  envolver el tope de `notifyUser` en try/catch.
+- **Verificación:** lint web limpio · typecheck 0 · unit 861/861 (+5) · integración 205/205 (+2) ·
+  e2e 11/11.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

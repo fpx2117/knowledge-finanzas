@@ -34,4 +34,15 @@ describe("emitFinancialEvent", () => {
     const calls = revalidate.mock.calls.map(([path]) => path);
     expect(calls).toEqual(expect.arrayContaining(["/obligations", "/transactions", "/accounts", "/budgets", "/app"]));
   });
+
+  // Gate G5: the action calls this after the write has committed, so a revalidation failure must
+  // never propagate — it would turn a successful financial write into an error response.
+  it("swallows a revalidation failure and still tries every other path", () => {
+    const revalidate = vi.fn((path: string) => {
+      if (path === "/accounts") throw new Error("revalidate unavailable");
+    });
+    expect(() => emitFinancialEvent({ type: "transaction.created" }, revalidate)).not.toThrow();
+    const calls = revalidate.mock.calls.map(([path]) => path);
+    expect(calls).toEqual(expect.arrayContaining(["/transactions", "/accounts", "/budgets", "/app", "/calendar"]));
+  });
 });

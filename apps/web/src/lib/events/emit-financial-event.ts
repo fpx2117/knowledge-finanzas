@@ -79,5 +79,16 @@ export type EmitFinancialEventInput = {
 
 export function emitFinancialEvent(input: EmitFinancialEventInput, revalidate: (path: string) => void = revalidatePath) {
   const paths = new Set<string>([...PATHS_BY_EVENT[input.type], ...(input.entityPaths ?? [])]);
-  for (const path of paths) revalidate(path);
+  // Cache invalidation is a non-essential side effect (gate G5): actions call this *after* the
+  // financial write has already committed, so a revalidation failure must never turn a successful
+  // write into an error response. Worst case, one surface shows slightly stale data until the next
+  // navigation refreshes it — the same failure mode the old hand-rolled `revalidatePath` lists had
+  // when they missed a path.
+  for (const path of paths) {
+    try {
+      revalidate(path);
+    } catch {
+      // swallow — see above
+    }
+  }
 }

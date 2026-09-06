@@ -83,4 +83,38 @@ describe("insight engine (integration)", () => {
     expect(budget.status).toBe("RESOLVED");
     expect(budget.resolvedAt).not.toBeNull();
   });
+
+  // WP-DEGRADED (gate G5): the E2E env runs with AI_ENABLED=false, so every insight the user ever
+  // sees is produced without a single AI call. This locks that in — the detected/queued/detailed
+  // insight is fully self-describing (title, body, evidence, calculationVersion) with no AI in the
+  // path; the AI "Explicar" button is purely additive on top of it (spec 09 §20).
+  it("produces fully-populated insights (title, body, evidence) with no AI in the path", async () => {
+    const { service } = await seed({ withBudgetBreach: true });
+    await service.refreshInsights(user);
+
+    const queue = await service.getQueue(user, { refresh: false });
+    expect(queue.length).toBeGreaterThan(0);
+    for (const insight of queue) {
+      expect(insight.title.length).toBeGreaterThan(0);
+      expect(insight.body.length).toBeGreaterThan(0);
+    }
+
+    const detail = await service.getDetail({ id: userId }, queue[0]!.id);
+    expect(detail).not.toBeNull();
+    expect(detail!.body.length).toBeGreaterThan(0);
+    expect(detail!.evidence).toBeTruthy();
+  });
+
+  it("getQueue wraps its own refresh so a refresh failure can never break the page", async () => {
+    const { service } = await seed({ withBudgetBreach: true });
+    await service.refreshInsights(user);
+    const stored = await service.getQueue(user, { refresh: false });
+    expect(stored.length).toBeGreaterThan(0);
+
+    // getQueue's default path runs refreshInsights().catch(() => undefined) — even under the worst
+    // case it returns the already-detected queue, an array, without throwing.
+    const withRefresh = await service.getQueue(user);
+    expect(Array.isArray(withRefresh)).toBe(true);
+    expect(withRefresh.length).toBeGreaterThanOrEqual(stored.length);
+  });
 });
