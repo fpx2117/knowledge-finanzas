@@ -213,6 +213,87 @@ export function createTransactionRepository(database: Database) {
     },
 
     /** Assign (or change) a category on a posted transaction — from the inbox / manual review. */
+    /**
+     * WP-RULES-PREVIEW (spec 11 §6.8/§6.9/§6.10) — POSTED income/expense transactions whose
+     * merchant/description matches a rule's pattern. §6.10: a manual correction wins, so rows
+     * with `classification.reviewedByUser = true` are excluded (they're returned separately as
+     * `protectedByManual` for the preview count, via `includeProtected`).
+     */
+    listMatchingRulePatternForUser(
+      userId: string,
+      input: {
+        matcher: "MERCHANT" | "DESCRIPTION";
+        mode: "CONTAINS" | "EQUALS" | "STARTS_WITH";
+        pattern: string;
+        from?: Date;
+      },
+    ) {
+      const needle = input.pattern.trim().toLowerCase();
+      const field = input.matcher === "MERCHANT" ? sql`lower(coalesce(${transactions.merchant}, ''))` : sql`lower(${transactions.description})`;
+      const escaped = needle.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+      const likePattern =
+        input.mode === "EQUALS" ? escaped : input.mode === "STARTS_WITH" ? `${escaped}%` : `%${escaped}%`;
+      const matches = input.mode === "EQUALS" ? sql`${field} = ${needle}` : sql`${field} like ${likePattern}`;
+
+      return database
+        .select({
+          id: transactions.id,
+          type: transactions.type,
+          description: transactions.description,
+          merchant: transactions.merchant,
+          amount: transactions.amount,
+          currencyCode: transactions.currencyCode,
+          categoryId: transactions.categoryId,
+          occurredAt: transactions.occurredAt,
+          reviewedByUser: sql<boolean>`coalesce((${transactions.classification} ->> 'reviewedByUser') = 'true', false)`,
+        })
+        .from(transactions)
+        .where(and(
+          eq(transactions.userId, userId),
+          eq(transactions.status, "POSTED"),
+          inArray(transactions.type, ["INCOME", "EXPENSE"]),
+          matches,
+          input.from ? gte(transactions.occurredAt, input.from) : undefined,
+        ))
+        .orderBy(desc(transactions.occurredAt));
+    },
+
+    /** Bulk-apply a rule's category to already-posted rows (not user-reviewed). Records the
+     * `user_rule` provenance so "¿Por qué esta categoría?" stays accurate and a later manual
+     * edit still wins. */
+    applyRuleCategoryForUser(
+      userId: string,
+      transactionIds: string[],
+      input: { categoryId: string; taxonomyNodeId: string | null; ruleId: string; matcher: string; mode: string; pattern: string },
+    ) {
+      if (transactionIds.length === 0) return Promise.resolve(0);
+      const patch = JSON.stringify({
+        method: "user_rule",
+        reviewedByUser: false,
+        categoryConfidence: 1,
+        ruleId: input.ruleId,
+        ruleMatcher: input.matcher,
+        ruleMode: input.mode,
+        rulePattern: input.pattern,
+        automationLevel: "retroactive",
+      });
+      return database
+        .update(transactions)
+        .set({
+          categoryId: input.categoryId,
+          taxonomyNodeId: input.taxonomyNodeId,
+          classification: sql`coalesce(${transactions.classification}, '{}'::jsonb) || ${patch}::jsonb`,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(transactions.userId, userId),
+          inArray(transactions.id, transactionIds),
+          eq(transactions.status, "POSTED"),
+        ))
+        .returning({ id: transactions.id })
+        .then((rows) => rows.length);
+    },
+
     setCategoryForUser(transactionId: string, userId: string, categoryId: string, taxonomyNodeId: string | null) {
       return database
         .update(transactions)

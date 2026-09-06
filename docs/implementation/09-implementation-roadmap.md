@@ -66,7 +66,7 @@ subvistas, Insights determinísticos).
 |---|---|
 | ~~WP-INSIGHT-DETECTORS~~ **DONE (2026-09-05)** | Núcleo puro en `@know-finanzas/finance/insights` (evidence package §9, `assessMateriality` §23, `reconcileInsights` §8/§17/§18, `insightPriorityScore` §8). Tabla `insights` (mig 0044) + lifecycle + cooldown por familia. 4 detectores (INS-BUDGET-LIMIT, INS-GOAL-PACE, INS-CASH-RISK, INS-DATA-QUALITY) que reusan budget/goal/dashboard services. **Health score retirado** (D-07). `/insights` = cola priorizada; `/insights/[id]` = evidence package ("¿Por qué veo esto?"); `/insights/history` (§13). Feedback §16. 8 unit + 3 integration. |
 | WP-INSIGHT-UI | `/insights/{opportunities,history,:id}`; estado vacío válido sin inventar (§17.3). |
-| WP-RULES-PREVIEW | Reglas personales: preview + impacto calculable antes de aplicar retroactivo (§42). |
+| ~~WP-RULES-PREVIEW~~ **DONE (2026-09-05)** | `previewRule()` (§6.8 — "coincidiría con N movimientos" + muestra) + `applyRuleRetroactively()` con ventana explícita NONE/LAST_30/LAST_90/ALL (§6.9). §6.10: nunca toca una corrección manual (`classification.reviewedByUser`). Provenance `user_rule` (una edición manual posterior sigue ganando). Form con paso de previsualización. 2 integration tests. Follow-up: audit-log §6.11. |
 | WP-AI-WIRE | Cablear `packages/ai` capabilities (`transaction.categorize`, `merchant.normalize`, `explain-financial-insight`) al flujo, con fallback probado (core anda sin IA). |
 
 ## Fase G — Plataforma: Ayuda + Shell completo

@@ -34,7 +34,7 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Insights determinísticos con evidence package | 14 §16, CF-09 | `@know-finanzas/finance/insights` + `insights` tabla + `detectors.ts` | insight-service (reescrito) | tabla `insights` + lifecycle + cooldown | `/insights`, `/insights/[id]`, `/insights/history` | 8 unit + 3 integration | **DONE (2026-09-05)** |
 | IA sólo explica, no genera señal ni escribe | 14 §17 | `packages/ai` capabilities | ai services | `ai_credit_*` | — | package tests | IMPLEMENTED |
 | Core funciona con IA caída | 14 §13, §29 | boundary IA | — | — | — | ✗ degraded-mode | UNVERIFIED |
-| Reglas personales prevalecen + preview de impacto | 14 §4.9, §42, CM-10 | classification | classification-rule-actions | `user_classification_rules` | `/settings/rules` | — | PARTIAL |
+| Reglas personales prevalecen + preview de impacto | 14 §4.9, §42, CM-10 / spec 11 §6.8-6.10 | `classification-rule-service` (`previewRule`/`applyRuleRetroactively`) | classification-rule-actions | `user_classification_rules` | `/settings/rules` | `rule-preview` integ (2) | DONE (2026-09-05, audit-log §6.11 pendiente) |
 | Calendario: capas semánticas + timezone | 14 §20, §23, PD-008 / spec 06 §5 | `finance/dates`, `calendar-service.CalendarLayer` | calendar service | — | `/calendar` | `calendar-layers` integ + `finance-dates` DST | DONE (2026-09-05, Agenda/Día son follow-up UI) |
 | Cambio de timezone no reescribe históricos | 14 §23.2, CM-12 | `dates/timezone` | settings action | — | `/settings/preferences` (✗) | ✗ | UNVERIFIED |
 | Módulo Ayuda + diagnóstico read-only | 14 §8 (12), CF-10, PD-011 | — | — | — | — | — | MISSING |

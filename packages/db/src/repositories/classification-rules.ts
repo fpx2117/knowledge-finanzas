@@ -57,6 +57,15 @@ export function createClassificationRuleRepository(database: Database) {
         .then(([row]) => row);
     },
 
+    findByIdForUser(ruleId: string, userId: string) {
+      return database
+        .select()
+        .from(userClassificationRules)
+        .where(and(eq(userClassificationRules.id, ruleId), eq(userClassificationRules.userId, userId)))
+        .limit(1)
+        .then(([row]) => row);
+    },
+
     deleteForUser(ruleId: string, userId: string) {
       return database
         .delete(userClassificationRules)

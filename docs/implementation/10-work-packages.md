@@ -725,6 +725,29 @@ Precedido por el spike `docs/implementation/12-insights-spike.md`. Alcance elegi
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 843/843 (+8), integration
   del WP 3/3 + finance-audit/goal/budget sin regresión.
 
+## WP-RULES-PREVIEW — Reglas personales: preview + retroactivo (spec 11 §6.8-6.10)  ·  P2  ·  **DONE (2026-09-05)**
+
+- **§6.8 — simulación antes de guardar:** `classificationRuleService.previewRule(userId, ruleShape,
+  {window})` → `{ eligibleCount, protectedByManual, alreadyInCategory, wouldChange, sample[] }`.
+  El form (`rule-new-form.tsx`) gana un botón "Previsualizar" que muestra "recategorizaría N
+  movimientos" + una muestra de hasta 8 filas, antes de guardar.
+- **§6.9 — aplicación retroactiva explícita:** `<select>` NONE / LAST_30 / LAST_90 / ALL. Al crear
+  la regla con una ventana ≠ NONE, `applyRuleRetroactively()` hace el bulk-update y devuelve el
+  conteo; el form lo confirma ("se recategorizaron N movimientos anteriores").
+- **§6.10 — la corrección manual gana:** tanto el preview como el apply excluyen filas con
+  `classification.reviewedByUser = true` (contadas aparte como `protectedByManual`). El apply
+  registra provenance `method: "user_rule", reviewedByUser: false` — una edición manual posterior
+  vuelve a marcar `reviewedByUser: true` y la protege.
+- **Query nueva** (`repositories/transactions.ts`): `listMatchingRulePatternForUser` (ILIKE
+  escapado por modo CONTAINS/EQUALS/STARTS_WITH sobre `lower(merchant)` / `lower(description)`,
+  POSTED, INCOME/EXPENSE, ventana opcional) + `applyRuleCategoryForUser` (bulk, resuelve
+  `taxonomyNodeId` vía `categoryMap.resolveNodeForUserCategory`). `classification-rules` repo gana
+  `findByIdForUser`.
+- **Fuera de alcance (follow-up):** audit-log de creación/edición/aplicación retroactiva (§6.11).
+- **Tests:** `tests/integration/rule-preview.test.ts` (2, Postgres real) — el preview cuenta bien
+  (protegidas / ya-en-categoría / cambiarían) y el apply retroactivo no toca la corrección manual.
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 843/843, integration WP 2/2.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
