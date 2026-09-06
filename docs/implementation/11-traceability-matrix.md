@@ -16,11 +16,11 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Anti doble conteo obligación pagada | 14 §14.1 | `finance/debt`, `calculateSpendable`, `dashboard-service` | `createDebtPaymentService`, `getDashboardSummary` | `debt_payments`, `debt_payment_allocations` | `/debts/*`, `/dashboard` | `anti-double-count` integ (4, wiring real) + `debt-payment-idempotency` integ (4, bajo retry/carrera) | IMPLEMENTED |
 | Ingresos futuros no aumentan disponible | 14 §11, PD-014 | `calculateSpendable` | dashboard service | — | `/dashboard` | unit | IMPLEMENTED |
 | Metas no reducen disponible V1 | 14 §15, PD-007 | `calculateSpendable` (`reservedAmount` ≠ metas) | goal-service | `goals` | `/goals/*` | unit | IMPLEMENTED |
-| Progreso de meta derivado de asignaciones | 14 §15 | `features/goals` | goal-actions | `goals.currentAmount` **mutable**, sin `goal_allocations` | `/goals/[goalId]` | — | PARTIAL |
-| Aporte a meta no es gasto | 14 CM-08 | goal-service | goal-actions | — | — | ✗ | UNVERIFIED |
-| Presupuesto: transferencias no consumen | 14 §13 | `classifyLedgerEffect` (transfer→consumo 0) | budget service | `budgets` | `/budgets` | ✗ query real | UNVERIFIED |
-| Presupuesto: pago de deuda no re-consume | 14 §13 | ledger classification | budget service | — | `/budgets` | ✗ | UNVERIFIED |
-| Refund reduce consumo por vínculo | 14 §13, §5 | `calculateRemainingRefundable` | create-transaction (REFUND) | `transactions.originalTransactionId` | `/transactions/*` | ✗ | UNVERIFIED |
+| Progreso de meta derivado de asignaciones | 14 §15 | `@know-finanzas/finance` `buildObligationReadModel`… `goal_allocations` | goal-service `applyAllocation` | `goal_allocations` (mig 0043) + cache `current_amount` + audit check | `/goals/[goalId]` (ritmo + historial) | `finance-goal-pace` unit (7), `goal-allocations` integ (5) | DONE (2026-09-05) |
+| Aporte a meta no es gasto | 14 CM-08 | goal-service (allocation ≠ ledger) | goal-actions | — | — | `goal-allocations` integ (no crea fila de `transactions`) | DONE (2026-09-05) |
+| Presupuesto: transferencias no consumen | 14 §13/§19 | query `getCategorySpendingForUser` (`type in ('EXPENSE','REFUND')`) | budget service | `budgets` | `/budgets` | `budget-consumption` integ (transferencia real ignorada) | DONE (2026-09-05) |
+| Presupuesto: pago de deuda no re-consume | 14 §13/§21 | query excluye `LIABILITY_PAYMENT` por tipo | budget service | — | `/budgets` | `budget-consumption` integ | DONE (2026-09-05) |
+| Refund reduce consumo | 14 §13/§20 | `netExpense = Σ EXPENSE − Σ REFUND` | budget query | — | `/budgets` | `budget-consumption` integ (neto bajo cero) | DONE (2026-09-05) |
 | Anular recalcula derivados | 14 CM-03 | `classifyLedgerEffect` | `void-transaction.ts` | — | `/transactions/[id]` | — | UNVERIFIED |
 | Editar transacción (alcance acotado) | 14 CM-02 | `editTransaction()` | `edit-transaction.ts` | `transactions.updateMetadataForUser` | `/transactions/[id]` | `transactions-service` unit (9), `transaction-edit` integ (4, incl. IDOR) | PARTIAL — descripción/comercio/categoría/notas; monto/fecha/cuenta/tipo no editables por decisión de producto |
 | Import CSV/TSV idempotente + preview | 14 CF-05, §10 | `features/imports` (`claim`/`updateCounts`) | `import-actions.ts` | `import_batches.command_id` (mig 0042) | `/settings/imports` | `import-service` unit (+4), `import-idempotency` integ (3, incl. carrera real) | IMPLEMENTED |
@@ -28,14 +28,14 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | Registrar = command surface, no owner | 14 §25, PD-002 | `features/capture` | quick-actions | `quick_templates` | Quick Add global (`N`/`Cmd+K`) | — | PARTIAL |
 | Parser NL español determinístico | 14 §17.2 | `features/capture/lib` | — | — | Quick Add | unit (memoria) | IMPLEMENTED |
 | Dinero disponible explicable | 14 §11.1 | `calculateSpendable` (versionado ✗) | dashboard service | — | `/dashboard` | ✗ | PARTIAL |
-| Saldo proyectado ≠ estilo confirmado | 14 §12 | `calculateCashflow` | dashboard/calendar | — | `/dashboard`, `/calendar` | ✗ | UNVERIFIED |
+| Saldo proyectado ≠ estilo confirmado | 14 §12 / spec 06 §5 | `calculateCashflow`; calendar `CalendarLayer` | dashboard/calendar service | — | `/dashboard`, `/calendar` | `calendar-layers` integ (3) + `finance-dates` DST (3) | PARTIAL (dashboard chart ✓, calendar taxonomía ✓) |
 | Reportes con drill-down al ledger + calculationVersion | 14 §16, §42 | `features/reports/services`, `report-shared.tsx` | reports service | sin read model materializado (versión en memoria, no cacheada) | `/reports/*` (6 vistas) | unit ✓ / drill-down `?category=` ✓ | DONE (2026-09-04) |
 | Reportes P0: gastos/ingresos/cash-flow/categorías | 14 §8, §40 | `app/(app)/reports/{expenses,income,cash-flow,categories}` | reports service | — | `/reports/{expenses,income,cash-flow,categories}` | lint ✓ / typecheck ✓ | DONE (2026-09-04) |
-| Insights determinísticos con evidence package | 14 §16, CF-09 | `features/insights/services` | insight-service | sin tabla `insights` | `/insights` | — | UNVERIFIED |
+| Insights determinísticos con evidence package | 14 §16, CF-09 | `@know-finanzas/finance/insights` + `insights` tabla + `detectors.ts` | insight-service (reescrito) | tabla `insights` + lifecycle + cooldown | `/insights`, `/insights/[id]`, `/insights/history` | 8 unit + 3 integration | **DONE (2026-09-05)** |
 | IA sólo explica, no genera señal ni escribe | 14 §17 | `packages/ai` capabilities | ai services | `ai_credit_*` | — | package tests | IMPLEMENTED |
 | Core funciona con IA caída | 14 §13, §29 | boundary IA | — | — | — | ✗ degraded-mode | UNVERIFIED |
 | Reglas personales prevalecen + preview de impacto | 14 §4.9, §42, CM-10 | classification | classification-rule-actions | `user_classification_rules` | `/settings/rules` | — | PARTIAL |
-| Calendario: capas semánticas + timezone | 14 §20, §23, PD-008 | `finance/dates`, calendar service | calendar service | — | `/calendar` | ✗ DST/medianoche | PARTIAL |
+| Calendario: capas semánticas + timezone | 14 §20, §23, PD-008 / spec 06 §5 | `finance/dates`, `calendar-service.CalendarLayer` | calendar service | — | `/calendar` | `calendar-layers` integ + `finance-dates` DST | DONE (2026-09-05, Agenda/Día son follow-up UI) |
 | Cambio de timezone no reescribe históricos | 14 §23.2, CM-12 | `dates/timezone` | settings action | — | `/settings/preferences` (✗) | ✗ | UNVERIFIED |
 | Módulo Ayuda + diagnóstico read-only | 14 §8 (12), CF-10, PD-011 | — | — | — | — | — | MISSING |
 | Command palette sin mutación financiera | 14 §24, PD-012 | shell | — | — | shell | ✗ | UNVERIFIED |

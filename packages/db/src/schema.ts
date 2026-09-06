@@ -692,6 +692,69 @@ export const goalAllocations = pgTable("goal_allocations", {
   check("goal_allocations_currency_code_length_check", sql`char_length(${table.currencyCode}) = 3`),
 ]);
 
+// WP-INSIGHT-DETECTORS (spec 09 §9/§17/§18) — persisted so insights have a lifecycle,
+// history, cooldown and dedupe. One row per (user, dedupeKey) "condition"; the detector
+// engine upserts it. `evidence` is the structured InsightEvidence the copy is derived from.
+export const insightFamilyEnum = pgEnum("insight_family", [
+  "INS-SPEND-DELTA",
+  "INS-SPEND-PACE",
+  "INS-BUDGET-LIMIT",
+  "INS-CASH-RISK",
+  "INS-OBL-DUE",
+  "INS-REC-AMOUNT",
+  "INS-REC-DETECT",
+  "INS-ANOMALY-AMOUNT",
+  "INS-GOAL-PACE",
+  "INS-DATA-QUALITY",
+]);
+export const insightStatusEnum = pgEnum("insight_status", [
+  "DETECTED",
+  "ACTIVE",
+  "SEEN",
+  "DISMISSED",
+  "RESOLVED",
+  "EXPIRED",
+  "SUPERSEDED",
+  "INVALIDATED",
+]);
+export const insightConfidenceEnum = pgEnum("insight_confidence", ["LOW", "MEDIUM", "HIGH"]);
+export const insightFeedbackEnum = pgEnum("insight_feedback", [
+  "USEFUL",
+  "NOT_USEFUL",
+  "NOT_APPLICABLE",
+  "ALREADY_KNEW",
+  "WRONG_DATA",
+]);
+
+export const insights = pgTable("insights", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  family: insightFamilyEnum("family").notNull(),
+  dedupeKey: text("dedupe_key").notNull(),
+  status: insightStatusEnum("status").notNull().default("ACTIVE"),
+  confidence: insightConfidenceEnum("confidence").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  impactAmount: numeric("impact_amount", { precision: 20, scale: 6 }),
+  impactCurrency: varchar("impact_currency", { length: 3 }),
+  ctaLabel: text("cta_label"),
+  ctaHref: text("cta_href"),
+  evidence: jsonb("evidence").notNull(),
+  calculationVersion: text("calculation_version").notNull(),
+  feedback: insightFeedbackEnum("feedback"),
+  supersededById: uuid("superseded_by_id"),
+  detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+  seenAt: timestamp("seen_at", { withTimezone: true }),
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("insights_user_dedupe_unique").on(table.userId, table.dedupeKey),
+  index("insights_user_status_idx").on(table.userId, table.status),
+  check("insights_impact_currency_pairing_check", sql`(${table.impactAmount} is null) = (${table.impactCurrency} is null)`),
+]);
+
 // One-tap capture shortcuts. Some created by the user ("Guardar como acción rápida" on a
 // transaction), some auto-created from repeated shapes. `amountHints` holds the last few amounts
 // used for this template so the UI can offer quick-amount chips.

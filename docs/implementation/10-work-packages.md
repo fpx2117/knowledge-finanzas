@@ -682,6 +682,49 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 835/835 (+7), integration
   goals 5/5.
 
+## WP-INSIGHT-DETECTORS — Motor de insights determinístico  ·  P1 · FINANCIAL  ·  **DONE (2026-09-05)**
+
+Precedido por el spike `docs/implementation/12-insights-spike.md`. Alcance elegido por el usuario:
+"núcleo + tabla + 3-4 detectores", incluye retirar el health score.
+
+- **Núcleo puro (`packages/finance/src/insights/`):**
+  - `types.ts`: `InsightFamily` (10 familias §21), `InsightStatus` (lifecycle §17), `InsightEvidence`
+    (§9 — `sourceTypes/sourceIds/period/comparisonPeriod?/currency/metrics/sampleSize?/
+    calculationVersion/dataQualityFlags/generatedAt`), `EvidenceSufficiency`, `InsightCandidate`.
+  - `materiality.ts` `assessMateriality()` — umbral absoluto **y** relativo por familia (§23);
+    el piso absoluto escala con el gasto mensual típico del usuario. Filtra "% grande sobre monto
+    chico" y "% chico sobre monto grande".
+  - `reconcile.ts` `reconcileInsights()` — puro: candidato nuevo → insert; candidato = fila abierta
+    con mismo `dedupeKey` → update de copy sólo si cambió (supersede in place §18, nunca duplica);
+    candidato = fila DISMISSED en cooldown → skip; pasado el cooldown → update + reactivate; fila
+    abierta sin candidato → resolve. `DISMISS_COOLDOWN_DAYS` por familia (§8).
+  - `priority.ts` `insightPriorityScore()`/`sortByPriority()` — urgencia por familia + impacto
+    relativo + confianza; **no** un score opaco (§8).
+- **Persistencia (`insights`, mig `0044_flat_steel_serpent.sql`):** `family`/`status`/`confidence`
+  enums, `dedupeKey` (unique `(userId, dedupeKey)`), `evidence` jsonb, `calculationVersion`,
+  `feedback` enum (§16), timestamps de lifecycle. `createInsightRepository`.
+- **Detectores (`apps/web/src/features/insights/detectors.ts`):** `INS-BUDGET-LIMIT`
+  (budget-service, NEAR_LIMIT/EXCEEDED vs % del mes), `INS-GOAL-PACE` (`calculateGoalPace` status
+  NEEDS_MORE), `INS-CASH-RISK` (`calculateCashflow.firstNegativeDate` + materialidad, siempre
+  etiquetado como proyección §26), `INS-DATA-QUALITY` (`countUncategorizedForUser ≥ 5`). Cada uno
+  emite `InsightCandidate` con evidence.
+- **Servicio (`insight-service.ts`, reescrito — se retiró el "Financial Health Score" que violaba
+  D-07 y §2.3):** `refreshInsights()` (detectores → reconcile → upsert), `getQueue()` (cola abierta
+  ordenada por prioridad), `getHistory()` (§13), `getDetail()` (marca SEEN), `dismiss()`/`resolve()`
+  con feedback. Todos los repos se construyen desde `database` (no singletons — bug encontrado y
+  corregido con el integration test).
+- **UI:** `/insights` = cola de cards con "¿Por qué veo esto?" + acciones (Resuelto / Descartar con
+  motivo §16); `/insights/[insightId]` = evidence package completo (fuentes, período, muestra,
+  métricas, limitaciones); `/insights/history`. `emit-financial-event` gana `insight.updated`.
+- **Tests:** 8 unit (`finance-insights.test.ts` — materialidad, reconcile incl. cooldown/supersede/
+  insufficient, prioridad) + 3 integration (`insight-engine.test.ts` — persiste + dedupe en re-run,
+  cooldown mantiene descartado fuera de la cola, resuelve cuando la condición desaparece).
+- **No en alcance (follow-up):** las otras 6 familias de detectores (§21), cablear
+  `explain-financial-insight` de IA como capa de copy (§20), recomputación por evento (hoy
+  `getQueue` refresca on-demand).
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 843/843 (+8), integration
+  del WP 3/3 + finance-audit/goal/budget sin regresión.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

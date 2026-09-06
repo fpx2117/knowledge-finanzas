@@ -60,9 +60,13 @@ tienen que re-juntar la lista cada uno.
 **Propuesta:** servicio `getObligations(userId, horizon)` que normaliza a `UpcomingItem[]` (ya existe
 `projections/upcoming.ts` con `sortAndDedupeUpcoming` — extender). No requiere tabla nueva.
 
-### D-4 — Insight sin persistencia  · **MEDIUM**
-Sin lifecycle (open/acted/dismissed), sin `/insights/history`, sin cooldown/dedupe persistido.
-**Propuesta (cuando se aborde Fase F):** `insights` `{ id, userId, detectorKey, severity, evidence jsonb, status, firstDetectedAt, lastEvaluatedAt, actedAt?, dedupeKey, cooldownUntil }`.
+### ~~D-4~~ — Insight sin persistencia → **CERRADO (2026-09-05, WP-INSIGHT-DETECTORS)**
+Tabla `insights` (mig 0044) `{ id, userId, family, dedupeKey (unique con userId), status (lifecycle
+§17), confidence, title, body, impactAmount/Currency, ctaLabel/Href, evidence jsonb (§9),
+calculationVersion, feedback (§16), supersededById, detectedAt/seenAt/dismissedAt/resolvedAt/
+expiresAt }`. Cooldown por familia en `@know-finanzas/finance/insights/reconcile.ts`
+(`DISMISS_COOLDOWN_DAYS`), no persistido como `cooldownUntil` sino calculado desde `dismissedAt`.
+`/insights/history` implementado.
 
 ### D-5 — Read models de Reportes sin materialización ni `calculationVersion`  · **MEDIUM**
 §42 exige `calculationVersion`. Hoy los servicios calculan on-read sobre queries ad hoc.

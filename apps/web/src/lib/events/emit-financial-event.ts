@@ -32,7 +32,8 @@ export type FinancialEventType =
   | "pending_item.resolved"
   | "import.completed"
   | "recurring.changed"
-  | "subscription.changed";
+  | "subscription.changed"
+  | "insight.updated";
 
 const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
   "account.created": ["/accounts", "/app"],
@@ -66,6 +67,8 @@ const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
   "import.completed": ["/transactions", "/settings/imports", "/accounts", "/app"],
   "recurring.changed": ["/transactions/recurring"],
   "subscription.changed": ["/obligations/subscriptions"],
+  // Dismiss/resolve/feedback on an insight only affects the Insights surface.
+  "insight.updated": ["/insights"],
 };
 
 export type EmitFinancialEventInput = {

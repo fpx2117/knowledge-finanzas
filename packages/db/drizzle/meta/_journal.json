@@ -309,6 +309,13 @@
       "when": 1788652765882,
       "tag": "0043_powerful_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1788658281109,
+      "tag": "0044_flat_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

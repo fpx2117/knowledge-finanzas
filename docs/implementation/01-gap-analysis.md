@@ -18,7 +18,7 @@ convertirse en work package cerrado.
 | 06 | Calendario | PARTIAL | BAJO | Taxonomía temporal-financiera §5 (CONFIRMED/COMMITTED/SCHEDULED/OVERDUE…) en cada evento + etiqueta sin color + desglose por capa + monedas separadas + tests DST (2026-09-05). Falta sólo: modos Agenda (§7) y Día (§8) como UI |
 | 07 | Metas | DONE (2026-09-05) | — | `goal_allocations` = source of truth + audit check (blocker B-4/D-2 cerrado); aporte/retiro no tocan el ledger (CM-08); ritmo `calculateGoalPace` sólo con evidencia (§20/§21); historial de aportes (§14); subvistas active/completed |
 | 08 | Reportes | DONE (2026-09-04) | — | 6 rutas (`/reports` + `{expenses,income,cash-flow,net-worth,categories}`), drill-down categoría→`/transactions?category=`, `calculationVersion`+`coverage.excludedCurrencies` en el read model |
-| 09 | Insights | PARTIAL | ALTO | `/insights` + `insight-service` + capability IA `explain-financial-insight`. **Detectores determinísticos con evidence package**: UNVERIFIED / probablemente MISSING. Subvistas `/insights/opportunities|history` faltan |
+| 09 | Insights | MOSTLY DONE (2026-09-05) | BAJO | Motor determinístico: núcleo puro (evidence package §9, materialidad §23, reconcile §17/§18, prioridad §8), tabla `insights` + lifecycle + cooldown, 4 detectores, `/insights` cola + `/insights/[id]` evidencia + `/insights/history`. Health score retirado (D-07). Falta: 6 familias más de detectores + IA de copy (follow-up) |
 | 10 | Registrar | PARTIAL | BAJO | `features/capture` (Quick Add global, parser NL español + fallback IA, toast-undo, guard de duplicados) existe y **es command surface pura, auditado 2026-09-04** — no duplica ledger, enruta a owners, IA nunca escribe. Import pipeline en `features/imports`. Route-intercept overlay vs spec §25 sigue UNVERIFIED (no crítico) |
 | 11 | Configuración | PARTIAL | MEDIO | `/settings/{categories,notifications,privacy,rules,referrals,billing}`. Faltan `/settings/{profile,preferences,imports,security,plan}` como rutas canónicas |
 | 12 | Ayuda | MISSING | MEDIO | **No existe `/help` ni `features/help`.** Sin centro de ayuda, diagnósticos read-only, estado del servicio, contacto, feedback |
@@ -127,7 +127,7 @@ convertirse en work package cerrado.
 
 | Capability | Spec | Code | Status | Risk | Trabajo |
 |---|---|---|---|---|---|
-| Detección determinística con evidence package | §16, CF-09 | `features/insights/services/insight-service.ts` | **VERIFICADO (spike 2026-09-05, `docs/implementation/12-insights-spike.md`)** | ALTO | Scaffolding determinístico OK pero NO hay motor spec-09: falta tabla `insights`, evidence package, gate de suficiencia, materialidad, lifecycle. El "health score" actual viola D-07 → retirar. Plan por incrementos en el spike |
+| Detección determinística con evidence package | §16, CF-09 | `@know-finanzas/finance/insights` + `insights` tabla + `features/insights/detectors.ts` | **IMPLEMENTED (2026-09-05)** | — | Núcleo puro (evidence §9, materialidad §23, reconcile §17/§18, prioridad §8), tabla + lifecycle + cooldown, 4 detectores. Health score retirado (D-07). Faltan 6 familias más + IA de copy (follow-up). 8 unit + 3 integration |
 | IA sólo redacta explicación | §17.2 | `packages/ai/.../explain-financial-insight.ts` | IMPLEMENTED (boundary) | — | Verificar que no genera la señal |
 | Lifecycle de insight (open/actuado/cerrado) | §9 | UNVERIFIED | UNVERIFIED | MEDIO | — |
 | `/insights/opportunities`, `/insights/history`, `/insights/:id` | §8 | sólo `/insights` | PARTIAL | UX | 3 rutas |

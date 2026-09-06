@@ -18,6 +18,18 @@ export { normalizeProjectionInputs } from "./projections/normalize-inputs";
 export { reminderDedupKey, resolveReminderAt, type ReminderPreset } from "./projections/reminders";
 export type { UpcomingConfidence, UpcomingDirection, UpcomingItem, UpcomingSourceType, UpcomingStatus } from "./projections/types";
 export { calculateGoalPace, type GoalPaceResult, type GoalPaceStatus } from "./goals/goal-pace";
+export { assessMateriality } from "./insights/materiality";
+export { reconcileInsights, DISMISS_COOLDOWN_DAYS, type ReconcileAction, type StoredInsight } from "./insights/reconcile";
+export { insightPriorityScore, sortByPriority } from "./insights/priority";
+export type {
+  EvidenceSufficiency,
+  InsightCandidate,
+  InsightConfidence,
+  InsightEvidence,
+  InsightEvidenceSource,
+  InsightFamily,
+  InsightStatus,
+} from "./insights/types";
 export { calculateSpendable } from "./projections/spendable-money";
 export { calculateCashflow } from "./projections/cashflow";
 export {

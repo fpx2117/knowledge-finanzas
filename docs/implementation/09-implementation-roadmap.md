@@ -64,7 +64,7 @@ subvistas, Insights determinísticos).
 
 | WP | Contenido |
 |---|---|
-| WP-INSIGHT-DETECTORS | Detectores determinísticos con evidence package + materialidad + cooldown + dedupe (tabla `insights`, D-4). CF-09. |
+| ~~WP-INSIGHT-DETECTORS~~ **DONE (2026-09-05)** | Núcleo puro en `@know-finanzas/finance/insights` (evidence package §9, `assessMateriality` §23, `reconcileInsights` §8/§17/§18, `insightPriorityScore` §8). Tabla `insights` (mig 0044) + lifecycle + cooldown por familia. 4 detectores (INS-BUDGET-LIMIT, INS-GOAL-PACE, INS-CASH-RISK, INS-DATA-QUALITY) que reusan budget/goal/dashboard services. **Health score retirado** (D-07). `/insights` = cola priorizada; `/insights/[id]` = evidence package ("¿Por qué veo esto?"); `/insights/history` (§13). Feedback §16. 8 unit + 3 integration. |
 | WP-INSIGHT-UI | `/insights/{opportunities,history,:id}`; estado vacío válido sin inventar (§17.3). |
 | WP-RULES-PREVIEW | Reglas personales: preview + impacto calculable antes de aplicar retroactivo (§42). |
 | WP-AI-WIRE | Cablear `packages/ai` capabilities (`transaction.categorize`, `merchant.normalize`, `explain-financial-insight`) al flujo, con fallback probado (core anda sin IA). |

@@ -20,6 +20,7 @@ import {
   createClassificationRuleRepository,
   createGoalRepository,
   createGoalAllocationRepository,
+  createInsightRepository,
   createMerchantRepository,
   createMerchantUserDefaultRepository,
   createQuickTemplateRepository,
@@ -47,3 +48,4 @@ export const budgetRepository = createBudgetRepository(db);
 export const budgetAlertRepository = createBudgetAlertRepository(db);
 export const goalRepository = createGoalRepository(db);
 export const goalAllocationRepository = createGoalAllocationRepository(db);
+export const insightRepository = createInsightRepository(db);
