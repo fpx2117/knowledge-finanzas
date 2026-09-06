@@ -16,7 +16,7 @@ convertirse en work package cerrado.
 | 04 | Presupuestos | MOSTLY DONE | BAJO | Dominio + UI + alerts + subvistas (`/budgets/categories`, `/budgets/history`, `/budgets/[id]`) existen. Consumo verificado contra §13/§18/§21 y fijado con integration tests (2026-09-05): EXPENSE−REFUND, excluye transfer/liability/adjustment/voided, rollup de subárbol |
 | 05 | Obligaciones | PARTIAL | BAJO | Read model unificado + `/obligations/upcoming` (§10) + vista principal `/obligations` "Todas" (§9: KPIs, "Necesita atención", lista agrupada por tiempo) sobre el read model (2026-09-05). Falta sólo: detalle unificado (`/obligations/[id]` sigue siendo de deudas) |
 | 06 | Calendario | PARTIAL | BAJO | Taxonomía temporal-financiera §5 (CONFIRMED/COMMITTED/SCHEDULED/OVERDUE…) en cada evento + etiqueta sin color + desglose por capa + monedas separadas + tests DST (2026-09-05). Falta sólo: modos Agenda (§7) y Día (§8) como UI |
-| 07 | Metas | PARTIAL | BAJO | `goal_allocations` = source of truth, `current_amount` cache re-sincronizado transaccionalmente + audit check (2026-09-05, blocker cerrado). Aporte/retiro no tocan el ledger (CM-08). Falta: subvistas `/goals/active|completed` + ritmo/fecha estimada (WP-GOALS-UI) |
+| 07 | Metas | DONE (2026-09-05) | — | `goal_allocations` = source of truth + audit check (blocker B-4/D-2 cerrado); aporte/retiro no tocan el ledger (CM-08); ritmo `calculateGoalPace` sólo con evidencia (§20/§21); historial de aportes (§14); subvistas active/completed |
 | 08 | Reportes | DONE (2026-09-04) | — | 6 rutas (`/reports` + `{expenses,income,cash-flow,net-worth,categories}`), drill-down categoría→`/transactions?category=`, `calculationVersion`+`coverage.excludedCurrencies` en el read model |
 | 09 | Insights | PARTIAL | ALTO | `/insights` + `insight-service` + capability IA `explain-financial-insight`. **Detectores determinísticos con evidence package**: UNVERIFIED / probablemente MISSING. Subvistas `/insights/opportunities|history` faltan |
 | 10 | Registrar | PARTIAL | BAJO | `features/capture` (Quick Add global, parser NL español + fallback IA, toast-undo, guard de duplicados) existe y **es command surface pura, auditado 2026-09-04** — no duplica ledger, enruta a owners, IA nunca escribe. Import pipeline en `features/imports`. Route-intercept overlay vs spec §25 sigue UNVERIFIED (no crítico) |
@@ -107,10 +107,10 @@ convertirse en work package cerrado.
 |---|---|---|---|---|---|
 | CRUD meta (nombre/monto/fecha/tipo/nota) | docs/README, 07 | `features/goals` + `goals` tabla | IMPLEMENTED | — | — |
 | **Progreso derivado de asignaciones** | §6.2/§15 | `goal_allocations` (INITIAL/CONTRIBUTION/WITHDRAWAL) + `goal-service.applyAllocation` + `checkGoalAllocationConsistency` | **IMPLEMENTED (2026-09-05)** | — | Mig 0043 + backfill. Cache `current_amount` re-sincronizado en la misma tx que cada allocation; audit garantiza que no derive. Aporte/retiro no crean ledger (CM-08, probado). |
-| Aporte no es gasto artificial (CM-08) | §15, CF-08 | goal-service | UNVERIFIED | FINANCIAL | Test: aportar no crea EXPENSE |
+| Aporte no es gasto artificial (CM-08) | §15, CF-08 | `goal-service` (allocation ≠ ledger) | **IMPLEMENTED (2026-09-05)** | — | Probado: un aporte/retiro no crea ninguna fila de `transactions` (`goal-allocations.test.ts`) |
 | Metas no reducen disponible V1 (PD-007) | §11 | `calculateSpendable` usa `reservedAmount` opcional, no metas | IMPLEMENTED | — | — |
-| Ritmo / fecha estimada sólo con evidencia | 07 §6 | UNVERIFIED | UNVERIFIED | MEDIO | — |
-| Subvistas `/goals/active|completed` | §8 | sólo `/goals`, `[goalId]`, `new`, `editar` | PARTIAL | UX | 2 rutas filtradas |
+| Ritmo / fecha estimada sólo con evidencia | 07 §6/§20/§21/§19.6 | `calculateGoalPace` + `GOAL_PACE_META` + detalle "Ritmo de ahorro" | **IMPLEMENTED (2026-09-05)** | — | Juicio ON_TRACK/NEEDS_MORE sólo con ≥1 allocation; rate forward-looking siempre; <30d → lump sum. 7 unit tests |
+| Subvistas `/goals/active|completed` | §8 | `app/(app)/goals/{active,completed}` + chip de ritmo | **IMPLEMENTED** | — | — |
 
 ### 08 Reportes
 

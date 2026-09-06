@@ -14,7 +14,8 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatLongDate, relativeDueLabel } from "@/lib/format";
 import { createGoalService, type GoalDetail } from "@/features/goals/services/goal-service";
 import { GoalActions } from "@/features/goals/components/goal-actions";
-import { GOAL_CATEGORY_META } from "@/features/goals/goal-meta";
+import { GoalHistory } from "@/features/goals/components/goal-history";
+import { GOAL_CATEGORY_META, GOAL_PACE_META } from "@/features/goals/goal-meta";
 
 const service = createGoalService();
 
@@ -37,9 +38,11 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ goa
     throw error;
   }
 
+  const allocations = await service.listAllocations(user, goalId);
   const meta = GOAL_CATEGORY_META[goal.category];
   const Icon = meta.icon;
   const status = STATUS_META[goal.status];
+  const pace = GOAL_PACE_META[goal.pace.status];
 
   return (
     <div className="flex flex-col gap-8">
@@ -81,6 +84,61 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ goa
           state={goal.status === "COMPLETED" ? "normal" : goal.overdue ? "warning" : "normal"}
           aria-label={`${goal.percent}% completado`}
           className="h-2.5"
+        />
+      </SectionCard>
+
+      {/* spec 07 §21 — estado de ritmo (cálculo orientativo, nunca compromiso) */}
+      {goal.status === "ACTIVE" ? (
+        <SectionCard title="Ritmo de ahorro" eyebrow="Cálculo orientativo">
+          <div className="flex flex-wrap items-center gap-2">
+            {pace.showChip ? <StatusChip tone={pace.tone}>{pace.label}</StatusChip> : (
+              <span className="text-small text-muted-foreground">{pace.label}</span>
+            )}
+          </div>
+          {goal.pace.requiredBeforeDate ? (
+            <p className="text-small text-foreground-secondary">
+              Necesitás aportar{" "}
+              <strong className="text-foreground">
+                <MoneyAmount amount={goal.pace.requiredBeforeDate} currency={goal.currencyCode} variant="compact" />
+              </strong>{" "}
+              antes del {goal.targetDate ? formatLongDate(goal.targetDate) : "vencimiento"}.
+            </p>
+          ) : goal.pace.requiredMonthly ? (
+            <p className="text-small text-foreground-secondary">
+              Necesitás apartar aprox.{" "}
+              <strong className="text-foreground">
+                <MoneyAmount amount={goal.pace.requiredMonthly} currency={goal.currencyCode} variant="compact" />
+              </strong>{" "}
+              por mes para llegar a tiempo
+              {goal.pace.requiredWeekly ? (
+                <> (≈ <MoneyAmount amount={goal.pace.requiredWeekly} currency={goal.currencyCode} variant="compact" /> por semana)</>
+              ) : null}
+              .
+            </p>
+          ) : goal.pace.status === "INSUFFICIENT_DATA" ? (
+            <p className="text-small text-muted-foreground">
+              Registrá algunos aportes y vamos a poder decirte si estás en ritmo para tu fecha objetivo.
+            </p>
+          ) : null}
+          {goal.pace.expectedProgressRatio !== null && (goal.pace.status === "ON_TRACK" || goal.pace.status === "NEEDS_MORE") ? (
+            <p className="text-caption text-muted-foreground">
+              Llevás {goal.percent}% del objetivo y transcurrió aproximadamente{" "}
+              {Math.round(goal.pace.expectedProgressRatio * 100)}% del tiempo disponible.
+            </p>
+          ) : null}
+        </SectionCard>
+      ) : null}
+
+      <SectionCard title="Historial" eyebrow={`${allocations.length}`}>
+        <GoalHistory
+          allocations={allocations.map((a) => ({
+            id: a.id,
+            kind: a.kind,
+            amount: a.amount,
+            currencyCode: a.currencyCode,
+            occurredOn: a.occurredOn,
+            note: a.note,
+          }))}
         />
       </SectionCard>
 

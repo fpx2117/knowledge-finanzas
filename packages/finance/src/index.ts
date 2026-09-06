@@ -17,6 +17,7 @@ export { classifyUpcomingDate, sortAndDedupeUpcoming } from "./projections/upcom
 export { normalizeProjectionInputs } from "./projections/normalize-inputs";
 export { reminderDedupKey, resolveReminderAt, type ReminderPreset } from "./projections/reminders";
 export type { UpcomingConfidence, UpcomingDirection, UpcomingItem, UpcomingSourceType, UpcomingStatus } from "./projections/types";
+export { calculateGoalPace, type GoalPaceResult, type GoalPaceStatus } from "./goals/goal-pace";
 export { calculateSpendable } from "./projections/spendable-money";
 export { calculateCashflow } from "./projections/cashflow";
 export {

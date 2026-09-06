@@ -5,11 +5,12 @@ import { StatusChip } from "@/components/shared/status-chip";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { relativeDueLabel } from "@/lib/format";
 import type { GoalDetail } from "@/features/goals/services/goal-service";
-import { GOAL_CATEGORY_META } from "@/features/goals/goal-meta";
+import { GOAL_CATEGORY_META, GOAL_PACE_META } from "@/features/goals/goal-meta";
 
 export function GoalRow({ goal, today }: { goal: GoalDetail; today: string }) {
   const meta = GOAL_CATEGORY_META[goal.category];
   const Icon = meta.icon;
+  const pace = GOAL_PACE_META[goal.pace.status];
   return (
     <li className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0">
       <div className="flex items-start justify-between gap-3">
@@ -21,7 +22,12 @@ export function GoalRow({ goal, today }: { goal: GoalDetail; today: string }) {
             <Link href={`/goals/${goal.id}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
               {goal.name}
             </Link>
-            <span className="text-caption text-muted-foreground">{meta.label}</span>
+            <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+              {meta.label}
+              {goal.status === "ACTIVE" && pace.showChip ? (
+                <StatusChip tone={pace.tone}>{pace.label}</StatusChip>
+              ) : null}
+            </span>
           </span>
         </span>
         <span className="flex shrink-0 flex-col items-end gap-0.5">

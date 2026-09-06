@@ -78,6 +78,26 @@ describe("goal allocations (§6.2 / CM-08)", () => {
     expect(Number(row.currentAmount)).toBe(100000);
   });
 
+  it("derives the pace status from real allocation evidence", async () => {
+    const { service: svc } = await service();
+    const goal = await svc.createGoal({ id: userId }, {
+      name: "Viaje", category: "TRAVEL", currencyCode: "ARS", targetAmount: "1200000", targetDate: "2026-12-15",
+    });
+
+    // No allocations yet → can't judge the rate, but the forward-looking figure is available.
+    let detail = await svc.getGoalDetail({ id: userId }, goal.id, "2026-09-15");
+    expect(detail.pace.status).toBe("INSUFFICIENT_DATA");
+    expect(detail.pace.requiredMonthly).not.toBeNull();
+
+    await svc.contribute({ id: userId }, goal.id, "700000");
+    detail = await svc.getGoalDetail({ id: userId }, goal.id, "2026-09-15");
+    expect(["ON_TRACK", "NEEDS_MORE"]).toContain(detail.pace.status);
+    expect(detail.pace.expectedProgressRatio).not.toBeNull();
+
+    const allocs = await svc.listAllocations({ id: userId }, goal.id);
+    expect(allocs.map((a) => a.kind)).toEqual(["CONTRIBUTION"]);
+  });
+
   it("finance:audit flags a goal whose cached current_amount drifts from its allocations", async () => {
     const { database, service: svc } = await service();
     const goal = await svc.createGoal({ id: userId }, {

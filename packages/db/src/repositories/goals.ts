@@ -49,6 +49,20 @@ export function createGoalAllocationRepository(database: Database) {
       return row?.total ?? "0";
     },
 
+    /** Per-goal allocation evidence for pace: how many allocations and the earliest date. */
+    async aggregatesForUser(userId: string): Promise<Map<string, { count: number; firstOn: string | null }>> {
+      const rows = await database
+        .select({
+          goalId: goalAllocations.goalId,
+          count: sql<number>`count(*)`,
+          firstOn: sql<string | null>`min(${goalAllocations.occurredOn})`,
+        })
+        .from(goalAllocations)
+        .where(eq(goalAllocations.userId, userId))
+        .groupBy(goalAllocations.goalId);
+      return new Map(rows.map((row) => [row.goalId, { count: Number(row.count), firstOn: row.firstOn }]));
+    },
+
     listForGoal(goalId: string, userId: string) {
       return database
         .select()

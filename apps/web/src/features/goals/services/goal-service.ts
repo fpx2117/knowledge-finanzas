@@ -5,7 +5,7 @@ import {
   type Database,
   type GoalCategory,
 } from "@know-finanzas/db";
-import { getCurrencyMetadata, Money } from "@know-finanzas/finance";
+import { calculateGoalPace, getCurrencyMetadata, Money, type GoalPaceResult } from "@know-finanzas/finance";
 import { ApplicationError } from "@know-finanzas/shared";
 
 import { allowAllProductAccessGate, type ProductAccessGate } from "@/lib/billing/product-access-gate";
@@ -32,7 +32,10 @@ export type GoalDetail = GoalRow & {
   remainingAmount: string;
   daysLeft: number | null;
   overdue: boolean;
+  pace: GoalPaceResult;
 };
+
+type PaceEvidence = { count: number; firstOn: string | null };
 
 function validateAmount(value: string, currencyCode: string): string {
   const metadata = getCurrencyMetadata(currencyCode);
@@ -48,13 +51,17 @@ function daysBetween(fromISO: string, toISO: string): number {
   );
 }
 
-function buildDetail(row: GoalRow, today: string): GoalDetail {
+function buildDetail(row: GoalRow, today: string, evidence: PaceEvidence): GoalDetail {
   const target = Money.fromString(row.targetAmount, row.currencyCode);
   const current = Money.fromString(row.currentAmount, row.currencyCode);
   const remaining = target.subtract(current);
   const targetNumber = Number(target.toString());
   const progress = targetNumber > 0 ? Math.min(1, Number(current.toString()) / targetNumber) : 0;
   const daysLeft = row.targetDate ? daysBetween(today, row.targetDate) : null;
+
+  const createdOn = row.createdAt.toISOString().slice(0, 10);
+  const goalStartOn = evidence.firstOn && evidence.firstOn < createdOn ? evidence.firstOn : createdOn;
+
   return {
     ...row,
     progress,
@@ -62,6 +69,15 @@ function buildDetail(row: GoalRow, today: string): GoalDetail {
     remainingAmount: (remaining.compareTo(Money.zero(row.currencyCode)) < 0 ? Money.zero(row.currencyCode) : remaining).toString(),
     daysLeft,
     overdue: row.status === "ACTIVE" && daysLeft !== null && daysLeft < 0,
+    pace: calculateGoalPace({
+      currency: row.currencyCode,
+      currentAmount: current,
+      targetAmount: target,
+      targetDate: row.targetDate,
+      today,
+      goalStartOn,
+      allocationCount: evidence.count,
+    }),
   };
 }
 
@@ -110,14 +126,18 @@ export function createGoalService(
 
   return {
     async listGoals(user: { id: string; timezone: string }, today: string): Promise<GoalDetail[]> {
-      const rows = (await goals.listForUser(user.id, { includeArchived: true })) as GoalRow[];
-      return rows.map((row) => buildDetail(row, today));
+      const [rows, evidence] = await Promise.all([
+        goals.listForUser(user.id, { includeArchived: true }) as Promise<GoalRow[]>,
+        allocations.aggregatesForUser(user.id),
+      ]);
+      return rows.map((row) => buildDetail(row, today, evidence.get(row.id) ?? { count: 0, firstOn: null }));
     },
 
     async getGoalDetail(user: { id: string }, goalId: string, today: string): Promise<GoalDetail> {
       const row = (await goals.findByIdForUser(goalId, user.id)) as GoalRow | undefined;
       if (!row) throw new ApplicationError("GOAL_NOT_FOUND");
-      return buildDetail(row, today);
+      const evidence = (await allocations.aggregatesForUser(user.id)).get(goalId) ?? { count: 0, firstOn: null };
+      return buildDetail(row, today, evidence);
     },
 
     async createGoal(user: { id: string }, input: CreateGoalInput) {

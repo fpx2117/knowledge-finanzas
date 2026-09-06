@@ -139,15 +139,19 @@ export default async function GoalsPage() {
             <InsightCard title="Sugerencia">
               <p>
                 Para llegar a <strong className="text-foreground">{closest.name}</strong>
-                {closest.targetDate && closest.daysLeft && closest.daysLeft > 0 ? (
+                {closest.pace.requiredBeforeDate ? (
                   <>
-                    {" "}necesitás apartar{" "}
+                    {" "}necesitás aportar{" "}
                     <strong className="text-foreground">
-                      <MoneyAmount
-                        amount={String(Math.ceil(Number(closest.remainingAmount) / Math.max(1, Math.ceil(closest.daysLeft / 30))))}
-                        currency={closest.currencyCode}
-                        variant="compact"
-                      />
+                      <MoneyAmount amount={closest.pace.requiredBeforeDate} currency={closest.currencyCode} variant="compact" />
+                    </strong>{" "}
+                    antes de la fecha.
+                  </>
+                ) : closest.pace.requiredMonthly ? (
+                  <>
+                    {" "}necesitás apartar aprox.{" "}
+                    <strong className="text-foreground">
+                      <MoneyAmount amount={closest.pace.requiredMonthly} currency={closest.currencyCode} variant="compact" />
                     </strong>{" "}
                     por mes.
                   </>

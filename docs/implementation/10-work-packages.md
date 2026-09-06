@@ -654,6 +654,34 @@ WP-LEDGER-IDEMP, no un test. El usuario eligió **edición acotada**:
 - **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 828/828, integration del WP
   4/4 + `finance-audit` 8/8.
 
+## WP-GOALS-UI — Ritmo de ahorro + historial + subvistas  ·  P1  ·  **DONE (2026-09-05)**
+
+- **Goal (spec 07 §6/§20/§21/§14):** mostrar ritmo/estado de una meta sólo con evidencia, más el
+  historial de aportes; las subvistas activas/completadas ya existían.
+- **`calculateGoalPace` (`@know-finanzas/finance/goals/goal-pace.ts`), pura:**
+  - `GoalPaceStatus`: `NO_TARGET_DATE` / `INSUFFICIENT_DATA` / `GOAL_REACHED` / `DATE_PASSED` /
+    `ON_TRACK` / `NEEDS_MORE` (§21 lista de estados, sin score opaco).
+  - `requiredMonthly` / `requiredWeekly` = `remaining ÷ períodos restantes` (§20.2/20.3, `Money.split`).
+  - `requiredBeforeDate` (lump sum) cuando quedan <30 días — no una división mensual absurda (§20.5).
+  - `expectedProgressRatio = elapsed ÷ total` desde `goalStartOn` (min de primera allocation y
+    createdAt) hasta `targetDate` (§21.1); tolerancia 0.05 para no flapear.
+  - **Evidencia (§19.6):** el juicio ON_TRACK/NEEDS_MORE requiere `allocationCount ≥ 1`; antes es
+    `INSUFFICIENT_DATA`. El rate forward-looking (§20) se muestra igual porque no depende de historia.
+- **Servicio:** `goalAllocationRepository.aggregatesForUser()` (count + primera fecha por meta, una
+  query agregada); `buildDetail` recibe esa evidencia y añade `pace: GoalPaceResult` a `GoalDetail`.
+- **UI:**
+  - `GOAL_PACE_META` (`goal-meta.ts`) — label + tone + `showChip` por estado.
+  - `GoalRow` muestra el chip de ritmo en metas activas.
+  - Detalle `/goals/[id]`: sección "Ritmo de ahorro" ("Cálculo orientativo", copy del §21.3
+    "llevás X% y transcurrió Y% del tiempo") + sección "Historial" (`GoalHistory` — lista read-only
+    de aportes/retiros con "no implica un movimiento en tus cuentas", §14.2).
+  - Lista `/goals`: el `InsightCard` "Sugerencia" usa el rate real de `pace` en vez de un
+    `remaining/30` naive.
+- **Tests:** 7 unit (`finance-goal-pace.test.ts`) + 1 integration nuevo en `goal-allocations.test.ts`
+  (evidencia → estado).
+- **Verificación:** lint web limpio, typecheck 148/148 (0 nuevos), unit 835/835 (+7), integration
+  goals 5/5.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
