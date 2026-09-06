@@ -880,17 +880,27 @@ el diagnóstico de saldo.
      (origen −monto, destino +monto) y **no** aparece como ingreso/gasto en `/transactions` (§10).
   3. *Aporte a una meta* — dialog "Registrar ahorro" → progreso derivado (25%) + fila "Aporte"
      en el historial (WP-GOALS-ALLOC).
-- **Bug de integridad financiera encontrado y arreglado:** `create-transaction` y
-  `transfer-actions` construían `occurredAt` como `` `${date}T12:00:00Z` ``. El servicio de
-  transacciones rechaza `occurredAt > now` (`INVALID_INPUT` field `occurredAt`), así que
-  **cualquier gasto/ingreso/transferencia con fecha "hoy" fallaba toda mañana antes de las
-  12:00 UTC**, y siempre para usuarios en husos al este de UTC. Nuevo
-  **`resolveOccurredAtISO(date, timeZone)`** en `apps/web/src/lib/date.ts`: si la fecha elegida
-  es hoy en el huso del usuario devuelve el instante actual (`new Date().toISOString()`); si es
-  pasada, mantiene un mediodía-UTC estable (la fecha de calendario nunca se corre). Aplicado en
-  ambas acciones.
-- **Tests:** 2 casos nuevos en `tests/unit/date-utility.test.ts` (hoy → instante actual dentro
-  del rango `[before, after]`; fecha pasada → `T12:00:00Z` estable sin corrimiento de día).
+- **3 bugs de producción encontrados (vía `final-route-regression` con la lista de rutas ampliada)
+  y arreglados — todos rompían para usuarios reales:**
+  1. **Fecha "hoy" rechazada como futura.** `create-transaction` y `transfer-actions` construían
+     `occurredAt` como `` `${date}T12:00:00Z` ``. El servicio rechaza `occurredAt > now`
+     (`INVALID_INPUT` field `occurredAt`) → **todo gasto/ingreso/transferencia con fecha hoy fallaba
+     cada mañana antes de las 12:00 UTC** y siempre al este de UTC. Nuevo
+     **`resolveOccurredAtISO(date, timeZone)`** en `apps/web/src/lib/date.ts`: instante actual si
+     la fecha es hoy en el huso del usuario; mediodía-UTC estable si es pasada.
+  2. **`/obligations/upcoming` = página de error.** `getLiquidTotalsForUser`
+     (`packages/db/src/queries/account-balances.ts`) selecciona las columnas de
+     `buildLedgerTotalColumns()` dentro de un subquery y luego las referencia por nombre → drizzle
+     lanza *"raw SQL field … doesn't have an alias declared"*. Nuevo
+     **`buildAliasedLedgerTotalColumns()`** en `ledger-totals.ts`. Era el único consumidor, sin
+     test — roto desde WP-LEDGER-EXHAUSTIVE.
+  3. **`/reports/*` = página de error.** `periodLabel`/`compactTotal`/`toSegments` vivían en
+     `report-shared.tsx` (`"use client"`); llamarlas desde un server component lanza *"Attempted to
+     call periodLabel() from the server"*. Movidas a **`report-format.ts`** (módulo plano); las 6
+     páginas de `/reports` reimportan de ahí.
+- **Tests:** +2 unit en `date-utility.test.ts` (hoy → instante en `[before, after]`; pasada →
+  `T12:00:00Z` estable) + 1 integration en `transfer-balance.test.ts` (`getLiquidTotalsForUser`
+  devuelve el total con transferencias, sin el error de alias).
 - **Infra E2E:** 17 specs muertos ya en `tests/e2e-quarantine/`; `playwright.config.ts` carga
   `.env`; `signUpCompleteOnboardingAndStartTrial` = `signUp` + `goto('/app')` (gate de
   onboarding removido en el rebuild greenfield); `final-route-regression.spec.ts` con la lista
@@ -898,7 +908,8 @@ el diagnóstico de saldo.
 - **Journeys §39.3 restantes** (import con errores, duplicado, downgrade sin pérdida, IA caída)
   tienen cobertura a nivel integración/unit; se agregan como E2E cuando se reconstruya cada
   subsistema (import UI, billing UI, IA cableada).
-- **Verificación:** lint web limpio · typecheck 0 errores · unit 849/849 (+2) · e2e journeys 3/3.
+- **Verificación:** lint web limpio · typecheck 0 · unit 849/849 (+2) · integración balances 26/26
+  (+1) · e2e viva 6/6. Commit `34fddfc`.
 
 ## Fases C–H (restante)
 
