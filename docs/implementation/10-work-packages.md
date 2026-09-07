@@ -1261,6 +1261,33 @@ session management más allá de better-auth).
   terminar §19.2, estados `REFRESHING`/`REVOKED`/`REAUTH_REQUIRED` §29.1–29.4, indicador de cache
   desactualizada §28.3, audit de toasts §24 (undo seguro / error inline) al retomar las pantallas.
 
+## WP-SCREEN-01 — Resumen / Dashboard (spec 01)  ·  P2  ·  **DONE (2026-09-07)**
+
+Primera pantalla de la serie WP-SCREEN-*. El dashboard ya venía de WP-DASHBOARD-SPEC01 (3 KPIs,
+cashflow, donut de gastos, cuentas/obligaciones/presupuesto). Gaps contra spec 01 cerrados:
+
+- **§7.1 header** — de "Hola, {nombre}" (frase cálida, no lo que pide el spec) a **"Resumen"** con
+  subtítulo `Tu situación financiera al {formatLongDate(today)}` (§7.1 "Tu situación financiera al
+  {fecha de actualización}"; §7.1 "no usar frases promocionales permanentes").
+- **§7.2 Registrar** — el CTA del header abría `/transactions/new?type=EXPENSE`. Ahora
+  `QuickAddButton` (`features/capture/components/quick-add-button.tsx`) abre el flujo global Quick
+  Add (§7.2 "CTA global para abrir el flujo Registrar").
+- **§15 Metas** (faltaba entera) — nueva `SectionCard` "Metas": hasta 3 metas activas
+  (`goalRepository.listForUser`, ya ordenadas por fecha objetivo = §15.3), barra de progreso +
+  `$X de $Y` + %, cada nombre linkea a `/goals/[id]`, "Ver todas" → `/goals`. Empty state §15.4
+  ("Convertí un objetivo de ahorro en un plan medible. [Crear meta]").
+- **§16 "Para vos"** (faltaba entera) — nueva `SectionCard` "Para vos": hasta 2 insights ya
+  detectados (`insightRepository.listOpenForUser`, ordenados por `detectedAt` desc — **no** re-corre
+  el motor en cada render), como `InsightCard` con "Ver detalle" → `/insights/[id]` (donde vive el
+  "¿Por qué veo esto?" del §16.3). "Ver todos los insights" → `/insights`. Empty state en vez de
+  inferencia débil (§16.4).
+- **Tests:** `tests/e2e/screen-resumen.spec.ts` (2 — header "Resumen" + subtítulo fechado + CTA
+  abre Quick Add + 3 KPIs; Metas muestra la meta creada con su %, "Para vos" presente, empty
+  states).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 23/23.
+- **Follow-up:** "Actualizado hace X" §7.2, callout de riesgo de saldo negativo §11.6, sección de
+  calidad de datos §17.2, re-arreglo del layout al orden exacto del mockup §6.1.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

@@ -10,6 +10,8 @@ import {
   createDebtSummaryQueries,
   createMonthlySummaryQueries,
   createUpcomingObligationQueries,
+  goalRepository,
+  insightRepository,
   db,
 } from "@know-finanzas/db";
 import { monthRangeForTimezone, Money, todayInTimezone } from "@know-finanzas/finance";
@@ -26,10 +28,11 @@ import { CashflowChart } from "@/components/charts/cashflow-chart";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { Button } from "@/components/ui/button";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
-import { formatShortDate, relativeDueLabel } from "@/lib/format";
+import { formatLongDate, formatShortDate, relativeDueLabel } from "@/lib/format";
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
 import { getBudgetOverview } from "@/features/dashboard/services/budget-overview";
 import { AvailableMoneyDialog } from "@/features/dashboard/components/available-money-dialog";
+import { QuickAddButton } from "@/features/capture/components/quick-add-button";
 
 const dashboardService = createDashboardService({
   balances: createAccountBalanceQueries(db),
@@ -54,7 +57,7 @@ export default async function DashboardPage() {
   const user = await requireCurrentUser();
   const now = new Date();
 
-  const [summary, budgets, categorySpend, categories] = await Promise.all([
+  const [summary, budgets, categorySpend, categories, activeGoals, openInsights] = await Promise.all([
     dashboardService.getDashboardSummary({ userId: user.id, timezone: user.timezone, now }),
     getBudgetOverview(user, { budgets: budgetRepository, categories: categoryRepository, budgetQueries }, now),
     (() => {
@@ -64,19 +67,21 @@ export default async function DashboardPage() {
       return budgetQueries.getCategorySpendingForUser(user.id, { from: range.start, to: range.end });
     })(),
     categoryRepository.listForUser(user.id, { includeArchived: true }),
+    // spec 01 §15 — hasta 3 metas activas, ya ordenadas por fecha objetivo (§15.3).
+    goalRepository.listForUser(user.id).catch(() => []),
+    // spec 01 §16 — hasta 2 insights ya detectados (sin re-correr el motor en cada render).
+    insightRepository.listOpenForUser(user.id).catch(() => []),
   ]);
-
-  const firstName = user.name?.trim().split(/\s+/)[0];
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title={firstName ? `Hola, ${firstName}` : "Tu resumen financiero"}
-        description="Lo que tenés, lo que movés y lo que viene en los próximos 30 días."
+        title="Resumen"
+        description={`Tu situación financiera al ${formatLongDate(summary.today)}.`}
         actions={
           <>
             <HeaderActions />
-            <Button render={<Link href="/transactions/new?type=EXPENSE">Registrar movimiento</Link>} />
+            <QuickAddButton>Registrar</QuickAddButton>
           </>
         }
       />
@@ -94,6 +99,8 @@ export default async function DashboardPage() {
           budgets={budgets}
           categorySpend={categorySpend}
           categories={categories}
+          goals={activeGoals}
+          insights={openInsights}
           baseCurrency={user.baseCurrency}
         />
       )}
@@ -105,18 +112,24 @@ type Summary = Awaited<ReturnType<typeof dashboardService.getDashboardSummary>>;
 type BudgetItem = Awaited<ReturnType<typeof getBudgetOverview>>[number];
 type CategorySpendRow = Awaited<ReturnType<typeof budgetQueries.getCategorySpendingForUser>>[number];
 type CategoryRow = Awaited<ReturnType<typeof categoryRepository.listForUser>>[number];
+type GoalRow = Awaited<ReturnType<typeof goalRepository.listForUser>>[number];
+type InsightRow = Awaited<ReturnType<typeof insightRepository.listOpenForUser>>[number];
 
 function DashboardBody({
   summary,
   budgets,
   categorySpend,
   categories,
+  goals,
+  insights,
   baseCurrency,
 }: {
   summary: Summary;
   budgets: BudgetItem[];
   categorySpend: CategorySpendRow[];
   categories: CategoryRow[];
+  goals: GoalRow[];
+  insights: InsightRow[];
   baseCurrency: string;
 }) {
   // §8.3/RF-03/D-09: never sum currencies implicitly. `currency` drives the
@@ -164,6 +177,24 @@ function DashboardBody({
   const budgetLimit = budgets.reduce((sum, b) => sum + Number(b.limit), 0);
   const budgetPct = budgetLimit > 0 ? (budgetSpent / budgetLimit) * 100 : 0;
   const budgetState = budgetPct >= 100 ? "exceeded" : budgetPct >= 80 ? "warning" : "normal";
+
+  // §15 — máximo 3 metas, ya vienen ordenadas por fecha objetivo (§15.3).
+  const topGoals = goals.slice(0, 3).map((goal) => {
+    const target = Number(goal.targetAmount);
+    return {
+      id: goal.id,
+      name: goal.name,
+      current: goal.currentAmount,
+      target: goal.targetAmount,
+      currency: goal.currencyCode,
+      percent: target > 0 ? Math.min(100, Math.round((Number(goal.currentAmount) / target) * 100)) : 0,
+    };
+  });
+
+  // §16 — 2 insights visibles como máximo, los más recientes.
+  const topInsights = [...insights]
+    .sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime())
+    .slice(0, 2);
 
   return (
     <div className="flex flex-col gap-8">
@@ -341,6 +372,55 @@ function DashboardBody({
               description="Definí cuánto querés gastar por categoría y seguí tu avance."
               action={<Button variant="outline" render={<Link href="/budgets/new">Nuevo presupuesto</Link>} />}
             />
+          )}
+        </SectionCard>
+      </section>
+
+      {/* Goals + insights row — spec 01 §15 / §16 */}
+      <section aria-label="Metas y observaciones" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SectionCard title="Metas" action={topGoals.length > 0 ? { label: "Ver todas", href: "/goals" } : undefined}>
+          {topGoals.length > 0 ? (
+            <ul className="flex flex-col gap-4">
+              {topGoals.map((goal) => (
+                <li key={goal.id} className="flex flex-col gap-1.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <Link href={`/goals/${goal.id}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
+                      {goal.name}
+                    </Link>
+                    <span className="shrink-0 text-caption tabular-nums text-muted-foreground">{goal.percent}%</span>
+                  </div>
+                  <ProgressBar value={goal.percent} aria-label={`${goal.name}: ${goal.percent}%`} />
+                  <span className="text-caption text-muted-foreground">
+                    <MoneyAmount amount={goal.current} currency={goal.currency} variant="compact" /> de{" "}
+                    <MoneyAmount amount={goal.target} currency={goal.currency} variant="compact" />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              title="Sin metas"
+              description="Convertí un objetivo de ahorro en un plan medible."
+              action={<Button variant="outline" render={<Link href="/goals/new">Crear meta</Link>} />}
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard title="Para vos" action={insights.length > 0 ? { label: "Ver todos los insights", href: "/insights" } : undefined}>
+          {topInsights.length > 0 ? (
+            <ul className="flex flex-col gap-3">
+              {topInsights.map((insight) => (
+                <li key={insight.id}>
+                  <InsightCard title={insight.title} action={{ label: "Ver detalle", href: `/insights/${insight.id}` }}>
+                    <p>{insight.body}</p>
+                  </InsightCard>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-6 text-center text-small text-muted-foreground">
+              Cuando detectemos un cambio de gasto, un presupuesto al límite o una meta atrasada con evidencia suficiente, lo vas a ver acá.
+            </p>
           )}
         </SectionCard>
       </section>
