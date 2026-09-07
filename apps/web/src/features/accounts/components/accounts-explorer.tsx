@@ -40,19 +40,32 @@ const TYPE_META: Record<AccountRow["type"], { label: string; icon: typeof Wallet
   SAVINGS: { label: "Ahorro", icon: PiggyBankIcon },
 };
 
+const SORTS: Record<string, (a: AccountRow, b: AccountRow) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name, "es"),
+  "balance-desc": (a, b) => Number(b.balance) - Number(a.balance),
+  "balance-asc": (a, b) => Number(a.balance) - Number(b.balance),
+};
+
 export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: AccountRow[]; defaultType?: string }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<string>(defaultType);
   const [currency, setCurrency] = useState<string>("ALL");
+  const [sort, setSort] = useState<string>("balance-desc");
+  // spec 02 §12.4 — Estado oculto por defecto; se activa con "Ver archivadas".
+  const [showArchived, setShowArchived] = useState(false);
 
   const currencies = useMemo(() => [...new Set(accounts.map((a) => a.currencyCode))].sort(), [accounts]);
+  const archivedCount = useMemo(() => accounts.filter((a) => a.status === "ARCHIVED").length, [accounts]);
 
-  const filtered = accounts.filter((account) => {
-    if (query && !account.name.toLowerCase().includes(query.toLowerCase())) return false;
-    if (type !== "ALL" && account.type !== type) return false;
-    if (currency !== "ALL" && account.currencyCode !== currency) return false;
-    return true;
-  });
+  const filtered = accounts
+    .filter((account) => {
+      if (!showArchived && account.status === "ARCHIVED") return false;
+      if (query && !account.name.toLowerCase().includes(query.toLowerCase())) return false;
+      if (type !== "ALL" && account.type !== type) return false;
+      if (currency !== "ALL" && account.currencyCode !== currency) return false;
+      return true;
+    })
+    .sort(SORTS[sort] ?? SORTS["balance-desc"]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -81,7 +94,7 @@ export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: 
           </SelectContent>
         </Select>
         <Select value={currency} onValueChange={(value) => setCurrency(value ?? "ALL")}>
-          <SelectTrigger className="h-10 sm:w-48" aria-label="Filtrar por moneda">
+          <SelectTrigger className="h-10 sm:w-44" aria-label="Filtrar por moneda">
             <SelectValue>{(value) => (value === "ALL" ? "Todas las monedas" : value)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -93,7 +106,31 @@ export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: 
             ))}
           </SelectContent>
         </Select>
+        <Select value={sort} onValueChange={(value) => setSort(value ?? "balance-desc")}>
+          <SelectTrigger className="h-10 sm:w-44" aria-label="Ordenar">
+            <SelectValue>
+              {(value) =>
+                value === "name" ? "Nombre (A–Z)" : value === "balance-asc" ? "Saldo (menor)" : "Saldo (mayor)"
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="balance-desc">Saldo (mayor)</SelectItem>
+            <SelectItem value="balance-asc">Saldo (menor)</SelectItem>
+            <SelectItem value="name">Nombre (A–Z)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {archivedCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowArchived((v) => !v)}
+          className="self-start text-caption font-medium text-brand hover:underline"
+        >
+          {showArchived ? "Ocultar archivadas" : `Ver archivadas (${archivedCount})`}
+        </button>
+      ) : null}
 
       {filtered.length === 0 ? (
         <EmptyState

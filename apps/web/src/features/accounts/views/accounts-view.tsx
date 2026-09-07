@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { LayersIcon, LandmarkIcon, PiggyBankIcon, WalletIcon } from "lucide-react";
+import { LayersIcon, PiggyBankIcon, WalletIcon } from "lucide-react";
 
 import { accountRepository, createDebtSummaryQueries, db } from "@know-finanzas/db";
 import { Money } from "@know-finanzas/finance";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { HeaderActions } from "@/components/shared/header-actions";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { InsightCard } from "@/components/shared/insight-card";
@@ -23,11 +22,22 @@ const DONUT_COLORS = ["var(--chart-1)", "var(--chart-5)", "var(--chart-2)", "var
 
 export type AccountType = "CASH" | "BANK" | "DIGITAL_WALLET" | "SAVINGS";
 
+const TYPE_LABEL: Record<AccountType, string> = {
+  BANK: "Bancos",
+  DIGITAL_WALLET: "Billeteras",
+  CASH: "Efectivo",
+  SAVINGS: "Ahorro",
+};
+
 // WP-ROUTES-SUBVIEWS (spec 14 §7/§8): /accounts/{banks,wallets,cash,savings} are the same view
 // as /accounts, scoped server-side to one account type — one body, parametrized, so the four
 // subviews can never drift from the main page's logic (stats, donut, explorer all reuse this).
-export async function AccountsView({ type, title, description }: { type?: AccountType; title: string; description: string }) {
+export async function AccountsView({ type }: { type?: AccountType }) {
   const user = await requireCurrentUser();
+  // spec 02 §12.2 — the fixed header copy for the module.
+  const title = type ? TYPE_LABEL[type] : "Cuentas";
+  const description = "Administrá dónde está tu dinero y revisá qué movimientos explican cada saldo.";
+  const breadcrumb = type ? [{ label: "Cuentas", href: "/accounts" }, { label: TYPE_LABEL[type] }] : undefined;
 
   const [allAccounts, debtRows] = await Promise.all([
     service.listAccounts(user.id, { includeArchived: true }),
@@ -91,39 +101,47 @@ export async function AccountsView({ type, title, description }: { type?: Accoun
     count: accountsPerCurrency.get(entry.currencyCode) ?? 0,
   }));
 
+  const multiCurrency = currencyTotals.length > 1;
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        breadcrumb={breadcrumb}
         title={title}
         description={description}
-        actions={
-          <>
-            <HeaderActions showPeriod={false} />
-            <Button render={<Link href="/accounts/new">Nueva cuenta</Link>} />
-          </>
-        }
+        actions={<Button render={<Link href="/accounts/new">Nueva cuenta</Link>} />}
       />
 
-      <section aria-label="Resumen de cuentas" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Saldo total en cuentas" icon={WalletIcon} value={primaryTotal} currency={primaryCurrency} hint="Sumando tus cuentas activas" />
-        <StatCard label="Cuentas activas" icon={LandmarkIcon}>
-          <span className="flex flex-col gap-0.5">
-            <span className="text-metric font-medium text-foreground">{active.length}</span>
-            <span className="text-small font-normal text-muted-foreground">
-              {currencyTotals.length} {currencyTotals.length === 1 ? "moneda" : "monedas"}
-            </span>
-          </span>
-        </StatCard>
-        <StatCard label="Monedas" icon={LayersIcon}>
-          <span className="text-metric font-medium text-foreground">{currencyTotals.map((c) => c.currencyCode).join(" · ") || "—"}</span>
-        </StatCard>
+      {/* spec 02 §12.3 — sólo mostrar métricas representables. Una moneda: un total. Varias: nunca
+          un número único (sumaría monedas distintas — §10.3 / RF-03), sino saldos por moneda. */}
+      <section aria-label="Resumen de cuentas" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {multiCurrency ? (
+          <StatCard label="Saldos por moneda" icon={LayersIcon}>
+            <ul className="mt-1 flex flex-col gap-1">
+              {currencyTotals.map((entry) => (
+                <li key={entry.currencyCode} className="flex items-baseline justify-between gap-3">
+                  <span className="text-small font-medium text-muted-foreground">{entry.currencyCode}</span>
+                  <MoneyAmount amount={entry.total} currency={entry.currencyCode} className="text-body-lg font-medium text-foreground" />
+                </li>
+              ))}
+            </ul>
+          </StatCard>
+        ) : (
+          <StatCard
+            label="Saldo en cuentas"
+            icon={WalletIcon}
+            value={primaryTotal}
+            currency={primaryCurrency}
+            hint={`${active.length} ${active.length === 1 ? "cuenta activa" : "cuentas activas"}`}
+          />
+        )}
         <StatCard
           label="Deuda pendiente"
           icon={PiggyBankIcon}
           tone={Number(debtRemaining) > 0 ? "warning" : "neutral"}
           value={debtRemaining}
           currency={primaryCurrency}
-          hint="Saldo pendiente de tus obligaciones"
+          hint="Saldo pendiente de tus obligaciones · lo gestionás en Obligaciones"
         />
       </section>
 

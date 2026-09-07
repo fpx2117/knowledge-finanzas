@@ -1288,6 +1288,30 @@ cashflow, donut de gastos, cuentas/obligaciones/presupuesto). Gaps contra spec 0
 - **Follow-up:** "Actualizado hace X" §7.2, callout de riesgo de saldo negativo §11.6, sección de
   calidad de datos §17.2, re-arreglo del layout al orden exacto del mockup §6.1.
 
+## WP-SCREEN-02 — Cuentas (spec 02)  ·  P2  ·  **DONE (2026-09-07)**
+
+- **§12.3 — bug de multimoneda (integridad).** `AccountsView` mostraba **siempre** una `StatCard`
+  "Saldo total en cuentas" con el total de la moneda primaria y el hint "Sumando tus cuentas
+  activas" — engañoso apenas hay una segunda moneda (sugiere un total agregado que no existe;
+  §10.3 / RF-03 prohíben sumar monedas). Ahora:
+  - 1 moneda activa → `StatCard` "Saldo en cuentas $X" · hint "N cuentas activas" (§12.3).
+  - 2+ monedas → `StatCard` "Saldos por moneda" con `ARS $X / USD $Y`, **sin** número único (§12.3).
+  La tarjeta "Deuda pendiente" queda (con nota "lo gestionás en Obligaciones"). Se quitaron las
+  KPI redundantes "Cuentas activas" y "Monedas".
+- **§12.2 header** — copy fija del spec: título "Cuentas", descripción "Administrá dónde está tu
+  dinero y revisá qué movimientos explican cada saldo." Las 4 subvistas
+  (`/accounts/{banks,wallets,cash,savings}`) pasan a `breadcrumb` (`Cuentas / Bancos`) en vez de
+  meter el slash en el título; `AccountsView` deriva título + breadcrumb del `type`.
+- **§12.4 toolbar** — `AccountsExplorer` gana: (a) toggle **"Ver archivadas (N)" / "Ocultar
+  archivadas"** — las archivadas se ocultan por defecto (§12.4 "Estado oculto por defecto"); (b)
+  selector **Ordenar** (Saldo mayor/menor, Nombre A–Z). Buscar + Tipo + Moneda ya estaban.
+- **Tests:** `tests/e2e/screen-cuentas.spec.ts` (2 — 1 moneda vs 2+ monedas nunca fusiona un
+  total; archivadas ocultas hasta el toggle + copy del header).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 25/25.
+- **Follow-up:** agrupación §12.5 (Por tipo / Por moneda / Sin agrupar), pasar de tabla a **cards**
+  §13 (anatomía icono + nombre + saldo + moneda + "Último movimiento"), menú contextual completo
+  §13.4 (Registrar/Transferir/Importar/Editar/Ajustar saldo/Archivar), toolbar responsive.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
