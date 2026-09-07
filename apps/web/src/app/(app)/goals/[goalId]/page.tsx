@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resourceIdOr404 } from "@/lib/http/resource-id";
-import { ArrowLeftIcon, CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 
 import { todayInTimezone } from "@know-finanzas/finance";
 import { isApplicationError } from "@know-finanzas/shared";
@@ -48,11 +47,8 @@ export default async function GoalDetailPage({ params }: { params: Promise<{ goa
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/goals" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Volver a metas
-      </Link>
-
       <PageHeader
+        breadcrumb={[{ label: "Metas", href: "/goals" }, { label: goal.name }]}
         title={goal.name}
         description={meta.label}
         actions={<GoalActions goalId={goal.id} currencyCode={goal.currencyCode} remainingAmount={goal.remainingAmount} currentAmount={goal.currentAmount} status={goal.status} />}

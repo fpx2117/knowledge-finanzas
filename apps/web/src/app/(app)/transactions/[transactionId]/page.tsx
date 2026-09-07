@@ -57,6 +57,7 @@ export default async function TransactionDetailPage({ params }: { params: Promis
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        breadcrumb={[{ label: "Transacciones", href: "/transactions" }, { label: transaction.description }]}
         title={transaction.description}
         description={formatLongDate(transaction.occurredAt)}
         actions={

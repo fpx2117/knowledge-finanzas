@@ -28,7 +28,13 @@ export default async function EditGoalPage({ params }: { params: Promise<{ goalI
   if (goal.status !== "ACTIVE") notFound();
 
   return (
-    <FormPage backHref={`/goals/${goal.id}`} backLabel="Volver a la meta" eyebrow="Editar meta" title={`Editar «${goal.name}»`}>
+    <FormPage
+      backHref={`/goals/${goal.id}`}
+      backLabel="Volver a la meta"
+      breadcrumb={[{ label: "Metas", href: "/goals" }, { label: goal.name, href: `/goals/${goal.id}` }, { label: "Editar" }]}
+      eyebrow="Editar meta"
+      title={`Editar «${goal.name}»`}
+    >
       <GoalForm
         baseCurrency={user.baseCurrency}
         goal={{

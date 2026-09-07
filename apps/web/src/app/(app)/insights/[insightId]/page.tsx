@@ -47,7 +47,11 @@ export default async function InsightDetailPage({ params }: { params: Promise<{ 
         <ArrowLeftIcon className="size-4" /> Volver a Insights
       </Link>
 
-      <PageHeader title={insight.title} description={meta.label} />
+      <PageHeader
+        breadcrumb={[{ label: "Insights", href: "/insights" }, { label: insight.title }]}
+        title={insight.title}
+        description={meta.label}
+      />
 
       <InsightCard insight={insight} showActions={isOpen} />
 

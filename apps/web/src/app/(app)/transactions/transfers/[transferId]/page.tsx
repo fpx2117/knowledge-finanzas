@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resourceIdOr404 } from "@/lib/http/resource-id";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 
 import { accountRepository } from "@know-finanzas/db";
 import { isApplicationError } from "@know-finanzas/shared";
@@ -37,11 +36,8 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/transactions" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Volver a transacciones
-      </Link>
-
       <PageHeader
+        breadcrumb={[{ label: "Transacciones", href: "/transactions" }, { label: "Transferencia" }]}
         title="Transferencia"
         description={formatLongDate(transfer.occurredAt)}
         actions={<TransferActions transferId={transfer.id} voided={voided} />}

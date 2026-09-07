@@ -47,6 +47,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ b
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        breadcrumb={[{ label: "Presupuestos", href: "/budgets" }, { label: detail.name ?? detail.categoryName }]}
         title={detail.name ?? detail.categoryName}
         description={`Presupuesto mensual · ${detail.currencyCode}`}
         actions={

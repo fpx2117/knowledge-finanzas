@@ -58,6 +58,7 @@ export default async function DebtDetailPage({ params }: { params: Promise<{ obl
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        breadcrumb={[{ label: "Obligaciones", href: "/obligations" }, { label: debt.name }]}
         title={debt.name}
         description={debt.creditor ? `Acreedor: ${debt.creditor} · ${debt.currencyCode}` : `Obligación · ${debt.currencyCode}`}
         actions={

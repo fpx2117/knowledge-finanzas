@@ -64,6 +64,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        breadcrumb={[{ label: "Cuentas", href: "/accounts" }, { label: account.name }]}
         title={account.name}
         description={`${TYPE_LABEL[account.type] ?? account.type} · ${account.currencyCode}`}
         actions={

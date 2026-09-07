@@ -97,6 +97,36 @@ test.describe("app header + notification center (spec §9, §17)", () => {
     await context.close();
   });
 
+  test("a detail page shows a breadcrumb: the module links, the entity is the current page (spec §10)", async ({ browser, baseURL }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await newUser(page, baseURL!, "crumbs");
+
+    await page.goto("/accounts/new");
+    await page.getByLabel("Nombre de la cuenta").fill("Banco Galicia");
+    await page.getByLabel("Tipo").selectOption("BANK");
+    await page.getByLabel("Moneda").selectOption("ARS");
+    await page.getByLabel("Saldo inicial").fill("0");
+    await page.getByLabel("Fecha de apertura").fill("2026-01-01");
+    await page.getByRole("button", { name: "Crear cuenta" }).click();
+    await expect(page).toHaveURL(/\/accounts$/);
+
+    await page.getByRole("link", { name: "Banco Galicia", exact: true }).first().click();
+    await expect(page).toHaveURL(/\/accounts\/[0-9a-f-]+$/);
+
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+    await expect(crumbs).toBeVisible();
+    await expect(crumbs.getByRole("link", { name: "Cuentas" })).toHaveAttribute("href", "/accounts");
+    // The entity segment is not a link and is marked as the current page.
+    await expect(crumbs.getByRole("link", { name: "Banco Galicia" })).toHaveCount(0);
+    await expect(crumbs.locator('[aria-current="page"]')).toHaveText("Banco Galicia");
+
+    await crumbs.getByRole("link", { name: "Cuentas" }).click();
+    await expect(page).toHaveURL(/\/accounts$/);
+
+    await context.close();
+  });
+
   test("the page header no longer carries its own notification bell (spec §9.4 — global actions live in the app header)", async ({ browser, baseURL }) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();

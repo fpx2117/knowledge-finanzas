@@ -1150,6 +1150,25 @@ Segundo incremento de Fase I.
   e2e 15/15.
 - **Follow-up inmediato:** WP-SHELL-BREADCRUMBS (§10).
 
+## WP-SHELL-BREADCRUMBS — Breadcrumbs en páginas de detalle (spec 13 §10)  ·  P2  ·  **DONE (2026-09-06)**
+
+Tercer incremento de Fase I.
+
+- **`PageHeader` + `FormPage`** ganan `breadcrumb?: Crumb[]` (`{ label, href? }`). Nuevo
+  `<Breadcrumb>` exportado desde `page-header.tsx`: `<nav aria-label="Breadcrumb">` con `<ol>`,
+  ancestros como `<Link>`, último segmento `<span aria-current="page">` **nunca link** (§10.3),
+  separador chevron, truncado del segmento de entidad (§10.4). `FormPage` reemplaza su "← Volver"
+  por el breadcrumb cuando se le pasa uno.
+- **Wire (8 páginas de detalle):** `Cuentas / <cuenta>`, `Presupuestos / <presupuesto>`,
+  `Metas / <meta>`, `Metas / <meta> / Editar` (3 niveles, vía FormPage), `Transacciones / <desc>`,
+  `Transacciones / Transferencia`, `Obligaciones / <deuda>`, `Insights / <título>`. Los "← Volver a
+  metas / a transacciones" manuales de `goals/[id]` y `transfers/[id]` se eliminaron (el
+  breadcrumb es la vuelta ahora, §10.3). No se tocan las páginas raíz (§10.2 — Resumen, Calendario,
+  Insights, listas).
+- **Tests:** `shell.spec.ts` +1 (el módulo linkea a su ruta, la entidad es `aria-current="page"`
+  y no es link, click en el ancestro vuelve a la lista).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 16/16.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

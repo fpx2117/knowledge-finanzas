@@ -2,14 +2,17 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Breadcrumb, type Crumb } from "@/components/shared/page-header";
 
 /**
- * Narrow shell for create / edit screens: a back link, an eyebrow + title +
- * plain-language description, and the form inside a single calm card.
+ * Narrow shell for create / edit screens: a back affordance (a breadcrumb when the screen sits in
+ * a hierarchy — spec 13 §10 — otherwise a plain back link), an eyebrow + title + plain-language
+ * description, and the form inside a single calm card.
  */
 export function FormPage({
   backHref,
   backLabel,
+  breadcrumb,
   eyebrow,
   title,
   description,
@@ -17,6 +20,8 @@ export function FormPage({
 }: {
   backHref: string;
   backLabel: string;
+  /** Overrides the back link with a `Módulo / Entidad / Editar`-style breadcrumb (§10). */
+  breadcrumb?: Crumb[];
   eyebrow?: string;
   title: string;
   description?: string;
@@ -24,10 +29,14 @@ export function FormPage({
 }) {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <Link href={backHref} className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" />
-        {backLabel}
-      </Link>
+      {breadcrumb && breadcrumb.length > 0 ? (
+        <Breadcrumb items={breadcrumb} />
+      ) : (
+        <Link href={backHref} className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
+          <ArrowLeftIcon className="size-4" />
+          {backLabel}
+        </Link>
+      )}
       <div className="flex flex-col gap-1.5">
         {eyebrow ? (
           <span className="text-caption font-semibold uppercase tracking-wider text-brand">{eyebrow}</span>
