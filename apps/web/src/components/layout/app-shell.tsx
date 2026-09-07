@@ -26,7 +26,7 @@ export function AppShell({
             users jump past the sidebar/mobile nav straight to the page content. */}
         <a
           href="#main-content"
-          className="sr-only rounded-md bg-card px-4 py-2 text-small font-medium text-foreground shadow-md ring-1 ring-border focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:outline-none focus:ring-[3px] focus:ring-ring/40"
+          className="sr-only rounded-md bg-card px-4 py-2 text-small font-medium text-foreground shadow-md ring-1 ring-border focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[var(--z-critical)] focus:outline-none focus:ring-[3px] focus:ring-ring/40"
         >
           Saltar al contenido
         </a>

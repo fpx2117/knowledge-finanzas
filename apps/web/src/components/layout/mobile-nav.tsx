@@ -26,7 +26,7 @@ export function MobileNav({
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-card/90 px-4 py-3 backdrop-blur lg:hidden">
+    <header className="sticky top-0 z-[var(--z-sticky)] flex items-center justify-between gap-3 border-b border-border bg-card/90 px-4 py-3 backdrop-blur lg:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger
           aria-label="Abrir navegación"

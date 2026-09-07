@@ -1197,6 +1197,36 @@ Cuarto incremento de Fase I.
 - **Follow-up:** cuando está colapsado, un grupo con subrutas activo muestra su sublista recortada;
   un indicador de badge como punto (no número) en el riel sería más claro que el recorte.
 
+## WP-SHELL-OVERLAYS — Escala z-index + confirmación destructiva (spec 13 §21–22)  ·  P2  ·  **DONE (2026-09-07)**
+
+Quinto incremento de Fase I.
+
+- **§21.4 escala z-index central.** `globals.css` ya tenía un intento (`--z-base/sticky/…`) que
+  **nadie usaba** — los componentes hardcodeaban `z-50`, `z-20`, `z-10`, `z-[60]`, `z-30`.
+  Reescrita al orden conceptual del §21.4:
+  `--z-base 0 · --z-raised 10 (page header sticky, sidebar re-expandido) · --z-sticky 20 (sidebar
+  fijo, barra mobile) · --z-popover 40 (tooltip/popover/dropdown) · --z-modal 50 (dialog+overlay,
+  sheet, drawer) · --z-palette 55 (command palette, > modal) · --z-toast 60 · --z-critical 70
+  (skip link, banner crítico, overlay de sesión)`. Aplicada vía `z-[var(--z-*)]` en: `app-shell`
+  (skip link), `sidebar` (+ hover-expand), `mobile-nav`, `app-header`, `ui/dialog` (overlay +
+  content), `ui/sheet`, `ui/dropdown-menu`, `ui/popover`, `ui/tooltip`, `ui/command` (CommandDialog
+  → `z-palette`), `ui/sonner` (`style zIndex: var(--z-toast)`).
+- **§22.1 `ConfirmDialog`** (`components/shared/confirm-dialog.tsx`): la forma única de pedir una
+  confirmación destructiva — título con la acción + el objeto exactos, consecuencia clara,
+  `warning?` para la consecuencia extra que hay que ver antes, CTA destructivo **nombrado**,
+  `Cancelar` fácil, error inline si la operación falla (§24.2 — nunca sólo un toast), auto-close
+  al éxito, focus trap + restore del `Dialog` base (§22.3). Reservado para lo irreversible / que
+  toca dinero (§22.2).
+- **Migrados:** `transfer-actions` (anular transferencia), `account-actions` (archivar cuenta,
+  con el `warning` de saldo). De ~50 líneas de `Dialog + useActionState + form + hidden input`
+  cada uno a una llamada declarativa.
+- **Tests:** `shell.spec.ts` +1 (título específico "Archivar <cuenta>", CTA "Archivar cuenta",
+  Cancelar cierra sin cambiar nada, confirmar archiva).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 18/18.
+- **Follow-up:** migrar los confirms destructivos restantes (goal archive, debt cancel, transaction
+  void, category archive — ya tienen la anatomía correcta, es cleanup); undo-toast para borrar
+  regla de clasificación (§24.3). Banners globales §25 + audit de toasts §24 → WP-SHELL-STATES.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

@@ -1,5 +1,6 @@
 "use client";
 
+import type * as React from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 // Toast host. Financial errors must stay explicit and recoverable
@@ -10,6 +11,7 @@ export function Toaster(props: ToasterProps) {
     <Sonner
       className="toaster group"
       position="bottom-right"
+      style={{ zIndex: "var(--z-toast)" } as React.CSSProperties}
       toastOptions={{
         classNames: {
           toast:

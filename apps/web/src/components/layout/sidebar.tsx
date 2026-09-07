@@ -20,10 +20,10 @@ export function Sidebar({ user, badges }: { user: SidebarUser; badges?: NavBadge
       aria-label="Barra lateral"
       data-collapsed={collapsed ? "true" : "false"}
       className={cn(
-        "group/sidebar fixed inset-y-0 left-0 z-20 hidden flex-col overflow-hidden border-r border-border bg-card transition-[width,box-shadow] duration-150 lg:flex",
+        "group/sidebar fixed inset-y-0 left-0 z-[var(--z-sticky)] hidden flex-col overflow-hidden border-r border-border bg-card transition-[width,box-shadow] duration-150 lg:flex",
         // §6.10 — collapsed to a rail, but hover / keyboard focus expands it back over the content.
         collapsed
-          ? "w-16 hover:w-60 hover:z-30 hover:shadow-2xl focus-within:w-60 focus-within:z-30 focus-within:shadow-2xl"
+          ? "w-16 hover:w-60 hover:z-[var(--z-popover)] hover:shadow-2xl focus-within:w-60 focus-within:z-[var(--z-popover)] focus-within:shadow-2xl"
           : "w-60",
       )}
     >

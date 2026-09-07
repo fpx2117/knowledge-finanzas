@@ -255,14 +255,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* z-index scale — prerequisito técnico para Dialog/Sheet/DropdownMenu/
-     Popover (F2) conviviendo con un sidebar fijo (F5) y toasts (F2.24/F5.7). */
+  /* z-index scale — spec 13 §21.4: escala central única, ningún componente usa un z-index
+     arbitrario. Orden conceptual: base < raised < sticky < popover < modal < command palette <
+     toast < critical overlay. Todo overlay del shell referencia una de estas vars. */
   --z-base: 0;
-  --z-sticky: 10;
-  --z-sidebar-mobile: 20;
-  --z-overlay: 40;
-  --z-dialog: 50;
-  --z-toast: 60;
+  --z-raised: 10;      /* page header sticky, sidebar re-expandido sobre el contenido */
+  --z-sticky: 20;      /* sidebar fijo, barra mobile */
+  --z-popover: 40;     /* tooltip, popover, dropdown menu */
+  --z-modal: 50;       /* dialog (overlay + contenido), sheet, drawer */
+  --z-palette: 55;     /* command palette — por encima de un modal (§21.4) */
+  --z-toast: 60;       /* feedback no bloqueante, visible sobre un modal */
+  --z-critical: 70;    /* skip link, banner crítico, overlay de sesión expirada */
 
   /* Motion tokens — design-system.md §61 (150–250ms, ease-out). Uso: hover,
      dropdown, dialog, sidebar, charts. Evitar animaciones decorativas

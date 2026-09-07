@@ -116,6 +116,47 @@ test.describe("sidebar collapse (spec §6.10–6.12)", () => {
   });
 });
 
+test.describe("overlays (spec §21–22)", () => {
+  test("a destructive action opens a ConfirmDialog with a specific title, a named CTA and an easy way out", async ({ browser, baseURL }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await newUser(page, baseURL!, "confirm");
+
+    await page.goto("/accounts/new");
+    await page.getByLabel("Nombre de la cuenta").fill("Cuenta a archivar");
+    await page.getByLabel("Tipo").selectOption("BANK");
+    await page.getByLabel("Moneda").selectOption("ARS");
+    await page.getByLabel("Saldo inicial").fill("0");
+    await page.getByLabel("Fecha de apertura").fill("2026-01-01");
+    await page.getByRole("button", { name: "Crear cuenta" }).click();
+    await expect(page).toHaveURL(/\/accounts$/);
+
+    await page.getByRole("link", { name: "Cuenta a archivar", exact: true }).first().click();
+    await page.getByRole("button", { name: "Archivar", exact: true }).click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    // §22.1 — title names the exact action + object; the CTA is named, not just "OK".
+    await expect(dialog.getByRole("heading", { name: "Archivar Cuenta a archivar" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Archivar cuenta" })).toBeVisible();
+
+    // §22.1 / §22.3 — an easy way out: Cancelar closes the dialog and changes nothing.
+    await dialog.getByRole("button", { name: "Cancelar" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText(/archivada/i)).toHaveCount(0);
+
+    // Confirming actually archives it and the page reflects it.
+    await page.getByRole("button", { name: "Archivar", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Archivar cuenta" }).click();
+    await expect(async () => {
+      await page.reload();
+      await expect(page.getByText(/archivada/i).first()).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
+
+    await context.close();
+  });
+});
+
 test.describe("app header + notification center (spec §9, §17)", () => {
   test("the desktop app header exposes the global search and notifications, and /notifications renders its own center", async ({ browser, baseURL }) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
