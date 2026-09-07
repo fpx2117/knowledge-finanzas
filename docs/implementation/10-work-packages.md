@@ -1312,6 +1312,31 @@ cashflow, donut de gastos, cuentas/obligaciones/presupuesto). Gaps contra spec 0
   §13 (anatomía icono + nombre + saldo + moneda + "Último movimiento"), menú contextual completo
   §13.4 (Registrar/Transferir/Importar/Editar/Ajustar saldo/Archivar), toolbar responsive.
 
+## WP-SCREEN-03 — Transacciones / Todos los movimientos (spec 03 §9)  ·  P2  ·  **DONE (2026-09-07)**
+
+Sólo la vista lista (03.1). Las subvistas 03.2–03.6 (Gastos/Ingresos/Transferencias/Recurrentes/
+Pendientes) y los flujos de captura §15–18 son WPs aparte.
+
+- **§9.2 header** — subtítulo pasa de "Registrá, buscá y entendé tus movimientos financieros." a
+  **"Todos los movimientos"**. El CTA "Nueva transacción" (`Link` a `/transactions/new`) →
+  `QuickAddButton` "Registrar" (abre el flujo global). Se quitó el botón "Transferencia" del
+  header — es una acción de subvista y ya está en el `TransactionsSubnav`. "Importar" queda.
+- **§9.3 resumen del período** — de 4 KPIs a **exactamente 3** (Ingresos / Gastos / Resultado); se
+  quitó "Movimientos" (contador raro con "N+"). **Bug de multimoneda corregido** (mismo patrón que
+  Cuentas §12.3): `currency = monthly[0].currencyCode` mostraba sólo la primera moneda. Ahora
+  `periodByCurrency` mapea todas; 1 moneda → 3 `StatCard`; 2+ → un bloque por moneda con
+  Ingresos/Gastos/Resultado, **nunca** un número fusionado (§10.3 / RF-03). Transferencias internas
+  ya excluidas por la query (`getMonthlyIncomeExpense` sólo cuenta INCOME/EXPENSE/REFUND).
+- **Tests:** `tests/e2e/screen-transacciones.spec.ts` (2 — header + Registrar abre Quick Add; 3
+  KPIs en una moneda, split por moneda sin total fusionado en dos).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 27/27.
+- **Nota de entorno:** el run se puso rojo entero por conexiones de Postgres filtradas por un
+  `next dev` viejo (95 idle en `know_finanzas`, `max_connections=100`) → `next start` de e2e no
+  conseguía conexión. Reapadas y todo verde. Ver `[[dev-server-and-recharts-gotchas]]`.
+- **Follow-up:** agrupación temporal §9.6 (Hoy/Ayer/Esta semana/mes), sort §9.7, selección
+  múltiple + acciones masivas §9.11, columnas configurables §9.4, búsqueda server-side (hoy filtra
+  sólo la página actual).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

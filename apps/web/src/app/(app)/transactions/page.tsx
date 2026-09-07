@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownIcon, ArrowUpIcon, ScaleIcon, ListIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, ScaleIcon, LayersIcon } from "lucide-react";
 
 import {
   accountRepository,
@@ -17,8 +17,10 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { InsightCard } from "@/components/shared/insight-card";
 import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
+import { MoneyAmount } from "@/components/financial/money-amount";
 import { Button } from "@/components/ui/button";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { QuickAddButton } from "@/features/capture/components/quick-add-button";
 import { TransactionsFilters } from "@/features/transactions/components/transactions-filters";
 import { TransactionsSubnav } from "@/features/transactions/components/transactions-subnav";
 import { TransactionsTable, type TransactionRow } from "@/features/transactions/components/transactions-table";
@@ -82,11 +84,25 @@ export default async function TransactionsPage({
     status: row.status,
   }));
 
-  const currency = monthly[0]?.currencyCode ?? user.baseCurrency;
-  const primaryMonthly = monthly.find((m) => m.currencyCode === currency);
-  const income = primaryMonthly?.incomeTotal ?? "0";
-  const expense = primaryMonthly?.netExpense ?? primaryMonthly?.expenseTotal ?? "0";
-  const result = Money.fromString(income, currency).subtract(Money.fromString(expense, currency)).toString();
+  // spec 03 §9.3 — resumen del período: ingresos / gastos / resultado, monedas separadas, nunca
+  // un total fusionado si hay monedas incomparables (§10.3 / RF-03). Transferencias internas ya
+  // están excluidas por la query (sólo INCOME/EXPENSE/REFUND).
+  const periodByCurrency = monthly
+    .map((m) => {
+      const income = m.incomeTotal ?? "0";
+      const expense = m.netExpense ?? m.expenseTotal ?? "0";
+      return {
+        currencyCode: m.currencyCode,
+        income,
+        expense,
+        result: Money.fromString(income, m.currencyCode).subtract(Money.fromString(expense, m.currencyCode)).toString(),
+      };
+    })
+    .filter((m) => Number(m.income) !== 0 || Number(m.expense) !== 0)
+    .sort((a, b) => Number(b.income) + Number(b.expense) - (Number(a.income) + Number(a.expense)));
+  const primary = periodByCurrency.find((m) => m.currencyCode === user.baseCurrency) ?? periodByCurrency[0];
+  const currency = primary?.currencyCode ?? user.baseCurrency;
+  const multiCurrency = periodByCurrency.length > 1;
 
   // Category donut (expenses this period).
   const spendRows = categorySpend
@@ -117,13 +133,12 @@ export default async function TransactionsPage({
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Transacciones"
-        description="Registrá, buscá y entendé tus movimientos financieros."
+        description="Todos los movimientos"
         actions={
           <>
             <HeaderActions />
             <Button variant="ghost" render={<Link href="/settings/imports">Importar</Link>} />
-            <Button variant="outline" render={<Link href="/transactions/transfers/new">Transferencia</Link>} />
-            <Button render={<Link href="/transactions/new?type=EXPENSE">Nueva transacción</Link>} />
+            <QuickAddButton>Registrar</QuickAddButton>
           </>
         }
       />
@@ -141,21 +156,46 @@ export default async function TransactionsPage({
 
       <TransactionsFilters accounts={accounts.map((a) => ({ id: a.id, name: a.name }))} />
 
-      <section aria-label="Resumen del período" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Ingresos del período" icon={ArrowUpIcon} tone="positive" value={income} currency={currency} hint="Movimientos de entrada" />
-        <StatCard label="Gastos del período" icon={ArrowDownIcon} tone="negative" value={expense} currency={currency} hint="Neto de reembolsos" />
-        <StatCard
-          label="Resultado del período"
-          icon={ScaleIcon}
-          tone={Number(result) >= 0 ? "positive" : "negative"}
-          value={result}
-          currency={currency}
-          hint="Ingresos menos gastos"
-        />
-        <StatCard label="Movimientos" icon={ListIcon}>
-          <span className="text-metric font-medium text-foreground">{pageRows.length + (hasNext ? "+" : "")}</span>
-        </StatCard>
-      </section>
+      {/* §9.3 — exactamente 3 KPIs (ingresos / gastos / resultado), transferencias internas
+          excluidas, monedas separadas. */}
+      {multiCurrency ? (
+        <section aria-label="Resumen del período" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {periodByCurrency.map((m) => (
+            <div key={m.currencyCode} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center gap-2 text-caption font-semibold uppercase tracking-wider text-muted-foreground">
+                <LayersIcon className="size-3.5" /> {m.currencyCode} · este período
+              </div>
+              <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-small">
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-muted-foreground">Ingresos</dt>
+                  <dd><MoneyAmount amount={m.income} currency={m.currencyCode} tone="positive" className="font-medium" /></dd>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-muted-foreground">Gastos</dt>
+                  <dd><MoneyAmount amount={m.expense} currency={m.currencyCode} tone="negative" className="font-medium" /></dd>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-muted-foreground">Resultado</dt>
+                  <dd><MoneyAmount amount={m.result} currency={m.currencyCode} tone={Number(m.result) >= 0 ? "positive" : "negative"} className="font-medium" /></dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+        </section>
+      ) : (
+        <section aria-label="Resumen del período" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Ingresos del período" icon={ArrowUpIcon} tone="positive" value={primary?.income ?? "0"} currency={currency} hint="Sin transferencias internas" />
+          <StatCard label="Gastos del período" icon={ArrowDownIcon} tone="negative" value={primary?.expense ?? "0"} currency={currency} hint="Neto de reembolsos" />
+          <StatCard
+            label="Resultado del período"
+            icon={ScaleIcon}
+            tone={Number(primary?.result ?? 0) >= 0 ? "positive" : "negative"}
+            value={primary?.result ?? "0"}
+            currency={currency}
+            hint="Ingresos menos gastos"
+          />
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.7fr_1fr]">
         <TransactionsTable
