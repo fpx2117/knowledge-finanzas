@@ -1,9 +1,11 @@
 import {
   CalendarDaysIcon,
+  CircleHelpIcon,
   LayoutDashboardIcon,
   LightbulbIcon,
   PiggyBankIcon,
   ReceiptTextIcon,
+  SettingsIcon,
   TargetIcon,
   WalletIcon,
   ChartColumnIncreasingIcon,
@@ -13,12 +15,16 @@ import {
 
 export type NavChild = { label: string; href: string };
 
+/** Which live count, if any, feeds this item's badge (spec 13 §6.13 — badges only when actionable). */
+export type NavBadgeKey = "transactions-pending" | "insights-unseen";
+
 export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
   /** Sub-sections shown when the group is expanded. First child is usually the section root. */
   children?: NavChild[];
+  badge?: NavBadgeKey;
 };
 
 // Canonical sidebar sections — visual-design-personal.md §7.2 (§2.5, §24: fixed order),
@@ -45,6 +51,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Transacciones",
     href: "/transactions",
     icon: ReceiptTextIcon,
+    badge: "transactions-pending",
     children: [
       { label: "Movimientos", href: "/transactions" },
       { label: "Pendientes", href: "/transactions/pending" },
@@ -98,17 +105,17 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Categorías", href: "/reports/categories" },
     ],
   },
-  { label: "Insights", href: "/insights", icon: LightbulbIcon },
+  { label: "Insights", href: "/insights", icon: LightbulbIcon, badge: "insights-unseen" },
 ];
 
-// Subset shown in the mobile bottom bar (5 slots + a central action).
-export const MOBILE_NAV_ITEMS: NavItem[] = [
-  NAV_ITEMS[0],
-  NAV_ITEMS[1],
-  NAV_ITEMS[2],
-  NAV_ITEMS[4],
-  NAV_ITEMS[7],
+// Spec 13 §6.2 / §6.16 — below a separator, before the account zone. `Configuración` and `Ayuda`
+// open their landing without expanding in the sidebar (§6.6).
+export const SECONDARY_NAV_ITEMS: NavItem[] = [
+  { label: "Configuración", href: "/settings", icon: SettingsIcon },
+  { label: "Ayuda", href: "/help", icon: CircleHelpIcon },
 ];
+
+export type NavBadgeCounts = Partial<Record<NavBadgeKey, number>>;
 
 export function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);

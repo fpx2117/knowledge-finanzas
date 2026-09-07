@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Database } from "../client";
 import { insights, type insightStatusEnum } from "../schema";
@@ -27,6 +27,16 @@ export function createInsightRepository(database: Database) {
         .select()
         .from(insights)
         .where(and(eq(insights.userId, userId), inArray(insights.status, OPEN_STATUSES)));
+    },
+
+    /** New/unseen insights — the count behind the sidebar badge (spec 13 §6.13). ACTIVE only:
+     * once the user opens one it becomes SEEN and stops counting. */
+    countActiveForUser(userId: string) {
+      return database
+        .select({ count: sql<number>`count(*)::int` })
+        .from(insights)
+        .where(and(eq(insights.userId, userId), eq(insights.status, "ACTIVE")))
+        .then(([row]) => row?.count ?? 0);
     },
 
     findByIdForUser(insightId: string, userId: string) {

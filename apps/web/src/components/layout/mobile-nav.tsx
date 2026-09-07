@@ -9,11 +9,20 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { NotificationButton } from "./notification-button";
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
+import type { NavBadgeCounts } from "./nav-items";
 import { QuickAddTrigger } from "@/features/capture/components/quick-add-trigger";
 
 type MobileUser = { name: string; email: string; image?: string | null };
 
-export function MobileNav({ user, unreadCount }: { user: MobileUser; unreadCount: number }) {
+export function MobileNav({
+  user,
+  unreadCount,
+  navBadges,
+}: {
+  user: MobileUser;
+  unreadCount: number;
+  navBadges?: NavBadgeCounts;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -33,7 +42,7 @@ export function MobileNav({ user, unreadCount }: { user: MobileUser; unreadCount
             </SheetTitle>
           </SheetHeader>
           <div className="flex flex-1 flex-col py-3">
-            <SidebarNav onNavigate={() => setOpen(false)} />
+            <SidebarNav badges={navBadges} onNavigate={() => setOpen(false)} />
           </div>
           <div className="border-t border-border p-3">
             <UserMenu name={user.name} email={user.email} image={user.image} />

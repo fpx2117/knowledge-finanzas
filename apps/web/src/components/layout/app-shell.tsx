@@ -1,5 +1,6 @@
 import { Sidebar } from "./sidebar";
 import { MobileNav } from "./mobile-nav";
+import type { NavBadgeCounts } from "./nav-items";
 import { QuickAddRoot } from "@/features/capture/components/quick-add-root";
 import { CommandPaletteRoot } from "@/features/shell/components/command-palette-root";
 
@@ -8,10 +9,12 @@ type ShellUser = { name: string; email: string; image?: string | null };
 export function AppShell({
   user,
   unreadCount = 0,
+  navBadges,
   children,
 }: {
   user: ShellUser;
   unreadCount?: number;
+  navBadges?: NavBadgeCounts;
   children: React.ReactNode;
 }) {
   return (
@@ -24,8 +27,8 @@ export function AppShell({
       >
         Saltar al contenido
       </a>
-      <Sidebar user={user} />
-      <MobileNav user={user} unreadCount={unreadCount} />
+      <Sidebar user={user} badges={navBadges} />
+      <MobileNav user={user} unreadCount={unreadCount} navBadges={navBadges} />
       <div className="lg:pl-60">
         <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1280px] px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-9">
           {children}

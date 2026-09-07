@@ -94,6 +94,21 @@ subvistas, Insights determinísticos).
 | ~~WP-OBSERVABILITY~~ **DONE (2026-09-06)** | G7. `packages/observability/security-signals.ts` = clasificador (`OWNERSHIP_LOOKUP_ERROR_CODES` + `isOwnershipLookupError`, test que lo ata al union real de `ApplicationErrorCode`). `apps/web/src/lib/observability/observe-action.ts` `reportActionError(action, userId, error)`: error de lookup ownership-scoped → `logger.warn("security.ownership_lookup_failed", {action, code, userId})` (señal de IDOR — se alerta por *ratio* por `userId`, no por evento); no-`ApplicationError` → `logger.error("action.unexpected_error")` (page inmediato); rechazo de dominio → `info`. Cableado en 13 acciones financieras (transaction/transfer/obligation/goal). `docs/implementation/15-observability.md` = catálogo de eventos + reglas de alerta + specs de dashboards (config del agregador, deploy-time). Tests: `security-signals` unit (4), `observe-action` unit (4). lint 0 · typecheck 0 · unit 869 · integración 205 · e2e 11. |
 | WP-DEPLOY | **Código listo (2026-09-06); provisioning pendiente del usuario.** Bug de CI corregido: `vitest.config.ts` (lo que corre `pnpm test` en `ci.yml`) levantaba `tests/quarantine/**` (10 archivos que importan código borrado en el rebuild) → CI roja. Ahora los excluye igual que las configs unit/integration. `Dockerfile`: faltaba `COPY packages/observability/package.json` (paquete agregado después del Dockerfile) → el `deps` stage no resolvía el workspace. `railway.toml` apuntaba a un runbook borrado. `docs/implementation/16-deploy-runbook.md` (nuevo) = env vars requeridas/opcionales + pasos exactos de primer deploy y de cada deploy (migración manual antes de promover, smoke test de 3 health checks + journey, `finance:audit` post-deploy), webhooks, alertas. Falta (usuario): cuenta Railway + Postgres plugin, cargar secrets, correr `pnpm db:migrate` contra prod, DNS, credenciales productivas de Mercado Pago. lint 0 · typecheck 0 · `pnpm test` 177 archivos / 1074 tests verde. |
 
+## Fase I — Reconstrucción de UI contra `docs/visual/` (post-hardening)
+
+Fase H cerró todos los gates de release. Fase I recorre `docs/visual/*-product-ui-spec-extreme.md`
+pantalla por pantalla / sistema por sistema, corrigiendo la UI construida en Fases C–G contra su
+spec extreme. Empezó por el Application Shell (spec 13) porque es la estructura donde vive todo.
+
+| WP | Spec | Estado |
+|---|---|---|
+| WP-SHELL-SIDEBAR | 13 §5–6, §18 | **DONE (2026-09-06)** — orden V1 confirmado; `Configuración` + `Ayuda` como items del sidebar bajo un separador (§6.2/§6.16); badges accionables en `Transacciones` (sin categoría) e `Insights` (nuevos, ACTIVE) con formato 1–99/99+ (§6.13–6.14); botón fantasma "Sincronizar cuentas" eliminado (§3.3); menú de cuenta reducido a Configuración/Plan/Ayuda/Cerrar sesión (§18.2, antes tenía 10 links). Nuevo `insightRepository.countActiveForUser`. |
+| WP-SHELL-HEADER | 13 §9–10, §17 | Header global (page header vs app header, sticky, compactación), breadcrumbs, centro de notificaciones (§17: tipos, prioridad, deep-link, mark-all-read, empty/error). |
+| WP-SHELL-COLLAPSE | 13 §6.10–6.12 | Colapso del sidebar a iconos (64–72px) con tooltip + flyout de submenús + persistencia local. |
+| WP-SHELL-OVERLAYS | 13 §21–25 | Sistema de overlays (dialog/drawer/sheet/palette — regla de elección §21.2), confirmación destructiva §22.1, toasts con undo §24.3, banners globales §25. |
+| WP-SHELL-STATES | 13 §19, §25–29 | Gating comercial (trial/pro §19), estados de loading/error por módulo, offline §28, sesión §29 (expiración mientras edita, multi-tab logout, reauth). |
+| WP-SCREEN-* | 01–12 | Una pantalla por WP contra su spec extreme, en orden: Resumen → Cuentas → Transacciones → Presupuestos → Obligaciones → Calendario → Metas → Reportes → Insights → Registrar → Configuración → Ayuda. |
+
 ## Dependencias críticas (§42) respetadas por este orden
 
 - Dashboard definitivo (Fase C) **después** de estabilizar balance/disponible (Fase A).

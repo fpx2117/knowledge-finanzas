@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { createAccountRepository } from "../../packages/db/src/repositories/accounts";
 import { createCategoryRepository } from "../../packages/db/src/repositories/categories";
 import { createBudgetRepository } from "../../packages/db/src/repositories/budgets";
+import { createInsightRepository } from "../../packages/db/src/repositories/insights";
 import { createInsightService } from "../../apps/web/src/features/insights/services/insight-service";
 import { insights as insightsTable, transactions, users } from "../../packages/db/src/schema";
 import { getTestDatabase } from "../support/postgres-test-setup";
@@ -54,6 +55,20 @@ describe("insight engine (integration)", () => {
     await service.refreshInsights(user);
     stored = await database.select().from(insightsTable).where(eq(insightsTable.userId, userId));
     expect(stored).toHaveLength(2); // no duplicates
+  });
+
+  it("countActiveForUser drops as insights are seen or dismissed (sidebar badge, spec 13 §6.13)", async () => {
+    const { database, service } = await seed({ withBudgetBreach: true });
+    const repo = createInsightRepository(database);
+    await service.refreshInsights(user);
+
+    const active = await repo.countActiveForUser(userId);
+    expect(active).toBeGreaterThan(0);
+
+    // Opening one marks it SEEN → it stops counting.
+    const queue = await service.getQueue(user, { refresh: false });
+    await service.getDetail({ id: userId }, queue[0]!.id);
+    expect(await repo.countActiveForUser(userId)).toBe(active - 1);
   });
 
   it("keeps a dismissed insight out of the queue during its cooldown", async () => {

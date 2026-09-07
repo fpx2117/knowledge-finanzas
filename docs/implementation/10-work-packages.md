@@ -1090,6 +1090,33 @@ Alcance elegido con el usuario: "CI en Actions + artefacto de deploy + checklist
 - **Verificación:** lint web limpio · typecheck 0 · `pnpm test` (unit+integración combinado, que es
   lo que corre CI) 177/177 archivos, 1074 tests, 1 skip · e2e 11/11.
 
+## WP-SHELL-SIDEBAR — Application Shell: sidebar + menú de cuenta (spec 13 §5–6, §18)  ·  P1  ·  **DONE (2026-09-06)**
+
+Primer incremento de Fase I (reconstrucción de UI contra `docs/visual/`).
+
+- **§6.2 orden V1** — confirmado (Resumen · Cuentas · Transacciones · Presupuestos · Obligaciones ·
+  Calendario · Metas · Reportes · Insights). Nuevo `SECONDARY_NAV_ITEMS` (`Configuración`, `Ayuda`)
+  renderizado **como items del sidebar** bajo un `<hr>` separador (§6.2 "Abajo:", §6.16). Antes sólo
+  vivían en el dropdown de cuenta.
+- **§6.13–6.14 badges accionables** — `NavBadgeKey` (`transactions-pending` | `insights-unseen`) en
+  `nav-items.ts`; `SidebarNav` recibe `badges` y pinta un pill (1–99, luego `99+`, nunca en 0) con
+  `aria-label`. `(app)/layout.tsx` resuelve dos `COUNT(*)` baratos por navegación:
+  `transactionRepository.countUncategorizedForUser` (gastos sin categoría) y el nuevo
+  `insightRepository.countActiveForUser` (insights ACTIVE = nuevos, dejan de contar al verse).
+- **§3.3 navegación ≠ acción** — eliminado el botón fantasma "Sincronizar cuentas" del sidebar
+  (no tenía handler; no existe la feature).
+- **§18.2 menú de cuenta** — reducido a `nombre/email` → `Configuración` · `Plan` · `Ayuda` →
+  `Cerrar sesión`. Antes tenía "Ver todo" + 8 sub-links de settings + "Ayuda y soporte" (violaba
+  §18.3 "no oversized link lists"). La superficie completa de settings vive en el hub `/settings`.
+- **§6.16 zona de cuenta** — el `UserMenu` queda en su propia región con `border-t`, separada de la
+  navegación.
+- Tests: `tests/e2e/shell.spec.ts` (nuevo, 2 — orden V1 + Config/Ayuda bajo separador + sin botón
+  fantasma; el badge de Transacciones cuenta lo que necesita revisión) + `insight-engine.test.ts`
+  +1 (`countActiveForUser` baja al ver/descartar).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · integración 206/206 · e2e 13/13.
+- **Follow-ups (Fase I):** WP-SHELL-HEADER (§9–10, §17 centro de notificaciones), WP-SHELL-COLLAPSE
+  (§6.10–6.12 colapso a iconos), WP-SHELL-OVERLAYS, WP-SHELL-STATES.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

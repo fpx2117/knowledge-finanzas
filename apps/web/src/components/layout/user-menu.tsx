@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronDownIcon, LogOutIcon, SettingsIcon, UserRoundIcon } from "lucide-react";
+import { ChevronDownIcon, LogOutIcon, UserRoundIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -15,15 +15,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth/client";
 
-const SETTINGS_LINKS = [
-  { label: "Perfil", href: "/settings/profile" },
-  { label: "Preferencias", href: "/settings/preferences" },
-  { label: "Categorías", href: "/settings/categories" },
-  { label: "Reglas automáticas", href: "/settings/rules" },
-  { label: "Notificaciones", href: "/settings/notifications" },
-  { label: "Suscripción", href: "/settings/plan" },
-  { label: "Referidos", href: "/settings/referrals" },
-  { label: "Privacidad y datos", href: "/settings/privacy" },
+// Spec 13 §18.2 — deliberately short: identity, then Configuración / Plan / Ayuda, then Cerrar
+// sesión. The full settings surface lives on the /settings hub, never in this dropdown (§18.3:
+// no financial data, no oversized link lists, no admin links for normal users).
+const MENU_LINKS = [
+  { label: "Configuración", href: "/settings" },
+  { label: "Plan", href: "/settings/plan" },
+  { label: "Ayuda", href: "/help" },
 ];
 
 function initials(name: string): string {
@@ -39,6 +37,8 @@ export function UserMenu({ name, email, image }: { name: string; email: string; 
   const router = useRouter();
 
   async function handleSignOut() {
+    // §18.4 — invalidate the session, then a full refresh so no navigable cache can show private
+    // data on Back.
     await signOut();
     router.push("/login");
     router.refresh();
@@ -65,15 +65,9 @@ export function UserMenu({ name, email, image }: { name: string; email: string; 
           <span className="truncate text-caption font-normal text-muted-foreground">{email}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="flex items-center gap-2 text-caption font-normal uppercase tracking-wider text-muted-foreground">
-          <SettingsIcon className="size-3.5" /> Configuración
-        </DropdownMenuLabel>
-        <DropdownMenuItem render={<Link href="/settings">Ver todo</Link>} />
-        {SETTINGS_LINKS.map((link) => (
+        {MENU_LINKS.map((link) => (
           <DropdownMenuItem key={link.href} render={<Link href={link.href}>{link.label}</Link>} />
         ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href="/help">Ayuda y soporte</Link>} />
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
           <LogOutIcon className="size-4" /> Cerrar sesión
