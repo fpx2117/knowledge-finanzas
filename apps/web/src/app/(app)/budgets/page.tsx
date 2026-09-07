@@ -2,9 +2,10 @@ import Link from "next/link";
 import { ChevronRightIcon, TriangleAlertIcon, WalletIcon } from "lucide-react";
 
 import { budgetRepository, categoryRepository, createBudgetQueries, db } from "@know-finanzas/db";
+import { todayInTimezone } from "@know-finanzas/finance";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { HeaderActions } from "@/components/shared/header-actions";
+import { MonthNav } from "@/components/shared/month-nav";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -35,29 +36,46 @@ const STATUS_META: Record<
 
 const DONUT_COLORS = ["var(--chart-1)", "var(--chart-5)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 const HEAD = "text-caption font-semibold uppercase tracking-wider text-muted-foreground";
+const MONTH_LABEL = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" });
 
-export default async function BudgetsPage() {
+export default async function BudgetsPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const user = await requireCurrentUser();
-  const budgets = await service.getBudgetOverview(user);
+  const today = todayInTimezone(new Date(), user.timezone);
+  const currentPeriod = today.slice(0, 7);
+  const requested = (await searchParams).period;
+  // spec 04 §8.4 — navegación temporal; nunca al futuro (no se presupuesta lo que no pasó).
+  const period = requested?.match(/^\d{4}-\d{2}$/) && requested <= currentPeriod ? requested : currentPeriod;
+  const [year, month] = period.split("-").map(Number);
+
+  const budgets =
+    period === currentPeriod
+      ? await service.getBudgetOverview(user)
+      : await service.getBudgetOverviewForMonth(user, year, month);
+
+  const header = (
+    <PageHeader
+      title="Presupuestos"
+      description="Controlá cuánto querés gastar y cómo viene el mes."
+      actions={
+        <>
+          <MonthNav current={currentPeriod} />
+          <Button
+            variant={budgets.length > 0 ? "outline" : "default"}
+            render={<Link href="/budgets/new">{budgets.length > 0 ? "Editar presupuesto" : "Crear presupuesto"}</Link>}
+          />
+        </>
+      }
+    />
+  );
 
   if (budgets.length === 0) {
     return (
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Presupuestos"
-          description="Planificá, controlá y ajustá tus gastos por categoría."
-          actions={
-            <>
-              <HeaderActions />
-              <Button render={<Link href="/budgets/new">Nuevo presupuesto</Link>} />
-            </>
-          }
-        />
+        {header}
         <EmptyState
           icon={<WalletIcon />}
-          title="Todavía no tenés presupuestos"
-          description="Definí cuánto querés gastar por categoría y seguí tu avance mes a mes."
-          action={<Button render={<Link href="/budgets/new">Crear presupuesto</Link>} />}
+          title={`Todavía no configuraste un presupuesto para ${MONTH_LABEL.format(new Date(Date.UTC(year, month - 1, 1)))}`}
+          description="Definí cuánto querés gastar por categoría y seguí tu avance mes a mes. Usá el botón de arriba para empezar."
         />
       </div>
     );
@@ -77,38 +95,31 @@ export default async function BudgetsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Presupuestos"
-        description="Planificá, controlá y ajustá tus gastos por categoría."
-        actions={
-          <>
-            <HeaderActions />
-            <Button render={<Link href="/budgets/new">Nuevo presupuesto</Link>} />
-          </>
-        }
-      />
+      {header}
 
+      {/* spec 04 §9.3 — Presupuestado / Gastado (+%) / Restante (o Excedido) / En atención (§9.3
+          Card D: nunca "mal", "fracaso", "descontrol"). */}
       <section aria-label="Resumen de presupuestos" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Presupuesto total" icon={WalletIcon} value={String(totalLimit)} currency={currency} hint="Suma de tus límites" />
-        <StatCard label="Gastado" value={String(totalSpent)} currency={currency}>
+        <StatCard label="Presupuestado" icon={WalletIcon} value={String(totalLimit)} currency={currency} info="Suma de los límites configurados para este mes." />
+        <StatCard label="Gastado" value={String(totalSpent)} currency={currency} info="Incluye gastos confirmados del período asociados a categorías presupuestadas.">
           <span className="flex flex-col gap-2">
             <MoneyAmount amount={String(totalSpent)} currency={currency} variant="compact" className="text-metric font-medium text-foreground" />
-            <ProgressBar value={pct} state={pct >= 100 ? "exceeded" : pct >= 80 ? "warning" : "normal"} aria-label={`${Math.round(pct)}% usado`} />
-            <span className="text-caption text-muted-foreground">{Math.round(pct)}% del total</span>
+            <ProgressBar value={pct} state={pct >= 100 ? "exceeded" : pct >= 80 ? "warning" : "normal"} aria-label={`${Math.round(pct)}% del presupuesto usado`} />
+            <span className="text-caption text-muted-foreground">{Math.round(pct)}% del presupuesto</span>
           </span>
         </StatCard>
         <StatCard
-          label="Disponible"
+          label={totalRemaining < 0 ? "Excedido" : "Restante"}
           tone={totalRemaining < 0 ? "negative" : "positive"}
-          value={String(totalRemaining)}
+          value={String(Math.abs(totalRemaining))}
           currency={currency}
-          hint="Lo que te queda este mes"
+          hint={totalRemaining < 0 ? "Gastaste más de lo presupuestado" : "Margen que te queda este mes"}
         />
-        <StatCard label="Categorías en riesgo" icon={TriangleAlertIcon} tone={atRisk > 0 ? "warning" : "neutral"}>
+        <StatCard label="En atención" icon={TriangleAlertIcon} tone={atRisk > 0 ? "warning" : "neutral"}>
           <span className="flex flex-col gap-0.5">
             <span className="text-metric font-medium text-foreground">{atRisk}</span>
             <span className="text-small font-normal text-muted-foreground">
-              {atRisk === 0 ? "Todo en control" : "Requieren tu atención"}
+              {atRisk === 0 ? "Todo en control" : atRisk === 1 ? "categoría" : "categorías"}
             </span>
           </span>
         </StatCard>
@@ -133,11 +144,18 @@ export default async function BudgetsPage() {
                   const meta = STATUS_META[budget.status];
                   const usage = Number(budget.usagePercent);
                   return (
-                    <TableRow key={budget.budgetId} className="h-[52px] hover:bg-brand-subtle/60">
-                      <TableCell className="pl-5 sm:pl-6">
+                    <TableRow key={budget.budgetId} className="hover:bg-brand-subtle/60">
+                      <TableCell className="py-2.5 pl-5 sm:pl-6">
                         <Link href={`/budgets/${budget.budgetId}`} className="text-small font-medium text-foreground hover:text-brand hover:underline">
                           {budget.categoryName}
                         </Link>
+                        <span className="block text-caption text-muted-foreground">
+                          {Number(budget.spent) === 0
+                            ? "Sin consumo este mes"
+                            : Number(budget.remaining) < 0
+                              ? `Excedido por ${new Intl.NumberFormat("es-AR", { style: "currency", currency: budget.currencyCode, maximumFractionDigits: 0 }).format(Math.abs(Number(budget.remaining)))}`
+                              : `Quedan ${new Intl.NumberFormat("es-AR", { style: "currency", currency: budget.currencyCode, maximumFractionDigits: 0 }).format(Number(budget.remaining))}`}
+                        </span>
                       </TableCell>
                       <TableCell className="hidden text-right sm:table-cell">
                         <MoneyAmount amount={budget.limit} currency={budget.currencyCode} variant="compact" className="text-small text-muted-foreground" />

@@ -1337,6 +1337,32 @@ Pendientes) y los flujos de captura §15–18 son WPs aparte.
   múltiple + acciones masivas §9.11, columnas configurables §9.4, búsqueda server-side (hoy filtra
   sólo la página actual).
 
+## WP-SCREEN-04 — Presupuestos / Resumen (spec 04 §9)  ·  P2  ·  **DONE (2026-09-07)**
+
+- **§9.2 header + navegación temporal.** La página **ignoraba el mes** — siempre mostraba el
+  actual (`getBudgetOverview` sin argumento). Ahora lee `?period=YYYY-MM`, cae al mes actual, y
+  **nunca al futuro** (§8.4). Nuevo `components/shared/month-nav.tsx` — `[‹] septiembre 2026 [›]`,
+  flecha "siguiente" deshabilitada en el mes actual, escribe el `?period=` compartido. El mes
+  distinto del actual usa `getBudgetOverviewForMonth` (que recalcula el consumo real, no lee una
+  foto). Copy del header al texto del spec; botón "Editar presupuesto" (con budgets) /
+  "Crear presupuesto" (sin); empty state nombra el mes ("Todavía no configuraste un presupuesto
+  para septiembre 2026").
+- **§9.3 KPIs.** A los términos exactos del spec: "Presupuesto total" → **"Presupuestado"**;
+  "Gastado" muestra "X% del presupuesto" (antes "del total"); **"Disponible" → "Restante"** (y
+  **"Excedido"** con el valor absoluto si es negativo — "Disponible" chocaba con el "Disponible
+  financiero" del §7.6 / dashboard); **"Categorías en riesgo" → "En atención"** (§9.3 Card D pide
+  evitar "mal/fracaso/descontrol"). Tooltips (`info=`) del §9.3.
+- **§9.5 filas.** Cada fila de la tabla ahora muestra, bajo la categoría, "Quedan $X" /
+  "Excedido por $X" / "Sin consumo este mes" (dato `budget.remaining` que ya venía del service).
+  El orden (excedidas → cerca del límite → mayor gasto) ya lo hacía `computeOverviewItems`.
+- **Tests:** `tests/e2e/screen-presupuestos.spec.ts` (2 — empty state nombra el mes + CTA; KPIs con
+  los términos del spec + la flecha "Mes siguiente" deshabilitada + "Mes anterior" navega con
+  `?period=`).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 28/28.
+- **Follow-up:** llevar `/budgets/categories` y `/budgets/history` al mismo `MonthNav` (hoy usan
+  chips `?month=`), bloque de compromiso futuro §9.8, callout de calidad de datos §9.9, "Copiar
+  mes anterior" §9.2.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
