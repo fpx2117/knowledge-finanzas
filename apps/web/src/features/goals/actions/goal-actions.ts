@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { reportActionError } from "@/lib/observability/observe-action";
 import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createGoalService } from "../services/goal-service";
 import {
@@ -27,8 +28,10 @@ export async function createGoalAction(
   _previous: GoalActionState | null,
   formData: FormData,
 ): Promise<GoalActionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const input = createGoalSchema.parse({
       name: formData.get("name"),
       category: formData.get("category"),
@@ -41,6 +44,7 @@ export async function createGoalAction(
     await service.createGoal(user, input);
     emitFinancialEvent({ type: "goal.updated" });
   } catch (error) {
+    reportActionError("goal.create", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   redirect("/goals");
@@ -50,8 +54,10 @@ export async function contributeGoalAction(
   _previous: GoalActionState | null,
   formData: FormData,
 ): Promise<GoalActionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const input = contributeGoalSchema.parse({
       goalId: formData.get("goalId"),
       amount: formData.get("amount"),
@@ -60,6 +66,7 @@ export async function contributeGoalAction(
     await service.contribute(user, input.goalId, input.amount, { note: input.note });
     emitFinancialEvent({ type: "goal.updated", entityPaths: [`/goals/${input.goalId}`] });
   } catch (error) {
+    reportActionError("goal.contribute", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   return { ok: true };
@@ -69,8 +76,10 @@ export async function withdrawGoalAction(
   _previous: GoalActionState | null,
   formData: FormData,
 ): Promise<GoalActionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const input = withdrawGoalSchema.parse({
       goalId: formData.get("goalId"),
       amount: formData.get("amount"),
@@ -79,6 +88,7 @@ export async function withdrawGoalAction(
     await service.withdraw(user, input.goalId, input.amount, { note: input.note });
     emitFinancialEvent({ type: "goal.updated", entityPaths: [`/goals/${input.goalId}`] });
   } catch (error) {
+    reportActionError("goal.withdraw", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   return { ok: true };
@@ -88,8 +98,10 @@ export async function updateGoalAction(
   _previous: GoalActionState | null,
   formData: FormData,
 ): Promise<GoalActionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const input = updateGoalSchema.parse({
       goalId: formData.get("goalId"),
       name: formData.get("name"),
@@ -101,6 +113,7 @@ export async function updateGoalAction(
     await service.updateGoal(user, input);
     emitFinancialEvent({ type: "goal.updated", entityPaths: [`/goals/${input.goalId}`] });
   } catch (error) {
+    reportActionError("goal.update", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   return { ok: true };
@@ -110,12 +123,15 @@ export async function archiveGoalAction(
   _previous: GoalActionState | null,
   formData: FormData,
 ): Promise<GoalActionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const { goalId } = archiveGoalSchema.parse({ goalId: formData.get("goalId") });
     await service.archiveGoal(user, goalId);
     emitFinancialEvent({ type: "goal.updated" });
   } catch (error) {
+    reportActionError("goal.archive", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   redirect("/goals");

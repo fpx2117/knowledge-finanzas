@@ -52,6 +52,7 @@ Se mantiene durante toda la implementación. Una fila por requisito verificable.
 | G1: el ledger reconcilia entero (0 diferencias en `finance:audit`) | 14 §39 (G1), §14 | `runFinanceAudit` + servicios reales | — | — | — | `finance-reconciliation` (3: dataset multi-dominio vía servicios reales → 0 findings; reconciliado tras voids) | DONE (2026-09-06, WP-RECONCILIATION) |
 | Money: precisión exacta, settle-once, superficie completa | 14 §4.1, §21 | `packages/finance/src/money` | — | — | — | `finance-money` (18: add/sub/compare/equals/zero/isZero, HALF_UP ±, settle-once, split + guardas, JPY) | DONE (2026-09-06) |
 | G4: flujos críticos por teclado + screen reader | 14 §39 (G4) | skip link (`AppShell` → `#main-content`), Base UI Dialog (focus trap + restore), `role="alert"` en forms | — | — | todas | `a11y-keyboard` (5: skip link, paleta por teclado, registrar sin mouse, validación nativa mueve foco, diálogo atrapa+restaura) + `final-route-regression` + `final-accessibility-audit` (estructura) | DONE (2026-09-06, WP-A11Y) |
+| G7: logs estructurados + ownership errors como señales de seguridad | 14 §39 (G7), §26 | `@know-finanzas/observability` (`createLogger`, `security-signals`), `reportActionError` en 13 acciones | actions | — | — | `security-signals` unit (4), `observe-action` unit (4) | DONE (2026-09-06, WP-OBSERVABILITY; catálogo + alertas en `15-observability.md`) |
 
 ## Cómo se mantiene
 

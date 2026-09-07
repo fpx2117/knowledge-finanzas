@@ -7,6 +7,7 @@ import { ApplicationError } from "@know-finanzas/shared";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { reportActionError } from "@/lib/observability/observe-action";
 import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createDebtService } from "../services/debt-service";
 import { createDebtPaymentService } from "../services/debt-payment-service";
@@ -36,8 +37,10 @@ export async function createDebtAction(
   _previousState: DebtActionState | null,
   formData: FormData,
 ): Promise<DebtActionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const input = createDebtSchema.parse({
       name: formData.get("name"),
       creditor: formData.get("creditor") || undefined,
@@ -87,6 +90,7 @@ export async function createDebtAction(
 
     emitFinancialEvent({ type: "obligation.created" });
   } catch (error) {
+    reportActionError("obligation.create", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   redirect("/obligations");
@@ -97,8 +101,10 @@ export async function recordPaymentAction(
   formData: FormData,
 ): Promise<DebtActionState> {
   let debtId = "";
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const input = recordPaymentSchema.parse({
       debtId: formData.get("debtId"),
       accountId: formData.get("accountId"),
@@ -111,6 +117,7 @@ export async function recordPaymentAction(
     await paymentService.recordDebtPayment(user, input);
     emitFinancialEvent({ type: "obligation.payment_linked", entityPaths: [`/obligations/${debtId}`] });
   } catch (error) {
+    reportActionError("obligation.payment", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   return { ok: true };
@@ -120,12 +127,15 @@ export async function cancelDebtAction(
   _previousState: DebtActionState | null,
   formData: FormData,
 ): Promise<DebtActionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const { debtId } = cancelDebtSchema.parse({ debtId: formData.get("debtId") });
     await debtService.cancelDebt(user.id, debtId);
     emitFinancialEvent({ type: "obligation.updated" });
   } catch (error) {
+    reportActionError("obligation.cancel", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   redirect("/obligations");

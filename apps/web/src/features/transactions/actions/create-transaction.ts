@@ -13,6 +13,7 @@ import {
 } from "@know-finanzas/db";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { reportActionError } from "@/lib/observability/observe-action";
 import { resolveOccurredAtISO } from "@/lib/date";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
@@ -39,8 +40,10 @@ export async function createTransactionAction(
   formData: FormData,
 ): Promise<TransactionActionState> {
   const type = formData.get("type") === "INCOME" ? "INCOME" : "EXPENSE";
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const raw = {
       accountId: formData.get("accountId"),
       amount: formData.get("amount"),
@@ -70,6 +73,7 @@ export async function createTransactionAction(
 
     emitFinancialEvent({ type: "transaction.created" });
   } catch (error) {
+    reportActionError("transaction.create", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   redirect("/transactions");

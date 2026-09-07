@@ -1024,6 +1024,40 @@ el diagnóstico de saldo.
 - **Verificación:** lint web limpio · typecheck 0 · unit 861/861 (+5) · integración 205/205 (+2) ·
   e2e 11/11.
 
+## WP-OBSERVABILITY — Gate G7: logs estructurados + señales de seguridad  ·  P1 · SECURITY  ·  **DONE (2026-09-06)**
+
+- **`packages/observability/src/security-signals.ts`** (nuevo): `OWNERSHIP_LOOKUP_ERROR_CODES`
+  (los códigos de `ApplicationError` que un servicio lanza cuando un lookup ownership-scoped falla
+  para un ID que puso el usuario) + `isOwnershipLookupError(code)` + `SECURITY_EVENT` (nombres de
+  evento estables). Set de strings en un paquete sin dependencias; un test lo ata al union real de
+  `ApplicationErrorCode`.
+- **`apps/web/src/lib/observability/observe-action.ts`** (nuevo): `reportActionError(action, userId, error)`:
+  - error de lookup ownership-scoped → `logger.warn("security.ownership_lookup_failed", {action, code, userId, field})`.
+    Individualmente casi siempre benigno; **un pico desde un `userId` = enumeración de IDs / IDOR
+    probing** (§8.1 hace que "no es tuyo" y "no existe" respondan igual — este log es el único lugar
+    donde se ve la diferencia).
+  - error que **no** es `ApplicationError` → `logger.error("action.unexpected_error", …)` — el
+    "error crítico" que se pagea al instante.
+  - rechazo de dominio esperado → `logger.info("action.rejected", …)` — ruido normal, sirve para
+    tasas de fricción.
+  - Nunca cambia el error (el caller lo mapea/re-lanza igual), nunca lanza, nunca loguea texto del
+    usuario (sólo IDs y códigos; `redactFields` es el backstop).
+- **Cableado** en el `catch` de 13 acciones financieras: `transaction.{create,edit,void}`,
+  `transfer.{create,void}`, `obligation.{create,payment,cancel}`,
+  `goal.{create,contribute,withdraw,update,archive}`. Patrón: `let userId` hoisted, `userId = user.id`
+  tras `requireCurrentUser()`, `reportActionError(name, userId, error)` en el catch.
+- **`docs/implementation/15-observability.md`** (nuevo): catálogo de eventos de log, tabla de
+  reglas de alerta recomendadas (ratios/umbrales para el agregador), y specs de los 5 dashboards
+  mínimos de V1 (config deploy-time, no código).
+- **Tests:** `tests/unit/security-signals.test.ts` (4 — clasificador + el list vs el union real),
+  `tests/unit/observe-action.test.ts` (4 — warn/info/error correctos, nunca filtra contenido,
+  nunca lanza).
+- **Follow-ups (no bloquean G7):** propagar `requestId` a los logs de acciones (falta
+  AsyncLocalStorage en Server Actions); instrumentar import/reglas/cuentas/presupuestos/insights;
+  un cron que corra `runFinanceAudit` y emita `finance_audit_completed`.
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 (+8) · integración 205/205 ·
+  e2e 11/11.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

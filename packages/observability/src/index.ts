@@ -19,3 +19,4 @@ export {
   type UsageCostInputs,
 } from "./business-metrics";
 export { evaluateCostGuardrails, type GuardrailBreach } from "./cost-guardrails";
+export { OWNERSHIP_LOOKUP_ERROR_CODES, isOwnershipLookupError, SECURITY_EVENT } from "./security-signals";

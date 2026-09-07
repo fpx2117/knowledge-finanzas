@@ -3,6 +3,7 @@
 import { accountRepository, categoryMapRepository, categoryRepository, transactionRepository } from "@know-finanzas/db";
 
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { reportActionError } from "@/lib/observability/observe-action";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransactionService } from "../services/transaction-service";
@@ -21,8 +22,10 @@ export async function editTransactionAction(
   _previousState: EditTransactionState | null,
   formData: FormData,
 ): Promise<EditTransactionState> {
+  let userId: string | null = null;
   try {
     const user = await requireCurrentUser();
+    userId = user.id;
     const input = editTransactionSchema.parse({
       transactionId: formData.get("transactionId"),
       description: formData.get("description"),
@@ -38,6 +41,7 @@ export async function editTransactionAction(
     });
     emitFinancialEvent({ type: "transaction.updated", entityPaths: [`/transactions/${input.transactionId}`] });
   } catch (error) {
+    reportActionError("transaction.edit", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
   }
   return { ok: true };
