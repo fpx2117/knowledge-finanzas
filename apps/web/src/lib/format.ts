@@ -36,3 +36,20 @@ export function relativeDueLabel(target: string, today: string): string {
   if (diff === 1) return "Vence mañana";
   return `En ${diff} días`;
 }
+
+/** Short "hace X" for a past instant (spec 13 §17.10 — relative label, exact date on hover). */
+export function relativeTimeAgo(value: string | Date, from: Date = new Date()): string {
+  const date = toDate(value);
+  if (!date) return "";
+  const seconds = Math.round((from.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return "recién";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `hace ${days} d`;
+  const weeks = Math.round(days / 7);
+  if (days < 30) return `hace ${weeks} sem`;
+  return formatShortDate(date);
+}

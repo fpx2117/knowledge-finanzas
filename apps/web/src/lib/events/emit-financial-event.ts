@@ -33,7 +33,8 @@ export type FinancialEventType =
   | "import.completed"
   | "recurring.changed"
   | "subscription.changed"
-  | "insight.updated";
+  | "insight.updated"
+  | "notification.updated";
 
 const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
   "account.created": ["/accounts", "/app"],
@@ -69,6 +70,9 @@ const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
   "subscription.changed": ["/obligations/subscriptions"],
   // Dismiss/resolve/feedback on an insight only affects the Insights surface.
   "insight.updated": ["/insights"],
+  // Read/mark-all-read only affects the notification center + the header/sidebar unread badge
+  // (which the (app) layout re-derives on this revalidation).
+  "notification.updated": ["/notifications", "/app"],
 };
 
 export type EmitFinancialEventInput = {

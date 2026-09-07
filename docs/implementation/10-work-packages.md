@@ -1117,6 +1117,39 @@ Primer incremento de Fase I (reconstrucción de UI contra `docs/visual/`).
 - **Follow-ups (Fase I):** WP-SHELL-HEADER (§9–10, §17 centro de notificaciones), WP-SHELL-COLLAPSE
   (§6.10–6.12 colapso a iconos), WP-SHELL-OVERLAYS, WP-SHELL-STATES.
 
+## WP-SHELL-HEADER — App header + centro de notificaciones (spec 13 §9, §17)  ·  P1  ·  **DONE (2026-09-06)**
+
+Segundo incremento de Fase I.
+
+- **§9 App header desktop** (`components/layout/app-header.tsx`, `hidden lg:flex`, sticky): sólo
+  acciones **globales** (§9.3 — nada de filtros/KPIs/tabs de página). `CommandPaletteTrigger`
+  ("Buscar · ⌘K" → abre la paleta) a la izquierda, campana de notificaciones a la derecha.
+- **§9.4 separación app/page**: `HeaderActions` (que vive en el `PageHeader` de cada pantalla)
+  perdió su campana — ahora sólo el selector de período. La campana era global y estaba repetida
+  en cada page header.
+- **§17 Centro de notificaciones real** — `/notifications` dejó de ser `RebuildingNotice`:
+  - `features/notifications/services/notification-service.ts` — `getInbox` (ordena por §17.4:
+    seguridad → riesgo financiero → billing que afecta acceso → recordatorios → sistema →
+    producto; `notification-priority.ts` calcula el rank, los tipos DEBT_DUE_SOON/
+    SCHEDULED_TRANSACTION_DUE bajan a "recordatorio" aunque su categoría sea FINANCIAL),
+    `markRead`, `markAllRead`.
+  - `notification-copy.ts` — título + cuerpo in-app por `notificationType` (28 tipos, exhaustivo),
+    separado a propósito del copy de email de `packages/notifications` (sin capa i18n compartida).
+  - `NotificationCenter` (client) — marca leído al abrir + navega al deep-link (§17.7), botón
+    "Marcar todas como leídas" (§17.8), empty state "No tenés notificaciones nuevas" sin
+    gamificación (§17.11), hora relativa (`relativeTimeAgo` nuevo en `lib/format`) con la fecha
+    exacta en `title`/`<time>` al hover (§17.10). Leído ≠ resuelto (§17.6 — nunca toca el evento
+    de dominio; el test lo prueba).
+  - `notification-actions.ts` — `markNotificationReadAction` (un `NOTIFICATION_NOT_FOUND` es un
+    no-op exitoso), `markAllNotificationsReadAction`. `notification.updated` agregado a
+    `emitFinancialEvent` (revalida `/notifications` + `/app` para el badge del layout).
+- **Tests:** `tests/integration/notification-center.test.ts` (5 — orden §17.4, deep-link, IDOR,
+  markRead no toca el dominio, markAll) + `shell.spec.ts` +2 (el app header tiene búsqueda +
+  campana, `/notifications` renderiza su centro; ninguna página repite la campana).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · integración 211/211 (+5) ·
+  e2e 15/15.
+- **Follow-up inmediato:** WP-SHELL-BREADCRUMBS (§10).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
