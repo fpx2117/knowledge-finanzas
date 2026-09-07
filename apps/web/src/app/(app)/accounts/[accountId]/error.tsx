@@ -2,10 +2,10 @@
 
 import { ErrorState } from "@/components/shared/error-state";
 
-export default function AccountDetailError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function AccountDetailError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div className="py-6">
-      <ErrorState title="No pudimos cargar esta cuenta" onRetry={reset} />
+      <ErrorState title="No pudimos cargar esta cuenta" digest={error.digest} onRetry={reset} />
     </div>
   );
 }

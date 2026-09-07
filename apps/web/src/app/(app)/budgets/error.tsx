@@ -2,10 +2,10 @@
 
 import { ErrorState } from "@/components/shared/error-state";
 
-export default function BudgetsError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function BudgetsError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div className="py-6">
-      <ErrorState title="No pudimos cargar tus presupuestos" onRetry={reset} />
+      <ErrorState title="No pudimos cargar tus presupuestos" digest={error.digest} onRetry={reset} />
     </div>
   );
 }

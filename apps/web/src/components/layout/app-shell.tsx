@@ -5,6 +5,7 @@ import { SidebarStateProvider } from "./sidebar-state";
 import type { NavBadgeCounts } from "./nav-items";
 import { QuickAddRoot } from "@/features/capture/components/quick-add-root";
 import { CommandPaletteRoot } from "@/features/shell/components/command-palette-root";
+import { SessionSync } from "@/features/shell/components/session-sync";
 
 type ShellUser = { name: string; email: string; image?: string | null };
 
@@ -35,6 +36,7 @@ export function AppShell({
         <AppShellMain unreadCount={unreadCount}>{children}</AppShellMain>
         <QuickAddRoot />
         <CommandPaletteRoot />
+        <SessionSync />
       </div>
     </SidebarStateProvider>
   );

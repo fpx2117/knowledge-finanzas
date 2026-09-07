@@ -2,6 +2,7 @@
 
 import { AppHeader } from "./app-header";
 import { useSidebarState } from "./sidebar-state";
+import { GlobalBanners } from "@/features/shell/components/global-banners";
 import { cn } from "@/lib/utils";
 
 // The content column. Its left inset follows the sidebar's collapsed state (§6.10 — collapsed,
@@ -13,6 +14,7 @@ export function AppShellMain({ unreadCount, children }: { unreadCount?: number; 
   return (
     <div className={cn("transition-[padding] duration-150", collapsed ? "lg:pl-16" : "lg:pl-60")}>
       <AppHeader unreadCount={unreadCount} />
+      <GlobalBanners />
       <main
         id="main-content"
         tabIndex={-1}

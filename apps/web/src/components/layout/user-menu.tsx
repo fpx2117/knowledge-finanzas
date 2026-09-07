@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth/client";
+import { broadcastSignOut } from "@/features/shell/components/session-sync";
 
 // Spec 13 §18.2 — deliberately short: identity, then Configuración / Plan / Ayuda, then Cerrar
 // sesión. The full settings surface lives on the /settings hub, never in this dropdown (§18.3:
@@ -38,7 +39,8 @@ export function UserMenu({ name, email, image }: { name: string; email: string; 
 
   async function handleSignOut() {
     // §18.4 — invalidate the session, then a full refresh so no navigable cache can show private
-    // data on Back.
+    // data on Back. §29.5 — tell the other open tabs so they follow.
+    broadcastSignOut();
     await signOut();
     router.push("/login");
     router.refresh();

@@ -2,10 +2,10 @@
 
 import { ErrorState } from "@/components/shared/error-state";
 
-export default function TransactionsError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function TransactionsError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div className="py-6">
-      <ErrorState title="No pudimos cargar tus movimientos" onRetry={reset} />
+      <ErrorState title="No pudimos cargar tus movimientos" digest={error.digest} onRetry={reset} />
     </div>
   );
 }

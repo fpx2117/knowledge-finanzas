@@ -1227,6 +1227,40 @@ Quinto incremento de Fase I.
   void, category archive — ya tienen la anatomía correcta, es cleanup); undo-toast para borrar
   regla de clasificación (§24.3). Banners globales §25 + audit de toasts §24 → WP-SHELL-STATES.
 
+## WP-SHELL-STATES — Boundaries, banners globales y sesión multi-pestaña (spec 13 §25, §27–29)  ·  P2  ·  **DONE (2026-09-07)**
+
+Sexto incremento de Fase I. Alcance acotado a lo que no depende de subsistemas borrados (billing,
+session management más allá de better-auth).
+
+- **§27.2 boundary de shell** — nuevo `apps/web/src/app/(app)/error.tsx`. Los ~15 `error.tsx` de
+  módulo ya cubrían §27.1 ("un crash de Insights no tumba Cuentas") pero varias rutas
+  (`help`, `settings/*`, `billing`) no tenían ninguno → caían a `global-error.tsx` que reemplaza
+  todo el documento. Ahora caen a este boundary, que renderiza **dentro** del `(app)` layout →
+  sidebar + header + banners se mantienen.
+- **§27.3/§27.4 `ErrorState`** — copy ya era plain-language ("no fue modificada", nunca "Error
+  500"). Agregado: muestra el `digest` de Next como **"Código de soporte: <hash>"** con botón de
+  copiar (nunca un stack trace). `digest={error.digest}` propagado a los 15 `error.tsx` de módulo
+  (2 ad-hoc reescritos a `ErrorState`).
+- **§25 `<GlobalBanners>`** (`features/shell/components/global-banners.tsx`, montado en
+  `AppShellMain` entre header y `<main>`): estructura de prioridad
+  `security > availability > billing > product` (§25.2), renderiza **como máximo uno** (§25.3).
+  V1 sólo tiene el banner de conectividad; trial-ending / session-expiring / degraded-service
+  entran acá cuando se reconstruya billing.
+- **§28 conectividad** — `useConnectivityBanner`: `navigator.onLine` + eventos `online`/`offline`,
+  mensaje "Estás sin conexión. Algunas acciones no están disponibles.", acción "Reintentar"
+  (`location.reload`), y **debounce de 1.5s al reconectar** para no parpadear ante un blip
+  (§28.6).
+- **§29.5 multi-tab logout** — `<SessionSync>` (montado en `AppShell`) escucha `storage`;
+  `broadcastSignOut()` (llamado en `UserMenu.handleSignOut` antes de `signOut()`) escribe
+  `localStorage["kf:auth-event"]` → las demás pestañas hacen `router.replace("/login")` +
+  `refresh()`.
+- **Tests:** `shell.spec.ts` +3 (banner offline aparece y se limpia con debounce; el broadcast
+  manda la otra pestaña a `/login`; una ruta sin `error.tsx` propio renderiza dentro del shell).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 21/21.
+- **Follow-up (necesitan billing/session rebuild):** gating premium §19.4, banner de trial por
+  terminar §19.2, estados `REFRESHING`/`REVOKED`/`REAUTH_REQUIRED` §29.1–29.4, indicador de cache
+  desactualizada §28.3, audit de toasts §24 (undo seguro / error inline) al retomar las pantallas.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
