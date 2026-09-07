@@ -14,8 +14,13 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
-    // See vitest.unit.config.ts — tests for feature slices removed in the greenfield rebuild.
-    exclude: [...configDefaults.exclude, "tests/unit/pending-rebuild/**"],
+    // Tests for feature slices removed in the greenfield rebuild:
+    //  - tests/unit/pending-rebuild/** — see vitest.unit.config.ts
+    //  - tests/quarantine/** — WP-B8-RECONCILE parked these; they import deleted app-layer code
+    //    and can't collect. `pnpm test` is what CI runs, so it must skip them exactly like the
+    //    unit/integration configs do (which scope to tests/unit|integration only). See
+    //    tests/quarantine/README.md.
+    exclude: [...configDefaults.exclude, "tests/unit/pending-rebuild/**", "tests/quarantine/**"],
     environment: "node",
     fileParallelism: false,
     maxWorkers: 1,

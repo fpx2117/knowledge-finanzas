@@ -19,6 +19,7 @@ COPY packages/config/package.json ./packages/config/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY packages/finance/package.json ./packages/finance/package.json
 COPY packages/notifications/package.json ./packages/notifications/package.json
+COPY packages/observability/package.json ./packages/observability/package.json
 COPY packages/privacy/package.json ./packages/privacy/package.json
 COPY packages/promotions/package.json ./packages/promotions/package.json
 COPY packages/referrals/package.json ./packages/referrals/package.json

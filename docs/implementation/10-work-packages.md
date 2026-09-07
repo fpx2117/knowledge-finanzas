@@ -1058,6 +1058,38 @@ el diagnóstico de saldo.
 - **Verificación:** lint web limpio · typecheck 0 · unit 869/869 (+8) · integración 205/205 ·
   e2e 11/11.
 
+## WP-DEPLOY — Artefacto de deploy + CI verde  ·  P1  ·  **CÓDIGO DONE (2026-09-06); provisioning = usuario**
+
+Alcance elegido con el usuario: "CI en Actions + artefacto de deploy + checklist" (no toca infra real).
+
+- **Bug de CI corregido (bloqueante):** `ci.yml` corre `pnpm test`, que usa `vitest.config.ts`
+  (raíz) con `include: tests/**/*.test.ts`. Eso levantaba los 10 archivos de `tests/quarantine/`
+  (parkeados en WP-B8-RECONCILE, importan app-layer borrado) → no colectan → CI roja. Nadie había
+  corrido `pnpm test` a secas desde el rebuild. Fix: `exclude` ahora incluye `tests/quarantine/**`
+  (las configs `unit`/`integration` ya lo evitaban por scope). `pnpm test` → 177 archivos / 1074
+  tests verde.
+- **Bug del Dockerfile:** el `deps` stage COPYea el `package.json` de cada workspace para cachear
+  el `pnpm install`, pero faltaba `packages/observability` (agregado después del Dockerfile) → el
+  install fallaría al no resolver el workspace link. Agregado.
+- **`railway.toml`:** apuntaba a `docs/deployment-runbook.md` (borrado en el rebuild). Corregido a
+  `docs/implementation/16-deploy-runbook.md`.
+- **`docs/implementation/16-deploy-runbook.md` (nuevo):** qué ya está hecho (CI, Dockerfile
+  multi-stage standalone, `railway.toml`, health checks `/live` `/` `/deep`, `assertProductionHardening`);
+  tabla de env vars requeridas (con cómo generarlas) y opcionales por capability; pasos exactos de
+  primer deploy (provisionar → secrets → `pnpm db:migrate` una vez → deploy → verificar 3 health
+  checks + journey a mano → DNS) y de cada deploy siguiente (migración manual antes de promover,
+  smoke test, `finance:audit` post-deploy con rollback si `findings ≠ []`); URLs y secretos de los
+  3 webhooks; enganche con las alertas de `15-observability.md`.
+- **Ya estaba y sigue válido (verificado):** `ci.yml` (lint/typecheck/drift de migración/migrate/
+  test/build/e2e + dependency-review), `Dockerfile`, `railway.toml`, `.dockerignore`,
+  `apps/web/src/instrumentation.ts` (hardening en runtime), las 3 rutas de health. Los 15
+  paquetes del repo coinciden con `packages/config` y (ya) con el Dockerfile.
+- **Pendiente (sólo el usuario puede):** cuenta Railway + plugin Postgres, cargar los secrets,
+  correr `pnpm db:migrate` contra la DB de producción, apuntar DNS + `BETTER_AUTH_URL`, credenciales
+  productivas de Mercado Pago y config de sus webhooks.
+- **Verificación:** lint web limpio · typecheck 0 · `pnpm test` (unit+integración combinado, que es
+  lo que corre CI) 177/177 archivos, 1074 tests, 1 skip · e2e 11/11.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
