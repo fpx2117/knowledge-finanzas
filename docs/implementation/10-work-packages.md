@@ -1363,6 +1363,28 @@ Pendientes) y los flujos de captura §15–18 son WPs aparte.
   chips `?month=`), bloque de compromiso futuro §9.8, callout de calidad de datos §9.9, "Copiar
   mes anterior" §9.2.
 
+## WP-SCREEN-05 — Obligaciones / Todas (spec 05 §9)  ·  P2  ·  **DONE (2026-09-07)**
+
+La vista principal ya venía muy alineada con el spec (WP-OBLIGATIONS-UI hizo §9.4 "Necesita
+atención", §9.5 agrupación temporal por tiempo — no por tipo —, §9.6 filas, §9.3 los 4 KPIs). Esta
+pasada cierra los detalles del §9.2/§9.3:
+
+- **§9.2 header** — de `[Suscripciones (ghost)] [Nueva obligación]` a **sólo `[Nueva obligación]`**
+  (§9.2 header muestra únicamente esa acción). Suscripciones se llega por el `TabBar` interno y la
+  subruta del sidebar; el botón en el header era ruido. Aplicado también al header del empty state.
+- **§9.3 KPIs multimoneda** — antes: los 4 KPIs sumaban sólo en `baseCurrency` + un footnote "también
+  tenés en X, no se suman". Ahora, si hay obligaciones en más de una moneda en el horizonte, cada
+  KPI de monto ("Próximos 30 días", "Vencen esta semana", "Atrasado") muestra **una línea por
+  moneda** (`ARS 654.200 / USD 89,99`), nunca un total fusionado (§9.3 regla multimoneda / §22).
+  Nuevo helper `KpiCard` en la página. "Obligaciones activas" queda como conteo simple.
+- **Tests:** `tests/e2e/screen-obligaciones.spec.ts` (1 — header con la descripción del spec +
+  `[Nueva obligación]`, sin botón "Suscripciones" en el contenido, empty state). Además se
+  estabilizaron 2 specs de pantalla previas (`screen-presupuestos`, `screen-resumen`) que
+  flakeaban bajo carga de suite (form-submit / revalidación) envolviéndolas en `toPass`.
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 30/30.
+- **Follow-up:** subvistas §10 Próximas / §11 Deudas / §12 Cuotas / §13 Suscripciones contra su
+  spec; acciones rápidas por fila §9.7 (Registrar pago / Posponer / Omitir ocurrencia).
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

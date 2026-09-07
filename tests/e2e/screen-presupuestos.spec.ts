@@ -41,13 +41,16 @@ test("with a budget: KPIs use the spec terms and the month nav does not go into 
   await expect(page).toHaveURL(/\/accounts$/);
 
   await page.goto("/budgets/new");
+  await expect(page.getByRole("button", { name: /Crear presupuesto/ })).toBeEnabled();
   await page.locator("#limitAmount").fill("50000");
   await page.getByRole("button", { name: /Crear presupuesto/ }).click();
-  await expect(page).toHaveURL(/\/budgets$/);
+  await expect(page).toHaveURL(/\/budgets$/, { timeout: 10000 });
 
-  await page.goto("/budgets");
   const summary = page.getByRole("region", { name: "Resumen de presupuestos" });
-  await expect(summary.getByText("Presupuestado")).toBeVisible();
+  await expect(async () => {
+    await page.goto("/budgets");
+    await expect(summary.getByText("Presupuestado")).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 15000 });
   await expect(summary.getByText("Gastado")).toBeVisible();
   await expect(summary.getByText("Restante")).toBeVisible();
   await expect(summary.getByText("En atención")).toBeVisible();

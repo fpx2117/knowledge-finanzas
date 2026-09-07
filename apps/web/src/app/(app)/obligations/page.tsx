@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { AlertTriangleIcon, CalendarClockIcon, HandCoinsIcon, ListChecksIcon } from "lucide-react";
+import { AlertTriangleIcon, CalendarClockIcon, HandCoinsIcon, ListChecksIcon, type LucideIcon } from "lucide-react";
 
 import { Money } from "@know-finanzas/finance";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { HeaderActions } from "@/components/shared/header-actions";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -63,13 +62,7 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
         <PageHeader
           title="Obligaciones"
           description="Anticipá tus próximos compromisos y mantené claro cuánto tenés pendiente."
-          actions={
-            <>
-              <HeaderActions showPeriod={false} />
-              <Button variant="ghost" render={<Link href="/obligations/subscriptions">Suscripciones</Link>} />
-              <Button render={<Link href="/obligations/new">Nueva obligación</Link>} />
-            </>
-          }
+          actions={<Button render={<Link href="/obligations/new">Nueva obligación</Link>} />}
         />
         <EmptyState
           icon={<HandCoinsIcon />}
@@ -81,12 +74,29 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
     );
   }
 
+  // spec 05 §9.3 — hasta 4 KPI, y si hay obligaciones en más de una moneda los totales van
+  // separados por moneda, nunca fusionados (§22 / RF-03).
+  const currenciesInHorizon = [...new Set(model.items.map((i) => i.currencyCode))].sort((a) =>
+    a === currency ? -1 : 1,
+  );
+  const perCurrency = (predicate: (item: (typeof model.items)[number]) => boolean) =>
+    currenciesInHorizon
+      .map((code) => ({
+        currencyCode: code,
+        total: model.items
+          .filter((i) => i.currencyCode === code && predicate(i))
+          .reduce((sum, i) => sum.add(Money.fromString(i.remainingAmount, code)), Money.zero(code))
+          .toString(),
+      }))
+      .filter((row) => Number(row.total) > 0);
+
   const baseItems = model.items.filter((item) => item.currencyCode === currency);
   const sumRemaining = (predicate: (item: (typeof baseItems)[number]) => boolean) =>
     baseItems
       .filter(predicate)
       .reduce((total, item) => total.add(Money.fromString(item.remainingAmount, currency)), Money.zero(currency))
       .toString();
+  const multiCurrency = currenciesInHorizon.length > 1;
 
   const overdueTotal = sumRemaining((item) => item.isOverdue);
   const thisWeekTotal = sumRemaining((item) => item.status === "DUE_TODAY" || item.status === "DUE_SOON");
@@ -111,32 +121,20 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
       <PageHeader
         title="Obligaciones"
         description="Anticipá tus próximos compromisos y mantené claro cuánto tenés pendiente."
-        actions={
-          <>
-            <HeaderActions showPeriod={false} />
-            <Button variant="ghost" render={<Link href="/obligations/subscriptions">Suscripciones</Link>} />
-            <Button render={<Link href="/obligations/new">Nueva obligación</Link>} />
-          </>
-        }
+        actions={<Button render={<Link href="/obligations/new">Nueva obligación</Link>} />}
       />
 
-      {/* §9.3 — hasta 4 KPI primarios, multimoneda separada */}
+      {/* §9.3 — hasta 4 KPI primarios; si hay más de una moneda, cada total va por moneda. */}
       <section aria-label="Resumen de obligaciones" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Próximos 30 días" icon={CalendarClockIcon} value={next30Total} currency={currency} hint="Lo que vence en el mes" />
-        <StatCard
-          label="Vencen esta semana"
-          tone={Number(thisWeekTotal) > 0 ? "warning" : "neutral"}
-          value={thisWeekTotal}
-          currency={currency}
-          hint="En los próximos 7 días"
-        />
-        <StatCard
-          label="Atrasado"
-          tone={Number(overdueTotal) > 0 ? "negative" : "neutral"}
-          value={overdueTotal}
-          currency={currency}
-          hint="Vencido y sin pagar"
-        />
+        <KpiCard label="Próximos 30 días" icon={CalendarClockIcon} hint="Lo que vence en el mes"
+          rows={multiCurrency ? perCurrency((i) => !i.isOverdue && i.daysUntilDue <= 30) : undefined}
+          value={next30Total} currency={currency} />
+        <KpiCard label="Vencen esta semana" hint="En los próximos 7 días" tone="warning"
+          rows={multiCurrency ? perCurrency((i) => i.status === "DUE_TODAY" || i.status === "DUE_SOON") : undefined}
+          value={thisWeekTotal} currency={currency} />
+        <KpiCard label="Atrasado" hint="Vencido y sin pagar" tone="negative"
+          rows={multiCurrency ? perCurrency((i) => i.isOverdue) : undefined}
+          value={overdueTotal} currency={currency} />
         <StatCard label="Obligaciones activas" icon={ListChecksIcon}>
           <span className="flex flex-col gap-0.5">
             <span className="text-metric font-medium text-foreground">{model.items.length}</span>
@@ -144,13 +142,6 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
           </span>
         </StatCard>
       </section>
-
-      {model.excludedCurrencies.length > 0 ? (
-        <p className="text-caption text-muted-foreground">
-          Los totales de arriba son sólo en {currency}. También tenés obligaciones en {model.excludedCurrencies.join(", ")} — se listan
-          abajo pero no se suman.
-        </p>
-      ) : null}
 
       <TabBar tabs={tabs} active={tab} />
 
@@ -296,5 +287,51 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
         </SectionCard>
       )}
     </div>
+  );
+}
+
+// spec 05 §9.3 — un KPI que puede mostrar un total único o, cuando hay varias monedas, un total
+// por moneda (nunca fusionado — §22).
+function KpiCard({
+  label,
+  icon,
+  hint,
+  tone,
+  value,
+  currency,
+  rows,
+}: {
+  label: string;
+  icon?: LucideIcon;
+  hint: string;
+  tone?: "warning" | "negative";
+  value: string;
+  currency: string;
+  rows?: { currencyCode: string; total: string }[];
+}) {
+  if (rows && rows.length > 0) {
+    return (
+      <StatCard label={label} icon={icon} tone={rows.length > 0 && tone ? tone : undefined}>
+        <span className="flex flex-col gap-1">
+          {rows.map((row) => (
+            <span key={row.currencyCode} className="flex items-baseline justify-between gap-2">
+              <span className="text-caption font-medium text-muted-foreground">{row.currencyCode}</span>
+              <MoneyAmount amount={row.total} currency={row.currencyCode} className="text-body-lg font-medium text-foreground" />
+            </span>
+          ))}
+          <span className="text-caption text-muted-foreground">{hint}</span>
+        </span>
+      </StatCard>
+    );
+  }
+  return (
+    <StatCard
+      label={label}
+      icon={icon}
+      tone={Number(value) > 0 && tone ? tone : "neutral"}
+      value={value}
+      currency={currency}
+      hint={hint}
+    />
   );
 }

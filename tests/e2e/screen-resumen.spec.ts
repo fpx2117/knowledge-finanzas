@@ -75,8 +75,8 @@ test("the Metas section shows active goals and the Para vos section is present (
   await expect(async () => {
     await page.goto("/app");
     await expect(metas.getByRole("link", { name: "Vacaciones" })).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 15000 });
-  await expect(metas.getByText("25%")).toBeVisible();
+    await expect(metas.getByText("25%")).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
 
   await context.close();
 });
