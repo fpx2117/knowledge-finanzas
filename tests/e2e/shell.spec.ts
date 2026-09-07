@@ -74,6 +74,48 @@ test.describe("sidebar (spec §5–6, §18)", () => {
   });
 });
 
+test.describe("sidebar collapse (spec §6.10–6.12)", () => {
+  test("collapses to an icon rail, persists per device, and expands back on hover", async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    await newUser(page, baseURL!, "collapse");
+    await page.goto("/app");
+
+    const sidebar = page.getByRole("complementary", { name: "Barra lateral" });
+    const expandedWidth = (await sidebar.boundingBox())!.width;
+    expect(expandedWidth).toBeGreaterThan(200);
+
+    // The toggle lives in the app header (§9), not inside the sidebar.
+    await page.getByRole("button", { name: "Contraer barra lateral" }).click();
+    await page.mouse.move(640, 400);
+    await expect(async () => {
+      expect((await sidebar.boundingBox())!.width).toBeLessThan(100);
+    }).toPass({ timeout: 2000 });
+
+    // §6.11 — the choice survives a reload (localStorage, per device).
+    await page.reload();
+    await expect(async () => {
+      expect((await sidebar.boundingBox())!.width).toBeLessThan(100);
+    }).toPass({ timeout: 2000 });
+
+    // §6.10 — hover expands the rail back over the content, so nothing is unreachable.
+    await sidebar.hover();
+    await expect(async () => {
+      expect((await sidebar.boundingBox())!.width).toBeGreaterThan(200);
+    }).toPass({ timeout: 2000 });
+
+    // Explicitly expanding again restores the persistent state.
+    await page.mouse.move(640, 400);
+    await page.getByRole("button", { name: "Expandir barra lateral" }).click();
+    await page.mouse.move(640, 400);
+    await expect(async () => {
+      expect((await sidebar.boundingBox())!.width).toBeGreaterThan(200);
+    }).toPass({ timeout: 2000 });
+
+    await context.close();
+  });
+});
+
 test.describe("app header + notification center (spec §9, §17)", () => {
   test("the desktop app header exposes the global search and notifications, and /notifications renders its own center", async ({ browser, baseURL }) => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });

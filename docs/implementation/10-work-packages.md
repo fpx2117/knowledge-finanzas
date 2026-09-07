@@ -1169,6 +1169,34 @@ Tercer incremento de Fase I.
   y no es link, click en el ancestro vuelve a la lista).
 - **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 16/16.
 
+## WP-SHELL-COLLAPSE — Sidebar colapsable a riel de iconos (spec 13 §6.10–6.12)  ·  P2  ·  **DONE (2026-09-06)**
+
+Cuarto incremento de Fase I.
+
+- **`components/layout/sidebar-state.tsx`** (nuevo): `SidebarStateProvider` + `useSidebarState()`.
+  `{ collapsed, toggle }`, persistido en `localStorage["kf:sidebar-collapsed"]` (por dispositivo,
+  sin sync entre dispositivos — §6.11). SSR default = expandido; lee `localStorage` en `useEffect`
+  (un frame de flash aceptable, el sidebar es `hidden lg:flex`).
+- **`Sidebar` → client component**, consume el estado:
+  - Colapsado: `w-16`, `overflow-hidden` — los labels (`whitespace-nowrap`) y badges se **recortan**,
+    no se ocultan; los iconos (`shrink-0`) quedan fijos. `title` nativo en cada item de nav
+    (§6.10 "tooltip con label" — nativo, siempre funciona, independiente del teclado).
+  - `hover` **o** `focus-within` → `w-60` + `z-30` + `shadow-2xl`: el riel se re-expande **sobre**
+    el contenido (§6.10 "los submenús aparecen … al expandir temporalmente"; `focus-within` cubre
+    el acceso por teclado, así nada queda inalcanzable).
+- **`components/layout/app-shell-main.tsx`** (nuevo, client): la columna de contenido; su inset
+  izquierdo sigue el estado (`lg:pl-16` colapsado / `lg:pl-60` expandido — el riel angosto porque
+  la expansión por hover es un overlay, §6.12). Contiene el `AppHeader` + `<main>`.
+- **`SidebarToggle`** (nuevo, client) vive en el `AppHeader`, **no** dentro del `<aside>`: si el
+  botón vive en el sidebar, hacer click para colapsar lo deja focuseado → `:focus-within` lo
+  mantiene expandido. En el header no hay ese problema.
+- `AppShell` envuelve todo en `<SidebarStateProvider>` y delega la columna a `<AppShellMain>`.
+- **Tests:** `shell.spec.ts` +1 (colapsa a <100px, persiste tras reload, hover re-expande a >200px,
+  botón "Expandir" vuelve).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · e2e 17/17.
+- **Follow-up:** cuando está colapsado, un grupo con subrutas activo muestra su sublista recortada;
+  un indicador de badge como punto (no número) en el riel sería más claro que el recorte.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

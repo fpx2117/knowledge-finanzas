@@ -74,11 +74,12 @@ function NavGroup({
         <Link
           href={item.href}
           onClick={onNavigate}
+          title={item.label}
           aria-current={pathname === item.href ? "page" : undefined}
           className="flex h-full flex-1 items-center gap-3 rounded-md px-3"
         >
           <Icon aria-hidden="true" className="size-[1.1rem] shrink-0" />
-          <span className="flex-1">{item.label}</span>
+          <span className="flex-1 whitespace-nowrap">{item.label}</span>
           {badge}
         </Link>
         <button
@@ -137,6 +138,7 @@ function FlatItem({
         href={item.href}
         aria-current={active ? "page" : undefined}
         onClick={onNavigate}
+        title={item.label}
         className={cn(
           "relative flex h-10 items-center gap-3 rounded-md px-3 text-body transition-colors",
           "text-muted-foreground hover:bg-brand-subtle hover:text-brand",
@@ -146,7 +148,7 @@ function FlatItem({
         )}
       >
         <Icon aria-hidden="true" className="size-[1.1rem] shrink-0" />
-        <span className="flex-1">{item.label}</span>
+        <span className="flex-1 whitespace-nowrap">{item.label}</span>
         {itemBadge(item, badges)}
       </Link>
     </li>

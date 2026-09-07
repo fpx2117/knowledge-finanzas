@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar";
 import { MobileNav } from "./mobile-nav";
-import { AppHeader } from "./app-header";
+import { AppShellMain } from "./app-shell-main";
+import { SidebarStateProvider } from "./sidebar-state";
 import type { NavBadgeCounts } from "./nav-items";
 import { QuickAddRoot } from "@/features/capture/components/quick-add-root";
 import { CommandPaletteRoot } from "@/features/shell/components/command-palette-root";
@@ -19,25 +20,22 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-svh bg-background">
-      {/* WCAG 2.4.1 — first focusable element on every authed page: lets keyboard and screen-reader
-          users jump past the sidebar/mobile nav straight to the page content. */}
-      <a
-        href="#main-content"
-        className="sr-only rounded-md bg-card px-4 py-2 text-small font-medium text-foreground shadow-md ring-1 ring-border focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:outline-none focus:ring-[3px] focus:ring-ring/40"
-      >
-        Saltar al contenido
-      </a>
-      <Sidebar user={user} badges={navBadges} />
-      <MobileNav user={user} unreadCount={unreadCount} navBadges={navBadges} />
-      <div className="lg:pl-60">
-        <AppHeader unreadCount={unreadCount} />
-        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-[1280px] px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-9">
-          {children}
-        </main>
+    <SidebarStateProvider>
+      <div className="min-h-svh bg-background">
+        {/* WCAG 2.4.1 — first focusable element on every authed page: lets keyboard and screen-reader
+            users jump past the sidebar/mobile nav straight to the page content. */}
+        <a
+          href="#main-content"
+          className="sr-only rounded-md bg-card px-4 py-2 text-small font-medium text-foreground shadow-md ring-1 ring-border focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:outline-none focus:ring-[3px] focus:ring-ring/40"
+        >
+          Saltar al contenido
+        </a>
+        <Sidebar user={user} badges={navBadges} />
+        <MobileNav user={user} unreadCount={unreadCount} navBadges={navBadges} />
+        <AppShellMain unreadCount={unreadCount}>{children}</AppShellMain>
+        <QuickAddRoot />
+        <CommandPaletteRoot />
       </div>
-      <QuickAddRoot />
-      <CommandPaletteRoot />
-    </div>
+    </SidebarStateProvider>
   );
 }
