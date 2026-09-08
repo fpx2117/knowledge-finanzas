@@ -44,12 +44,13 @@ export async function createTransactionAction(
   try {
     const user = await requireCurrentUser();
     userId = user.id;
+    // `merchant` only belongs to the expense schema — both schemas are `.strict()`, so passing a
+    // `merchant` key (even `undefined`) into the income parse is an unrecognized-key ZodError.
     const raw = {
       accountId: formData.get("accountId"),
       amount: formData.get("amount"),
       description: formData.get("description"),
       categoryId: formData.get("categoryId") || undefined,
-      merchant: formData.get("merchant") || undefined,
       occurredAt: resolveOccurredAtISO(String(formData.get("occurredAt")), user.timezone),
       notes: formData.get("notes") || undefined,
       commandId: formData.get("commandId") || undefined,
@@ -63,7 +64,7 @@ export async function createTransactionAction(
       }
       await service.createIncomeTransaction(user.id, input, user.timezone);
     } else {
-      const input = createExpenseTransactionSchema.parse(raw);
+      const input = createExpenseTransactionSchema.parse({ ...raw, merchant: formData.get("merchant") || undefined });
       if (formData.get("allowDuplicate") !== "1") {
         const dup = await service.findLikelyExpenseDuplicate(user.id, { accountId: input.accountId, amount: input.amount, merchant: input.merchant ?? null, occurredAt: input.occurredAt });
         if (dup) return { ok: false, duplicateOf: { description: dup.description, occurredOn: dup.occurredOn, amount: dup.amount } };

@@ -15,7 +15,7 @@ export type CategorySlice = { id: string; name: string; amount: string; share: n
 export type ReportData = {
   period: string;
   currencyCode: string;
-  kpis: { income: string; expense: string; savings: string; savingsRate: number; netWorth: string };
+  kpis: { income: string; expense: string; savings: string; savingsRate: number | null; netWorth: string };
   months: MonthPoint[];
   expenseByCategory: CategorySlice[];
   incomeByCategory: CategorySlice[];
@@ -30,9 +30,15 @@ export type ReportData = {
    * Coverage/warnings (§21): accounts whose currency isn't `currencyCode` are excluded from every
    * total above (§22 — never summed across currencies), not silently merged in. The UI must
    * surface this, not hide it.
+   *
+   * `movementCount` / `sufficientData` (§9.9): below a minimum number of movements in the period
+   * the UI must show the raw totals but must not make trend claims.
    */
-  coverage: { excludedCurrencies: string[] };
+  coverage: { excludedCurrencies: string[]; movementCount: number; sufficientData: boolean };
 };
+
+/** §9.9: minimum movements in the period before Panorama is allowed to describe a trend. */
+const SUFFICIENT_DATA_THRESHOLD = 5;
 
 const MONTHS_ES_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -92,9 +98,14 @@ export function createReportService(database = db) {
         { income: zero(), expense: zero() },
       );
       const savings = periodTotals.income.subtract(periodTotals.expense);
-      const savingsRate = Number(periodTotals.income.toString()) > 0
-        ? Math.round((Number(savings.toString()) / Number(periodTotals.income.toString())) * 100)
-        : 0;
+      const incomeNumber = Number(periodTotals.income.toString());
+      // §5.4: with no confirmed income the rate is undefined — show "—", never a misleading 0%.
+      const savingsRate = incomeNumber > 0 ? Math.round((Number(savings.toString()) / incomeNumber) * 100) : null;
+
+      // §9.9: how many confirmed income/expense movements fell in the period, base currency only.
+      const movementCount = incomeActivity.filter(
+        (row) => (row.type === "INCOME" || row.type === "EXPENSE") && row.currencyCode === currencyCode,
+      ).length;
 
       // Net worth = liquid assets − outstanding debt, base currency only.
       const liquidAssets = pickBase(liquidRows.map((row) => ({ currencyCode: row.account.currencyCode, ...row }))).reduce((total, row) => {
@@ -188,7 +199,7 @@ export function createReportService(database = db) {
           netWorth: netWorth.toString(),
         },
         calculationVersion: 1,
-        coverage: { excludedCurrencies },
+        coverage: { excludedCurrencies, movementCount, sufficientData: movementCount >= SUFFICIENT_DATA_THRESHOLD },
       };
     },
   };
