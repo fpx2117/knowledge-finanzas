@@ -1,6 +1,3 @@
-import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
-
 import { createUserRepository, db } from "@know-finanzas/db";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -16,9 +13,6 @@ export default async function ProfileSettingsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/settings" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Configuración
-      </Link>
       <PageHeader title="Perfil" description="Datos básicos de tu cuenta y preferencias regionales." />
       <SectionCard title="Tus datos">
         <ProfileForm
