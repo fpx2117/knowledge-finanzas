@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { InsightsTabs } from "@/features/insights/components/insights-tabs";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusChip, type ChipTone } from "@/components/shared/status-chip";
@@ -27,12 +27,10 @@ export default async function InsightHistoryPage() {
   const history = await service.getHistory(user);
 
   return (
-    <div className="flex flex-col gap-8">
-      <Link href="/insights" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Volver a Insights
-      </Link>
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Insights" description="Todo lo que detectamos, con su evidencia y cómo se resolvió." />
 
-      <PageHeader title="Insights / Historial" description="Todo lo que detectamos, con su evidencia y cómo se resolvió." />
+      <InsightsTabs active="historial" />
 
       <SectionCard title="Historial" eyebrow={`${history.length}`} contentClassName="gap-0">
         {history.length === 0 ? (

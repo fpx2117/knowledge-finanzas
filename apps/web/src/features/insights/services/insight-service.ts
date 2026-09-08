@@ -30,6 +30,12 @@ import {
 } from "@know-finanzas/db";
 import { DETECTORS, INSIGHT_CALCULATION_VERSION, type DetectorContext } from "../detectors";
 
+/**
+ * spec 09 §5 / §12 — families whose insights are "possible improvements, not urgent". They belong
+ * in the Oportunidades subview, never in Para vos ("lo más importante ahora").
+ */
+export const OPPORTUNITY_FAMILIES = new Set<InsightFamily>(["INS-REC-DETECT"]);
+
 export type InsightView = {
   id: string;
   family: InsightFamily;
@@ -224,6 +230,23 @@ export function createInsightService(database: Database = db, now: () => Date = 
       }
       const rows = await insights.listOpenForUser(user.id);
       return sortByPriority(rows.map(toView));
+    },
+
+    /**
+     * spec 09 §11 "Para vos" — the priority queue minus opportunity-only families, plus the
+     * §11.2 coverage/quality signal the surface must show alongside the list.
+     */
+    async getParaVos(user: { id: string; timezone: string; baseCurrency: string }) {
+      const all = await this.getQueue(user);
+      const items = all.filter((insight) => !OPPORTUNITY_FAMILIES.has(insight.family));
+      const uncategorizedCount = await transactions.countUncategorizedForUser(user.id).catch(() => 0);
+      return { items, coverage: { uncategorizedCount, generatedAt: now().toISOString() } };
+    },
+
+    /** spec 09 §12 "Oportunidades" — only the non-urgent opportunity families. */
+    async getOpportunities(user: { id: string; timezone: string; baseCurrency: string }) {
+      const all = await this.getQueue(user);
+      return all.filter((insight) => OPPORTUNITY_FAMILIES.has(insight.family));
     },
 
     async getHistory(user: { id: string }) {
