@@ -9,6 +9,8 @@ import { FinanceIcon, type FinanceIconName } from "@/design-system/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, fieldControlClass } from "@/components/shared/form-field";
+import { InferenceBadge, type InferenceOrigin } from "@/components/shared/inference-badge";
+import { getTodayInTimezone } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { MerchantAutocomplete } from "./merchant-autocomplete";
 import type { MerchantAutocompleteSuggestion } from "../lib/merchant-autocomplete";
@@ -33,7 +35,7 @@ const TYPES: Array<{ key: QuickType; label: string; icon: FinanceIconName }> = [
 ];
 
 const initial: QuickResult | null = null;
-const emptyForm = { amount: "", description: "", accountId: "", categoryId: "", merchant: "" };
+const emptyForm = { amount: "", description: "", accountId: "", categoryId: "", merchant: "", occurredAt: "" };
 
 function money(value: string) {
   return `$${Number(value).toLocaleString("es-AR")}`;
@@ -85,7 +87,11 @@ export function QuickAdd({
   }, [form.amount, form.description, form.accountId]);
 
   const resetAll = (ctx: QuickAddContext | null) => {
-    setForm({ ...emptyForm, accountId: ctx?.accounts[0]?.id ?? "" });
+    setForm({
+      ...emptyForm,
+      accountId: ctx?.accounts[0]?.id ?? "",
+      occurredAt: ctx ? getTodayInTimezone(ctx.timezone) : "",
+    });
     setTemplateId(null);
     setSelectedMerchant(null);
     setAllowDuplicate(false);
@@ -114,6 +120,13 @@ export function QuickAdd({
       .finally(() => setLoadingContext(false));
   }, [open]);
 
+  // §8.6 — default the date to "today" in the user's timezone once we know it, without
+  // clobbering a date the user (or a prefill) already set.
+  useEffect(() => {
+    if (!open || !context) return;
+    setForm((current) => (current.occurredAt ? current : { ...current, occurredAt: getTodayInTimezone(context.timezone) }));
+  }, [open, context]);
+
   // Apply prefill (from "Registrar de nuevo") or reset, each time the dialog opens.
   useEffect(() => {
     if (!open) return;
@@ -125,6 +138,7 @@ export function QuickAdd({
         accountId: prefill.accountId ?? "",
         categoryId: prefill.categoryId ?? "",
         merchant: prefill.merchant ?? "",
+        occurredAt: "", // filled with "today" by the effect above
       });
       setTemplateId(null);
       setSelectedMerchant(null);
@@ -221,6 +235,7 @@ export function QuickAdd({
   const errors = state?.ok === false && "error" in state ? state.error.fieldErrors ?? {} : {};
   const duplicateOf = state?.ok === false && "duplicateOf" in state ? state.duplicateOf : null;
   const isTxn = type === "EXPENSE" || type === "INCOME";
+  const selectedAccountCurrency = context?.accounts.find((a) => a.id === form.accountId)?.currencyCode ?? "";
   const categoryOptions = context?.categories.filter((c) => c.type === type) ?? [];
   const templatesForType = context?.templates.filter((t) => t.type === type) ?? [];
   const selectedCategoryName = categoryOptions.find((category) => category.id === form.categoryId)?.name;
@@ -232,6 +247,15 @@ export function QuickAdd({
       ? `¿${suggestedCategoryName}?`
       : suggestedCategoryName
     : null;
+  // spec 10 §7.8 — where a suggested (not user-picked) category came from.
+  const categoryOrigin: InferenceOrigin | null =
+    selectedCategoryName || !suggestedCategoryName
+      ? null
+      : interpretation && !selectedMerchant
+        ? "text"
+        : categoryTrust === "ask"
+          ? "review"
+          : "history";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -262,6 +286,22 @@ export function QuickAdd({
               {t.label}
             </button>
           ))}
+        </div>
+
+        {/* §4.2 — importar vive en el mismo selector, bajo un separador. */}
+        <div className="flex items-center gap-3">
+          <span aria-hidden className="h-px flex-1 bg-border" />
+          <button
+            type="button"
+            onClick={() => {
+              onOpenChange(false);
+              router.push("/settings/imports");
+            }}
+            className="text-caption font-medium text-brand hover:underline"
+          >
+            Importar movimientos
+          </button>
+          <span aria-hidden className="h-px flex-1 bg-border" />
         </div>
 
         {isTxn ? (
@@ -377,18 +417,26 @@ export function QuickAdd({
                 ) : null}
 
                 <Field label="Monto" htmlFor="qa-amount" error={errors.amount?.[0]}>
-                  <input
-                    id="qa-amount"
-                    name="amount"
-                    type="text"
-                    inputMode="decimal"
-                    required
-                    autoFocus
-                    value={form.amount}
-                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                    placeholder="0.00"
-                    className={cn(fieldControlClass, "h-12 text-lg font-medium")}
-                  />
+                  <div className="relative">
+                    <input
+                      id="qa-amount"
+                      name="amount"
+                      type="text"
+                      inputMode="decimal"
+                      required
+                      autoFocus
+                      value={form.amount}
+                      onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                      placeholder="0.00"
+                      className={cn(fieldControlClass, "h-12 text-lg font-medium", selectedAccountCurrency && "pr-16")}
+                    />
+                    {/* §7.3 — la moneda es la de la cuenta seleccionada, no editable acá. */}
+                    {selectedAccountCurrency ? (
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption font-medium text-muted-foreground">
+                        {selectedAccountCurrency}
+                      </span>
+                    ) : null}
+                  </div>
                   {amountHints.length > 0 ? (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {amountHints.map((hint) => (
@@ -446,10 +494,11 @@ export function QuickAdd({
                       className={fieldControlClass}
                     />
                   )}
-                  {!showDetail && form.merchant ? (
-                    <p className="mt-1 text-caption text-muted-foreground">
-                      Comercio: {form.merchant}
-                      {categoryHint ? ` · ${categoryHint}` : ""}
+                  {!showDetail && (form.merchant || categoryHint) ? (
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-caption text-muted-foreground">
+                      {form.merchant ? <span>Comercio: {form.merchant}</span> : null}
+                      {categoryHint ? <span>Categoría: {categoryHint}</span> : null}
+                      {categoryOrigin ? <InferenceBadge origin={categoryOrigin} /> : null}
                     </p>
                   ) : null}
                 </Field>
@@ -473,6 +522,20 @@ export function QuickAdd({
                       </option>
                     ))}
                   </select>
+                </Field>
+
+                {/* §8.2 campo P0 · §8.6 hoy por defecto, pasado permitido, nunca futuro. */}
+                <Field label="Fecha" htmlFor="qa-date" error={errors.occurredAt?.[0]}>
+                  <input
+                    id="qa-date"
+                    name="occurredAt"
+                    type="date"
+                    required
+                    max={getTodayInTimezone(context.timezone)}
+                    value={form.occurredAt}
+                    onChange={(e) => setForm((f) => ({ ...f, occurredAt: e.target.value }))}
+                    className={fieldControlClass}
+                  />
                 </Field>
 
                 <button
@@ -500,6 +563,12 @@ export function QuickAdd({
                           </option>
                         ))}
                       </select>
+                      {categoryHint && categoryOrigin ? (
+                        <p className="mt-1.5 flex items-center gap-2 text-caption text-muted-foreground">
+                          <span>Sugerida: {categoryHint}</span>
+                          <InferenceBadge origin={categoryOrigin} />
+                        </p>
+                      ) : null}
                     </Field>
                     {type === "EXPENSE" ? (
                       <Field label="Comercio" htmlFor="qa-merchant" help="Opcional. Escribí dos letras para buscar.">

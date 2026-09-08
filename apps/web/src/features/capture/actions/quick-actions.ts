@@ -14,7 +14,6 @@ import {
   quickTemplateRepository,
   transactionRepository,
 } from "@know-finanzas/db";
-import { getTodayInTimezone } from "@/lib/date";
 
 import { aiProvider, executeAICapability } from "@/lib/ai/execute-ai-capability.instance";
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
@@ -212,7 +211,7 @@ export async function quickCreateTransactionAction(
   const type = formData.get("type") === "INCOME" ? "INCOME" : "EXPENSE";
   try {
     const user = await requireCurrentUser();
-    const raw = buildQuickTransactionInput(type, formData, `${getTodayInTimezone(user.timezone)}T12:00:00Z`);
+    const raw = buildQuickTransactionInput(type, formData, user.timezone);
 
     if (formData.get("allowDuplicate") !== "1") {
       const dup = type === "INCOME"
@@ -241,7 +240,12 @@ export async function quickCreateTransactionAction(
       await quickTemplateRepository.recordUse(templateId, user.id, row.amount).catch(() => undefined);
     }
 
-    emitFinancialEvent({ type: "transaction.created" });
+    // NOT emitFinancialEvent() here: calling revalidatePath() from a Server Action whose <form>
+    // lives on the route being revalidated (Quick Add is a dialog rendered over any page) makes
+    // Next 15.5 abort the action's RSC refresh and the useActionState transition never settles —
+    // the button hangs on "Guardando…". The client success handler calls router.refresh()
+    // instead, which busts the whole Router Cache; every (app) page is dynamic (staleTime 0) so
+    // sibling routes re-fetch on the next navigation anyway.
     return { ok: true, transactionId: row.id, type, amount: row.amount, currencyCode: row.currencyCode };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error) };
