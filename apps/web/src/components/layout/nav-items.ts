@@ -54,10 +54,12 @@ export const NAV_ITEMS: NavItem[] = [
     badge: "transactions-pending",
     children: [
       { label: "Movimientos", href: "/transactions" },
-      { label: "Pendientes", href: "/transactions/pending" },
+      { label: "Gastos", href: "/transactions/expenses" },
+      { label: "Ingresos", href: "/transactions/income" },
       { label: "Transferencias", href: "/transactions/transfers" },
-      { label: "Programados", href: "/transactions/scheduled" },
       { label: "Recurrentes", href: "/transactions/recurring" },
+      { label: "Programados", href: "/transactions/scheduled" },
+      { label: "Pendientes", href: "/transactions/pending" },
     ],
   },
   {

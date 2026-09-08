@@ -10,10 +10,13 @@ import { cn } from "@/lib/utils";
 // apps/web/src/app/(app)/transactions/pending/page.tsx.
 const TABS = [
   { label: "Movimientos", href: "/transactions" },
+  { label: "Gastos", href: "/transactions/expenses" },
+  { label: "Ingresos", href: "/transactions/income" },
+  { label: "Transferencias", href: "/transactions/transfers" },
+  { label: "Recurrentes", href: "/transactions/recurring" },
+  { label: "Programados", href: "/transactions/scheduled" },
   { label: "Pendientes", href: "/transactions/pending" },
   { label: "Duplicados", href: "/transactions/pending#duplicados" },
-  { label: "Programados", href: "/transactions/scheduled" },
-  { label: "Recurrentes", href: "/transactions/recurring" },
 ];
 
 export function TransactionsSubnav() {
