@@ -3,6 +3,7 @@ import {
   ArrowLeftIcon,
   BookOpenIcon,
   InfoIcon,
+  LightbulbIcon,
   MessageSquareIcon,
   RocketIcon,
   SignalIcon,
@@ -11,12 +12,13 @@ import {
 
 import { cn } from "@/lib/utils";
 
-// spec 12 §2.3 — la navegación de Ayuda vive dentro de /help, nunca como submenú del sidebar.
+// spec 12 §2.2/§2.3 — la navegación de Ayuda vive dentro de /help, nunca como submenú del sidebar.
 export const HELP_SECTIONS = [
   { key: "getting-started", label: "Primeros pasos", href: "/help/getting-started", icon: RocketIcon },
   { key: "troubleshoot", label: "Resolver un problema", href: "/help/troubleshoot", icon: WrenchIcon },
   { key: "status", label: "Estado del servicio", href: "/help/status", icon: SignalIcon },
   { key: "contact", label: "Contactar soporte", href: "/help/contact", icon: MessageSquareIcon },
+  { key: "feedback", label: "Feedback", href: "/help/feedback", icon: LightbulbIcon },
   { key: "about", label: "Acerca de KnowFinanzas", href: "/help/about", icon: InfoIcon },
 ] as const;
 
