@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, fieldControlClass } from "@/components/shared/form-field";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { archiveGoalAction, contributeGoalAction, withdrawGoalAction, type GoalActionState } from "../actions/goal-actions";
 
@@ -40,7 +41,6 @@ export function GoalActions({
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [addState, addAction, addPending] = useActionState(contributeGoalAction, initial);
   const [withdrawState, withdrawAction, withdrawPending] = useActionState(withdrawGoalAction, initial);
-  const [, archiveAction, archivePending] = useActionState(archiveGoalAction, initial);
 
   if (addState?.ok && addOpen) {
     setAddOpen(false);
@@ -136,32 +136,17 @@ export function GoalActions({
       ) : null}
 
       {status !== "ARCHIVED" ? (
-        <Dialog>
-          <DialogTrigger
-            render={
-              <Button variant="outline">
-                <ArchiveIcon className="size-4" /> Archivar
-              </Button>
-            }
-          />
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Archivar esta meta</DialogTitle>
-              <DialogDescription>
-                Sale de tu lista de metas activas. No se borra nada y podés consultarla después.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose render={<Button variant="outline">Volver</Button>} />
-              <form action={archiveAction}>
-                <input type="hidden" name="goalId" value={goalId} />
-                <Button type="submit" variant="destructive" disabled={archivePending}>
-                  {archivePending ? "Archivando…" : "Archivar meta"}
-                </Button>
-              </form>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ConfirmDialog
+          trigger={<Button variant="outline"><ArchiveIcon className="size-4" /> Archivar</Button>}
+          title="Archivar esta meta"
+          description="Sale de tu lista de metas activas. No se borra nada y podés consultarla después."
+          confirmLabel="Archivar meta"
+          pendingLabel="Archivando…"
+          cancelLabel="Volver"
+          action={archiveGoalAction}
+          hiddenFields={{ goalId }}
+          onSuccess={() => router.refresh()}
+        />
       ) : null}
     </div>
   );

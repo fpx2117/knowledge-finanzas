@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, fieldControlClass } from "@/components/shared/form-field";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { cancelDebtAction, recordPaymentAction, type DebtActionState } from "../actions/debt-actions";
 
@@ -40,7 +41,6 @@ export function DebtActions({
   // submit that the user retries never applies the same payment twice.
   const [commandId, setCommandId] = useState(() => crypto.randomUUID());
   const [payState, payAction, payPending] = useActionState(recordPaymentAction, initial);
-  const [, cancelAction, cancelPending] = useActionState(cancelDebtAction, initial);
 
   if (payState?.ok && payOpen) {
     setPayOpen(false);
@@ -108,32 +108,17 @@ export function DebtActions({
         </DialogContent>
       </Dialog>
 
-      <Dialog>
-        <DialogTrigger
-          render={
-            <Button variant="outline">
-              <XIcon className="size-4" /> Cancelar obligación
-            </Button>
-          }
-        />
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancelar esta obligación</DialogTitle>
-            <DialogDescription>
-              Las cuotas no pagadas quedan canceladas. Los pagos ya registrados se conservan.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline">Volver</Button>} />
-            <form action={cancelAction}>
-              <input type="hidden" name="debtId" value={debtId} />
-              <Button type="submit" variant="destructive" disabled={cancelPending}>
-                {cancelPending ? "Cancelando…" : "Cancelar obligación"}
-              </Button>
-            </form>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        trigger={<Button variant="outline"><XIcon className="size-4" /> Cancelar obligación</Button>}
+        title="Cancelar esta obligación"
+        description="Las cuotas no pagadas quedan canceladas. Los pagos ya registrados se conservan."
+        confirmLabel="Cancelar obligación"
+        pendingLabel="Cancelando…"
+        cancelLabel="Volver"
+        action={cancelDebtAction}
+        hiddenFields={{ debtId }}
+        onSuccess={() => router.refresh()}
+      />
     </div>
   );
 }

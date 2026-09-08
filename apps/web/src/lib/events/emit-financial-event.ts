@@ -81,6 +81,14 @@ export type EmitFinancialEventInput = {
   entityPaths?: readonly string[];
 };
 
+/**
+ * NOTE: do not call this from a Server Action that is submitted through a `<form action>` /
+ * `useActionState` whose component lives on a route this event revalidates — under Next 15.5 the
+ * action's RSC refresh aborts intermittently and the transition never settles (the submit button
+ * hangs on its pending label). Those actions return `{ ok: true }` and let the client
+ * `router.refresh()` handle freshness (it busts the whole Router Cache; every `(app)` page is
+ * dynamic). Redirecting actions and imperatively-called ones are fine.
+ */
 export function emitFinancialEvent(input: EmitFinancialEventInput, revalidate: (path: string) => void = revalidatePath) {
   const paths = new Set<string>([...PATHS_BY_EVENT[input.type], ...(input.entityPaths ?? [])]);
   // Cache invalidation is a non-essential side effect (gate G5): actions call this *after* the

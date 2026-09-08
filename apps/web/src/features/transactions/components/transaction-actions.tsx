@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { fieldControlClass } from "@/components/shared/form-field";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   createTemplateFromTransactionAction,
   type RepeatPrefill,
@@ -23,10 +24,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { voidTransactionAction, type VoidTransactionState } from "../actions/void-transaction";
+import { voidTransactionAction } from "../actions/void-transaction";
 import { editTransactionAction, type EditTransactionState } from "../actions/edit-transaction";
 
-const initialState: VoidTransactionState | null = null;
 const initialTemplateState: TemplateActionState | null = null;
 const initialEditState: EditTransactionState | null = null;
 
@@ -49,21 +49,13 @@ export function TransactionActions({
   editable?: EditableTransaction | null;
 }) {
   const router = useRouter();
-  const [voidOpen, setVoidOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [voidState, voidAction, voidPending] = useActionState(voidTransactionAction, initialState);
   const [templateState, templateAction, templatePending] = useActionState(
     createTemplateFromTransactionAction,
     initialTemplateState,
   );
   const [editState, editAction, editPending] = useActionState(editTransactionAction, initialEditState);
-
-  useEffect(() => {
-    if (!voidState?.ok) return;
-    setVoidOpen(false);
-    router.push("/transactions");
-  }, [router, voidState]);
 
   useEffect(() => {
     if (!templateState?.ok) return;
@@ -192,37 +184,16 @@ export function TransactionActions({
         </Dialog>
       ) : null}
 
-      <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
-        <DialogTrigger
-          render={
-            <Button variant="outline">
-              <Undo2Icon className="size-4" /> Anular
-            </Button>
-          }
-        />
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Anular movimiento</DialogTitle>
-            <DialogDescription>
-              El movimiento se marca como anulado y su efecto sobre el saldo de la cuenta se revierte. Queda en el historial.
-            </DialogDescription>
-          </DialogHeader>
-          {voidState?.ok === false ? (
-            <p role="alert" className="rounded-md bg-negative-soft px-3 py-2 text-small text-[var(--negative)]">
-              {voidState.error.message}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline">Cancelar</Button>} />
-            <form action={voidAction}>
-              <input type="hidden" name="transactionId" value={transactionId} />
-              <Button type="submit" variant="destructive" disabled={voidPending}>
-                {voidPending ? "Anulando…" : "Anular movimiento"}
-              </Button>
-            </form>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        trigger={<Button variant="outline"><Undo2Icon className="size-4" /> Anular</Button>}
+        title="Anular movimiento"
+        description="El movimiento se marca como anulado y su efecto sobre el saldo de la cuenta se revierte. Queda en el historial."
+        confirmLabel="Anular movimiento"
+        pendingLabel="Anulando…"
+        action={voidTransactionAction}
+        hiddenFields={{ transactionId }}
+        onSuccess={() => router.refresh()}
+      />
     </div>
   );
 }

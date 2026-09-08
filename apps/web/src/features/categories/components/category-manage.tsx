@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArchiveIcon, PencilIcon, SparklesIcon } from "lucide-react";
 
@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, fieldControlClass } from "@/components/shared/form-field";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatusChip } from "@/components/shared/status-chip";
 import {
   archiveCategoryAction,
@@ -45,13 +46,17 @@ function CategoryRow({ row, nodes }: { row: Row; nodes: MappableNode[] }) {
   const router = useRouter();
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameState, renameAction, renamePending] = useActionState(renameCategoryAction, initial);
-  const [, mapAction] = useActionState(setCategoryMappingAction, initial);
-  const [, archiveAction, archivePending] = useActionState(archiveCategoryAction, initial);
+  const [mapState, mapAction] = useActionState(setCategoryMappingAction, initial);
 
   if (renameState?.ok && renameOpen) {
     setRenameOpen(false);
     router.refresh();
   }
+  // category.changed no revalida /settings/categories (evita el cuelgue de Next 15.5), así que
+  // el mapeo — que se auto-envía al cambiar el select — refresca desde acá.
+  useEffect(() => {
+    if (mapState?.ok) router.refresh();
+  }, [mapState, router]);
 
   return (
     <li className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
@@ -128,32 +133,21 @@ function CategoryRow({ row, nodes }: { row: Row; nodes: MappableNode[] }) {
             </DialogContent>
           </Dialog>
 
-          <Dialog>
-            <DialogTrigger
-              render={
-                <button type="button" aria-label={`Archivar ${row.name}`} className="text-muted-foreground hover:text-[var(--negative)]">
-                  <ArchiveIcon className="size-4" />
-                </button>
-              }
-            />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Archivar «{row.name}»</DialogTitle>
-                <DialogDescription>
-                  Deja de aparecer al cargar movimientos. Los movimientos que ya tienen esta categoría no cambian.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose render={<Button variant="outline">Volver</Button>} />
-                <form action={archiveAction}>
-                  <input type="hidden" name="categoryId" value={row.id} />
-                  <Button type="submit" variant="destructive" disabled={archivePending}>
-                    {archivePending ? "Archivando…" : "Archivar"}
-                  </Button>
-                </form>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ConfirmDialog
+            trigger={
+              <button type="button" aria-label={`Archivar ${row.name}`} className="text-muted-foreground hover:text-[var(--negative)]">
+                <ArchiveIcon className="size-4" />
+              </button>
+            }
+            title={`Archivar «${row.name}»`}
+            description="Deja de aparecer al cargar movimientos. Los movimientos que ya tienen esta categoría no cambian."
+            confirmLabel="Archivar"
+            pendingLabel="Archivando…"
+            cancelLabel="Volver"
+            action={archiveCategoryAction}
+            hiddenFields={{ categoryId: row.id }}
+            onSuccess={() => router.refresh()}
+          />
         </div>
       ) : null}
     </li>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftIcon, FilterIcon } from "lucide-react";
+import { FilterIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
@@ -20,10 +20,6 @@ export default async function ClassificationRulesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/app" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Configuración
-      </Link>
-
       <PageHeader
         title="Reglas de categorización"
         description="Reglas explícitas que siempre ganan sobre la categoría sugerida automáticamente. Se evalúan de arriba hacia abajo — la primera que coincide define la categoría."

@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeftIcon, TagIcon } from "lucide-react";
+import { TagIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
@@ -27,10 +26,6 @@ export default async function CategoriesSettingsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <Link href="/app" className="inline-flex items-center gap-1.5 text-small font-medium text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-4" /> Configuración
-      </Link>
-
       <PageHeader
         title="Categorías"
         description="Las que ves al cargar un movimiento. Detrás, cada una se asocia a una categoría canónica de KNOWLEDGE para que tus reportes y tendencias sean comparables."

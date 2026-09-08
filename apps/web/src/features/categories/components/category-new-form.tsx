@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Field, fieldControlClass } from "@/components/shared/form-field";
@@ -9,10 +10,16 @@ import { createCategoryAction, type CategoryFormState } from "../actions/categor
 const initial: CategoryFormState | null = null;
 
 export function CategoryNewForm({ defaultType = "EXPENSE" }: { defaultType?: "INCOME" | "EXPENSE" }) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createCategoryAction, initial);
 
-  if (state?.ok) formRef.current?.reset();
+  useEffect(() => {
+    if (state?.ok) {
+      formRef.current?.reset();
+      router.refresh();
+    }
+  }, [state, router]);
   const errors = state?.ok === false ? state.error.fieldErrors ?? {} : {};
 
   return (

@@ -5,7 +5,6 @@ import { accountRepository, categoryRepository, transactionRepository } from "@k
 import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { reportActionError } from "@/lib/observability/observe-action";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
-import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransactionService } from "../services/transaction-service";
 import { voidTransactionSchema } from "../schemas/transaction-schemas";
 
@@ -27,7 +26,11 @@ export async function voidTransactionAction(
     userId = user.id;
     const { transactionId } = voidTransactionSchema.parse({ transactionId: formData.get("transactionId") });
     await service.voidTransaction(user.id, transactionId);
-    emitFinancialEvent({ type: "transaction.voided", entityPaths: [`/transactions/${transactionId}`] });
+    // No emitFinancialEvent: este action se envía desde un <form> del ConfirmDialog en
+    // /transactions/[id]; bajo Next 15.5 revalidatePath() en la respuesta del action cuelga la
+    // transición de useActionState de forma intermitente (más probable con más rutas o bajo
+    // carga). `TransactionActions` hace router.refresh() al terminar — busta el Router Cache
+    // entero y toda página (app) es dinámica.
   } catch (error) {
     reportActionError("transaction.void", userId, error);
     return { ok: false, error: mapErrorToUi(error) };
