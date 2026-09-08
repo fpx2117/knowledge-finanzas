@@ -4,11 +4,11 @@ import { TargetIcon } from "lucide-react";
 import { Money, todayInTimezone } from "@know-finanzas/finance";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { HeaderActions } from "@/components/shared/header-actions";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { InsightCard } from "@/components/shared/insight-card";
+import { TabBar } from "@/components/shared/tab-bar";
 import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { Button } from "@/components/ui/button";
@@ -20,27 +20,55 @@ import { GoalRow } from "@/features/goals/components/goal-row";
 
 const service = createGoalService();
 
-export default async function GoalsPage() {
+const TABS = [
+  { key: "todas", label: "Todas", href: "/goals" },
+  { key: "activas", label: "Activas", href: "/goals?status=activas" },
+  { key: "completadas", label: "Completadas", href: "/goals?status=completadas" },
+] as const;
+
+// spec 07 §9.1 — orden P0: primero las que requieren atención, después fecha objetivo ascendente
+// (las sin fecha al final), después nombre. "Requiere atención" = vencida o el ritmo pide más.
+function needsAttention(goal: GoalDetail): boolean {
+  return goal.overdue || goal.pace.status === "NEEDS_MORE" || goal.pace.status === "DATE_PASSED";
+}
+
+function compareGoals(a: GoalDetail, b: GoalDetail): number {
+  const attention = Number(needsAttention(b)) - Number(needsAttention(a));
+  if (attention !== 0) return attention;
+  const dateDiff = (a.targetDate ?? "9999-99").localeCompare(b.targetDate ?? "9999-99");
+  if (dateDiff !== 0) return dateDiff;
+  return a.name.localeCompare(b.name);
+}
+
+export default async function GoalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status } = await searchParams;
+  const activeTab = TABS.some((tab) => tab.key === status) ? status! : "todas";
+
   const user = await requireCurrentUser();
   const today = todayInTimezone(new Date(), user.timezone);
   const goals = await service.listGoals(user, today);
 
-  const active = goals.filter((goal) => goal.status === "ACTIVE");
-  const completed = goals.filter((goal) => goal.status === "COMPLETED");
+  const active = goals.filter((goal) => goal.status === "ACTIVE").sort(compareGoals);
+  const completed = goals
+    .filter((goal) => goal.status === "COMPLETED")
+    .sort((a, b) => (b.completedAt?.toISOString() ?? "").localeCompare(a.completedAt?.toISOString() ?? ""));
+
+  const header = (
+    <PageHeader
+      title="Metas"
+      description="Convertí tus objetivos en un plan de ahorro medible."
+      actions={<Button render={<Link href="/goals/new">Nueva meta</Link>} />}
+    />
+  );
 
   if (goals.filter((goal) => goal.status !== "ARCHIVED").length === 0) {
     return (
       <div className="flex flex-col gap-8">
-        <PageHeader
-          title="Metas"
-          description="Convertí tus intenciones de ahorro en progreso medible."
-          actions={
-            <>
-              <HeaderActions showPeriod={false} />
-              <Button render={<Link href="/goals/new">Nueva meta</Link>} />
-            </>
-          }
-        />
+        {header}
         <EmptyState
           icon={<TargetIcon />}
           title="Todavía no tenés metas"
@@ -51,24 +79,29 @@ export default async function GoalsPage() {
     );
   }
 
-  const baseCurrency = user.baseCurrency;
-  const inBase = (goal: GoalDetail) => goal.currencyCode === baseCurrency;
-  const totalSaved = active
-    .filter(inBase)
-    .reduce((sum, goal) => sum.add(Money.fromString(goal.currentAmount, baseCurrency)), Money.zero(baseCurrency))
-    .toString();
-  const totalTarget = active
-    .filter(inBase)
-    .reduce((sum, goal) => sum.add(Money.fromString(goal.targetAmount, baseCurrency)), Money.zero(baseCurrency))
-    .toString();
+  // §8.3 resumen superior — nunca fusiona monedas ni inventa un total convertido (§0.2 / §33.1).
+  const activeCurrencies = [...new Set(active.map((goal) => goal.currencyCode))].sort();
+  const savedByCurrency = activeCurrencies.map((code) => ({
+    code,
+    amount: active
+      .filter((goal) => goal.currencyCode === code)
+      .reduce((sum, goal) => sum.add(Money.fromString(goal.currentAmount, code)), Money.zero(code))
+      .toString(),
+  }));
+  const singleCurrency = activeCurrencies.length === 1 ? activeCurrencies[0] : null;
+  const totalTarget = singleCurrency
+    ? active
+        .reduce((sum, goal) => sum.add(Money.fromString(goal.targetAmount, singleCurrency)), Money.zero(singleCurrency))
+        .toString()
+    : null;
 
-  const closest = [...active]
-    .filter((goal) => goal.targetDate)
-    .sort((a, b) => (a.targetDate ?? "").localeCompare(b.targetDate ?? ""))[0];
+  const closest = active.filter((goal) => goal.targetDate)[0];
 
   const byCategory = new Map<string, number>();
-  for (const goal of active.filter(inBase)) {
-    byCategory.set(goal.category, (byCategory.get(goal.category) ?? 0) + Number(goal.currentAmount));
+  if (singleCurrency) {
+    for (const goal of active) {
+      byCategory.set(goal.category, (byCategory.get(goal.category) ?? 0) + Number(goal.currentAmount));
+    }
   }
   const donutSegments: DonutSegment[] = [...byCategory.entries()]
     .map(([category, value]) => ({
@@ -79,66 +112,88 @@ export default async function GoalsPage() {
     .filter((segment) => segment.value > 0)
     .sort((a, b) => b.value - a.value);
 
+  const listGoals = activeTab === "completadas" ? completed : active;
+
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Metas"
-        description="Convertí tus intenciones de ahorro en progreso medible."
-        actions={
-          <>
-            <HeaderActions showPeriod={false} />
-            <Button render={<Link href="/goals/new">Nueva meta</Link>} />
-          </>
-        }
-      />
+      {header}
+
+      <TabBar tabs={TABS.map((tab) => ({ ...tab }))} active={activeTab} />
 
       <section aria-label="Resumen de metas" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Ahorrado en metas" icon={TargetIcon} tone="positive" value={totalSaved} currency={baseCurrency} hint={`de ${new Intl.NumberFormat("es-AR").format(Number(totalTarget))} objetivo`} />
         <StatCard label="Metas activas">
           <span className="flex flex-col gap-0.5">
             <span className="text-metric font-medium text-foreground">{active.length}</span>
             <span className="text-small font-normal text-muted-foreground">{completed.length} ya cumplidas</span>
           </span>
         </StatCard>
-        <StatCard label="Meta más próxima">
-          {closest ? (
-            <span className="flex flex-col gap-0.5">
-              <span className="truncate text-body-lg font-medium text-foreground">{closest.name}</span>
-              <span className="text-small font-normal text-muted-foreground">
-                {closest.targetDate ? relativeDueLabel(closest.targetDate, today) : "Sin fecha"} · {closest.percent}%
-              </span>
-            </span>
+
+        <StatCard label="Ahorrado en metas" icon={TargetIcon} tone={savedByCurrency.length === 1 ? "positive" : undefined}>
+          {savedByCurrency.length === 0 ? (
+            <span className="text-metric font-medium text-foreground">—</span>
+          ) : savedByCurrency.length === 1 ? (
+            <MoneyAmount
+              amount={savedByCurrency[0].amount}
+              currency={savedByCurrency[0].code}
+              className="text-metric font-medium text-foreground"
+            />
           ) : (
-            <span className="text-small text-muted-foreground">Ninguna meta activa tiene fecha objetivo.</span>
+            <ul className="flex flex-col gap-1 pt-0.5">
+              {savedByCurrency.map((entry) => (
+                <li key={entry.code} className="flex items-baseline justify-between gap-3 text-small">
+                  <span className="text-muted-foreground">{entry.code}</span>
+                  <MoneyAmount amount={entry.amount} currency={entry.code} variant="compact" className="font-medium text-foreground" />
+                </li>
+              ))}
+            </ul>
+          )}
+        </StatCard>
+
+        <StatCard label="Objetivo total">
+          {totalTarget && singleCurrency ? (
+            <MoneyAmount amount={totalTarget} currency={singleCurrency} className="text-metric font-medium text-foreground" />
+          ) : (
+            <span className="text-small text-muted-foreground">
+              Tus metas activas usan varias monedas; no se suma un total.
+            </span>
           )}
         </StatCard>
       </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <SectionCard title="Tus metas" contentClassName="gap-0">
-          {active.length > 0 ? (
+        <SectionCard
+          title={activeTab === "completadas" ? "Metas cumplidas" : "Metas activas"}
+          contentClassName="gap-0"
+        >
+          {listGoals.length > 0 ? (
             <ul className="flex flex-col divide-y divide-border">
-              {active.map((goal) => (
+              {listGoals.map((goal) => (
                 <GoalRow key={goal.id} goal={goal} today={today} />
               ))}
             </ul>
           ) : (
-            <p className="py-6 text-center text-small text-muted-foreground">No tenés metas activas.</p>
+            <p className="py-6 text-center text-small text-muted-foreground">
+              {activeTab === "completadas" ? "Todavía no completaste ninguna meta." : "No tenés metas activas."}
+            </p>
           )}
         </SectionCard>
 
         <div className="flex flex-col gap-4">
-          <SectionCard title="Distribución del ahorro">
-            {donutSegments.length > 0 ? (
-              <DonutChart segments={donutSegments} centerLabel="Ahorrado" centerValue={`${baseCurrency} ${new Intl.NumberFormat("es-AR").format(Number(totalSaved))}`} />
-            ) : (
-              <p className="py-6 text-center text-small text-muted-foreground">Registrá aportes para ver la distribución.</p>
-            )}
-          </SectionCard>
+          {donutSegments.length > 0 && singleCurrency ? (
+            <SectionCard title="Distribución del ahorro">
+              <DonutChart
+                segments={donutSegments}
+                centerLabel="Ahorrado"
+                centerValue={`${singleCurrency} ${new Intl.NumberFormat("es-AR").format(Number(savedByCurrency[0].amount))}`}
+              />
+            </SectionCard>
+          ) : null}
+
           {closest ? (
             <InsightCard title="Sugerencia">
               <p>
                 Para llegar a <strong className="text-foreground">{closest.name}</strong>
+                {closest.targetDate ? <> ({relativeDueLabel(closest.targetDate, today)})</> : null}
                 {closest.pace.requiredBeforeDate ? (
                   <>
                     {" "}necesitás aportar{" "}
@@ -164,7 +219,7 @@ export default async function GoalsPage() {
         </div>
       </div>
 
-      {completed.length > 0 ? (
+      {activeTab === "todas" && completed.length > 0 ? (
         <SectionCard title="Metas cumplidas">
           <ul className="flex flex-col divide-y divide-border">
             {completed.map((goal) => {

@@ -88,8 +88,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: TargetIcon,
     children: [
       { label: "Todas", href: "/goals" },
-      { label: "Activas", href: "/goals/active" },
-      { label: "Completadas", href: "/goals/completed" },
+      { label: "Activas", href: "/goals?status=activas" },
+      { label: "Completadas", href: "/goals?status=completadas" },
     ],
   },
   {

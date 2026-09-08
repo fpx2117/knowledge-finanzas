@@ -1408,6 +1408,32 @@ agrega los controles del header §6.1 y la vista Agenda §7:
 - **Follow-up:** drawer de Día §8 completo; selector `?currency=` §10; filtros por capa temporal en
   la vista Agenda.
 
+## WP-SCREEN-07 — Metas / lista (spec 07 §8–9)  ·  P2  ·  **DONE (2026-09-08)**
+
+El slice de dominio (tabla `goals` + `goal_allocations` + pace) ya estaba (WP-GOALS-ALLOC/UI).
+Esta pasada alinea la vista lista al spec:
+
+- **§8.2 tabs** — `[Todas] [Activas] [Completadas]` como `TabBar` sobre `/goals?status=activas|completadas`.
+  Antes eran 3 rutas (`/goals`, `/goals/active`, `/goals/completed`) sin tab visible. Las dos subrutas
+  quedan como `redirect()` (enlaces guardados) y `nav-items.ts` apunta a `?status=`.
+- **§8.3 resumen superior** — de "Ahorrado / Metas activas / Meta más próxima" a los términos del
+  spec: **"Metas activas" / "Ahorrado en metas" / "Objetivo total"**. **Bug multimoneda corregido**
+  (mismo patrón sistémico que Cuentas/Transacciones/Presupuestos/Obligaciones): el total de
+  "Ahorrado" y "Objetivo" sumaba sólo `baseCurrency` y descartaba en silencio las metas en otras
+  monedas. Ahora: "Ahorrado en metas" muestra una línea por moneda cuando hay 2+; "Objetivo total"
+  sólo aparece si todas las metas activas comparten moneda, si no dice "usan varias monedas; no se
+  suma un total" (§0.2 / §33.1 — nunca un total convertido ficticio). El donut "Distribución del
+  ahorro" se muestra sólo con moneda única (§8.6 "demasiados gráficos").
+- **§9.1 orden P0** — `compareGoals`: primero las que requieren atención (`overdue` o pace
+  `NEEDS_MORE`/`DATE_PASSED`), después fecha objetivo ascendente (sin fecha al final), después
+  nombre. Antes se usaba el orden del repo sin criterio.
+- **Tests:** `tests/e2e/screen-metas.spec.ts` (2 — tabs + términos §8.3 + redirect de ruta legacy;
+  dos monedas → desglose por moneda, sin total fusionado).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · build web limpio · e2e 34/34.
+- **Follow-up:** §9.2 selector de orden, §9.3 filtros (moneda/prioridad/con-sin fecha/ritmo/cuenta
+  vinculada), §9.4 búsqueda por nombre/descripción, card §8.4 con faltante + fecha + ritmo en una
+  sola card más rica, celebración §25.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.
