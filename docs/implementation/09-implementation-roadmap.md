@@ -121,7 +121,15 @@ spec extreme. Empezó por el Application Shell (spec 13) porque es la estructura
 | WP-SCREEN-11 (Configuración) | spec 11 §1/§2/§10 | **DONE (2026-09-08, commit 37fe7e3)** — §2.1 shell con sub-nav lateral persistente (`SettingsNav` + `settings/layout.tsx`), back link mobile §2.3. §1.2 subvistas canónicas en orden + nombres al spec. §10 **nueva `/settings/security`** (cambio de contraseña vía better-auth + cerrar otras sesiones). `screen-configuracion.spec.ts` +3. **Follow-up:** `/settings/privacy` y `/settings/plan` siguen stub (export de datos / billing UI). |
 | WP-SCREEN-12 (Ayuda) | spec 12 §2/§6/§20 | **DONE (2026-09-08, commit 5189308)** — §2.2 nueva sección **Feedback** (`/help/feedback` + `FeedbackForm`: tipo, texto, incluir-pantalla, mailto; separado de soporte §20.3). §6.2 encabezado + **buscador** en el hub (`HelpSearch`, filtro determinista). §5.3 artículos destacados 3→12 (`features/help/articles.ts`). **Follow-up:** `/help/articles` real (§6.1), diagnósticos por módulo §11–13, ayuda contextual `?` §8, búsqueda con NLP/sinónimos §6.4. |
 
-**Serie WP-SCREEN 01–12 COMPLETA.** Pendiente de Fase I: el backlog de follow-ups acumulado (subvistas, filtros, agrupaciones — listado en cada fila de arriba), onboarding + gate `resolveAccessRoute`, y WP-DEPLOY provisioning (usuario).
+**Serie WP-SCREEN 01–12 COMPLETA.** Pendiente de Fase I: el backlog de follow-ups acumulado (subvistas, agrupaciones — listado en cada fila de arriba), onboarding + gate `resolveAccessRoute`, y WP-DEPLOY provisioning (usuario).
+
+### Follow-ups ya cerrados (post serie)
+| WP | Estado |
+|---|---|
+| followup: confirms destructivos → ConfirmDialog | **DONE (commit db7759d)** — goal archive / debt cancel / transaction void / category archive descartaban el estado del action (falla silenciosa §24.2). Ahora vía `ConfirmDialog`. Destapó y arregló el hang de `emitFinancialEvent` desde Server Action de `<form>` (Next 15.5) en void + los 5 actions de categorías. |
+| followup: filtros y orden | **DONE (commit 77671d6)** — `TransactionsFilters` estaba **roto** (router.push sobre query no commiteaba); reescrito con `<select>` nativo + carga completa, + selector de orden §9.7 (`listForUser` gana `sort`). Metas: nuevo `GoalsControls` (orden §9.2 + filtro de moneda §9.3). |
+
+Falta de filtros/orden todavía: Insights §11.2 (familia), Calendario Agenda por capa §10, Transacciones agrupación temporal §9.6 / selección múltiple §9.11 / config columnas §9.4, Metas búsqueda §9.4.
 | fix(budgets) MonthNav | — | **DONE (2026-09-08, commit 6c0e824)** — `MonthNav` (client component con href derivado de `useSearchParams()`) navegaba con `next/link`; bug Next 15.5: navegación de cliente que sólo cambia el query string sobre un segmento con `loading.tsx` pide el RSC (200) y no lo aplica → el mes no cambiaba. Fix: `<a>` (carga completa) + `<button disabled>` para el tope. Calendario NO afectado (`<Link>` server-side). |
 
 ## Dependencias críticas (§42) respetadas por este orden
