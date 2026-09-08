@@ -5,9 +5,12 @@ import {
   createCategoryRepository,
   createDebtSummaryQueries,
   createMonthlySummaryQueries,
+  createUpcomingObligationQueries,
   db,
 } from "@know-finanzas/db";
 import { Money, monthRangeForTimezone, todayInTimezone } from "@know-finanzas/finance";
+
+import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
 
 export type MonthPoint = { period: string; label: string; income: string; expense: string; net: string };
 export type CategorySlice = { id: string; name: string; amount: string; share: number };
@@ -62,8 +65,107 @@ export function createReportService(database = db) {
   const debtSummary = createDebtSummaryQueries(database);
   const activity = createActivityQueries(database);
   const categories = createCategoryRepository(database);
+  const dashboard = createDashboardService({
+    balances,
+    monthly,
+    activity,
+    debts: debtSummary,
+    scheduled: createUpcomingObligationQueries(database),
+  });
 
   return {
+    /**
+     * spec 08 §12 — Flujo de caja tiene dos dominios: REAL (histórico confirmado, en `getReport`)
+     * y PROYECTADO (30 días: obligaciones + programados). Nunca se mezclan. Esta reusa el mismo
+     * motor de proyección que el Resumen (§35.1 — una sola fórmula).
+     */
+    async getCashFlowProjection(input: { userId: string; timezone: string; baseCurrency: string; now?: Date }) {
+      const summary = await dashboard.getDashboardSummary({
+        userId: input.userId,
+        timezone: input.timezone,
+        now: input.now ?? new Date(),
+      });
+      const base = summary.projections.find((p) => p.currencyCode === input.baseCurrency) ?? summary.projections[0] ?? null;
+      if (!base) return null;
+      const { cashflow } = base;
+      const inflow = cashflow.points.reduce((sum, point) => sum + Number(point.inflow.toString()), 0);
+      const outflow = cashflow.points.reduce((sum, point) => sum + Number(point.outflow.toString()), 0);
+      return {
+        currencyCode: base.currencyCode,
+        horizonDays: cashflow.horizonDays,
+        startingBalance: cashflow.startingBalance.toString(),
+        projectedEndBalance: cashflow.projectedEndBalance.toString(),
+        totalInflow: String(inflow),
+        totalOutflow: String(outflow),
+        minimumProjectedBalance: cashflow.minimumProjectedBalance.toString(),
+        minimumBalanceDate: cashflow.minimumBalanceDate,
+        firstNegativeDate: cashflow.firstNegativeDate,
+        shortfallAmount: cashflow.shortfallAmount ? cashflow.shortfallAmount.toString() : null,
+        events: cashflow.points
+          .flatMap((point) => point.events.map((event) => ({
+            date: event.date,
+            title: event.title,
+            direction: event.direction,
+            amount: event.amount.toString(),
+            confidence: event.confidence,
+          })))
+          .sort((a, b) => a.date.localeCompare(b.date)),
+      };
+    },
+
+    /**
+     * spec 08 §13 — Patrimonio por moneda: activos líquidos (saldo derivado del ledger) menos
+     * deuda pendiente, SIN combinar monedas (§13.4). Cada moneda es una fila.
+     */
+    async getNetPosition(input: { userId: string }) {
+      const [liquidRows, debtRows] = await Promise.all([
+        balances.getAccountBalancesForUser(input.userId),
+        debtSummary.listDebtInputsForUser(input.userId),
+      ]);
+      const byCurrency = new Map<string, { liquid: Money; debt: Money; accounts: number }>();
+      const bucket = (code: string) => {
+        let entry = byCurrency.get(code);
+        if (!entry) {
+          entry = { liquid: Money.zero(code), debt: Money.zero(code), accounts: 0 };
+          byCurrency.set(code, entry);
+        }
+        return entry;
+      };
+
+      for (const row of liquidRows) {
+        const code = row.account.currencyCode;
+        const entry = bucket(code);
+        const balance = Money.fromString(row.account.openingBalance, code)
+          .add(Money.fromString(row.incomeTotal, code))
+          .subtract(Money.fromString(row.expenseTotal, code))
+          .add(Money.fromString(row.refundTotal ?? "0", code))
+          .add(Money.fromString(row.adjustmentInTotal ?? "0", code))
+          .subtract(Money.fromString(row.adjustmentOutTotal ?? "0", code))
+          .subtract(Money.fromString(row.liabilityPaymentTotal ?? "0", code));
+        entry.liquid = entry.liquid.add(balance);
+        entry.accounts += 1;
+      }
+
+      for (const row of debtRows) {
+        if (row.installment.status === "PAID" || row.installment.status === "CANCELLED" || row.debt.status === "CANCELLED") continue;
+        const code = row.debt.currencyCode;
+        const entry = bucket(code);
+        entry.debt = entry.debt.add(
+          Money.fromString(row.installment.totalAmount, code).subtract(Money.fromString(row.allocatedAmount, code)),
+        );
+      }
+
+      return [...byCurrency.entries()]
+        .map(([currencyCode, entry]) => ({
+          currencyCode,
+          liquidAssets: entry.liquid.toString(),
+          debtOutstanding: entry.debt.toString(),
+          netWorth: entry.liquid.subtract(entry.debt).toString(),
+          accountCount: entry.accounts,
+        }))
+        .sort((a, b) => a.currencyCode.localeCompare(b.currencyCode));
+    },
+
     async getReport(input: { userId: string; timezone: string; baseCurrency: string; period?: string; now?: Date }): Promise<ReportData> {
       const now = input.now ?? new Date();
       const currencyCode = input.baseCurrency;
