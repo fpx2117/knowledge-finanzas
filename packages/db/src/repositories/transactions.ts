@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 import Decimal from "decimal.js";
 
 import type { Database } from "../client";
@@ -175,7 +175,29 @@ export function createTransactionRepository(database: Database) {
         .then(([transaction]) => transaction);
     },
 
-    listForUser(userId: string, options: { accountId?: string; categoryId?: string; type?: "INCOME" | "EXPENSE"; from?: Date; to?: Date; limit?: number; offset?: number } = {}) {
+    listForUser(
+      userId: string,
+      options: {
+        accountId?: string;
+        categoryId?: string;
+        type?: "INCOME" | "EXPENSE";
+        from?: Date;
+        to?: Date;
+        limit?: number;
+        offset?: number;
+        /** spec 03 §9.7 — default is most-recent first. */
+        sort?: "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
+      } = {},
+    ) {
+      const amountMagnitude = sql`abs(${transactions.amount})`;
+      const orderBy =
+        options.sort === "date_asc"
+          ? [asc(transactions.occurredAt), asc(transactions.createdAt)]
+          : options.sort === "amount_desc"
+            ? [desc(amountMagnitude), desc(transactions.occurredAt)]
+            : options.sort === "amount_asc"
+              ? [asc(amountMagnitude), desc(transactions.occurredAt)]
+              : [desc(transactions.occurredAt), desc(transactions.createdAt)];
       return database.select().from(transactions)
         .where(and(
           eq(transactions.userId, userId),
@@ -186,7 +208,7 @@ export function createTransactionRepository(database: Database) {
           options.from ? gte(transactions.occurredAt, options.from) : undefined,
           options.to ? lte(transactions.occurredAt, options.to) : undefined,
         ))
-        .orderBy(desc(transactions.occurredAt), desc(transactions.createdAt))
+        .orderBy(...orderBy)
         .limit(options.limit ?? 50)
         .offset(options.offset ?? 0);
     },

@@ -40,7 +40,7 @@ function resolvePeriod(period: string | undefined, timezone: string) {
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; account?: string; page?: string; period?: string; category?: string }>;
+  searchParams: Promise<{ type?: string; account?: string; page?: string; period?: string; category?: string; sort?: string }>;
 }) {
   const params = await searchParams;
   const user = await requireCurrentUser();
@@ -49,6 +49,8 @@ export default async function TransactionsPage({
   const type = params.type === "INCOME" || params.type === "EXPENSE" ? params.type : undefined;
   const accountId = params.account && params.account !== "ALL" ? params.account : undefined;
   const categoryId = params.category || undefined;
+  const SORTS = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
+  const sort = (SORTS as readonly string[]).includes(params.sort ?? "") ? (params.sort as (typeof SORTS)[number]) : undefined;
   const { range } = resolvePeriod(params.period, user.timezone);
 
   const [accounts, categories, rows, monthly, categorySpend] = await Promise.all([
@@ -60,6 +62,7 @@ export default async function TransactionsPage({
       categoryId,
       from: range.start,
       to: range.end,
+      sort,
       limit: PAGE_SIZE + 1,
       offset: (page - 1) * PAGE_SIZE,
     }),
@@ -122,6 +125,7 @@ export default async function TransactionsPage({
     if (params.account) next.set("account", params.account);
     if (params.period) next.set("period", params.period);
     if (params.category) next.set("category", params.category);
+    if (params.sort) next.set("sort", params.sort);
     if (targetPage > 1) next.set("page", String(targetPage));
     const qs = next.toString();
     return qs ? `/transactions?${qs}` : "/transactions";

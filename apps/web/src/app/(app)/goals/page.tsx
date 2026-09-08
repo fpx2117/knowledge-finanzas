@@ -17,13 +17,14 @@ import { formatLongDate, relativeDueLabel } from "@/lib/format";
 import { createGoalService, type GoalDetail } from "@/features/goals/services/goal-service";
 import { GOAL_CATEGORY_META } from "@/features/goals/goal-meta";
 import { GoalRow } from "@/features/goals/components/goal-row";
+import { GoalsControls, GOAL_SORTS, type GoalSort } from "@/features/goals/components/goals-controls";
 
 const service = createGoalService();
 
-const TABS = [
-  { key: "todas", label: "Todas", href: "/goals" },
-  { key: "activas", label: "Activas", href: "/goals?status=activas" },
-  { key: "completadas", label: "Completadas", href: "/goals?status=completadas" },
+const TAB_KEYS = [
+  { key: "todas", label: "Todas" },
+  { key: "activas", label: "Activas" },
+  { key: "completadas", label: "Completadas" },
 ] as const;
 
 // spec 07 §9.1 — orden P0: primero las que requieren atención, después fecha objetivo ascendente
@@ -32,27 +33,35 @@ function needsAttention(goal: GoalDetail): boolean {
   return goal.overdue || goal.pace.status === "NEEDS_MORE" || goal.pace.status === "DATE_PASSED";
 }
 
-function compareGoals(a: GoalDetail, b: GoalDetail): number {
-  const attention = Number(needsAttention(b)) - Number(needsAttention(a));
-  if (attention !== 0) return attention;
+function byDate(a: GoalDetail, b: GoalDetail): number {
   const dateDiff = (a.targetDate ?? "9999-99").localeCompare(b.targetDate ?? "9999-99");
-  if (dateDiff !== 0) return dateDiff;
-  return a.name.localeCompare(b.name);
+  return dateDiff !== 0 ? dateDiff : a.name.localeCompare(b.name);
+}
+
+function compareGoals(sort: GoalSort): (a: GoalDetail, b: GoalDetail) => number {
+  // spec 07 §9.1 — orden P0 por defecto: atención primero, luego fecha objetivo asc, luego nombre.
+  if (sort === "fecha") return byDate;
+  if (sort === "nombre") return (a, b) => a.name.localeCompare(b.name);
+  if (sort === "progreso") return (a, b) => b.percent - a.percent || byDate(a, b);
+  return (a, b) => Number(needsAttention(b)) - Number(needsAttention(a)) || byDate(a, b);
 }
 
 export default async function GoalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; sort?: string; currency?: string }>;
 }) {
-  const { status } = await searchParams;
-  const activeTab = TABS.some((tab) => tab.key === status) ? status! : "todas";
+  const { status, sort: sortParam, currency: currencyParam } = await searchParams;
+  const activeTab = TAB_KEYS.some((tab) => tab.key === status) ? status! : "todas";
+  const sort: GoalSort = GOAL_SORTS.some(([value]) => value === sortParam) ? (sortParam as GoalSort) : "atencion";
 
   const user = await requireCurrentUser();
   const today = todayInTimezone(new Date(), user.timezone);
   const goals = await service.listGoals(user, today);
 
-  const active = goals.filter((goal) => goal.status === "ACTIVE").sort(compareGoals);
+  const active = goals.filter((goal) => goal.status === "ACTIVE").sort(compareGoals(sort));
+  const activeCurrencyList = [...new Set(active.map((goal) => goal.currencyCode))].sort();
+  const currency = currencyParam && activeCurrencyList.includes(currencyParam) ? currencyParam : null;
   const completed = goals
     .filter((goal) => goal.status === "COMPLETED")
     .sort((a, b) => (b.completedAt?.toISOString() ?? "").localeCompare(a.completedAt?.toISOString() ?? ""));
@@ -112,13 +121,28 @@ export default async function GoalsPage({
     .filter((segment) => segment.value > 0)
     .sort((a, b) => b.value - a.value);
 
-  const listGoals = activeTab === "completadas" ? completed : active;
+  const listGoals = (activeTab === "completadas" ? completed : active).filter(
+    (goal) => !currency || goal.currencyCode === currency,
+  );
+
+  const tabHref = (key: string) => {
+    const params = new URLSearchParams();
+    if (key !== "todas") params.set("status", key);
+    if (sort !== "atencion") params.set("sort", sort);
+    if (currency) params.set("currency", currency);
+    const qs = params.toString();
+    return qs ? `/goals?${qs}` : "/goals";
+  };
 
   return (
     <div className="flex flex-col gap-8">
       {header}
 
-      <TabBar tabs={TABS.map((tab) => ({ ...tab }))} active={activeTab} />
+      <TabBar tabs={TAB_KEYS.map((tab) => ({ ...tab, href: tabHref(tab.key) }))} active={activeTab} />
+
+      {activeTab !== "completadas" ? (
+        <GoalsControls status={activeTab} sort={sort} currency={currency} currencies={activeCurrencyList} />
+      ) : null}
 
       <section aria-label="Resumen de metas" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Metas activas">
