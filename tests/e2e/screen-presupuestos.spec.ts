@@ -55,11 +55,12 @@ test("with a budget: KPIs use the spec terms and the month nav does not go into 
   await expect(summary.getByText("Restante")).toBeVisible();
   await expect(summary.getByText("En atención")).toBeVisible();
 
-  // The month nav's "next" arrow is disabled at the current month (no budgeting the future).
+  // The month nav's "next" arrow is disabled at the current month (no budgeting the future);
+  // "previous" is a real link that writes ?period=.
   await expect(page.getByRole("button", { name: "Mes siguiente" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Mes anterior" })).toBeEnabled();
-  await page.getByRole("button", { name: "Mes anterior" }).click();
+  await page.getByRole("link", { name: "Mes anterior" }).click();
   await page.waitForURL(/period=\d{4}-\d{2}/, { timeout: 15000 });
+  await expect(page.getByRole("link", { name: "Mes siguiente" })).toBeVisible();
 
   await context.close();
 });
