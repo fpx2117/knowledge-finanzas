@@ -58,10 +58,8 @@ test("with a budget: KPIs use the spec terms and the month nav does not go into 
   // The month nav's "next" arrow is disabled at the current month (no budgeting the future).
   await expect(page.getByRole("button", { name: "Mes siguiente" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Mes anterior" })).toBeEnabled();
-  await expect(async () => {
-    await page.getByRole("button", { name: "Mes anterior" }).click();
-    await expect(page).toHaveURL(/period=\d{4}-\d{2}/, { timeout: 3000 });
-  }).toPass({ timeout: 15000 });
+  await page.getByRole("button", { name: "Mes anterior" }).click();
+  await page.waitForURL(/period=\d{4}-\d{2}/, { timeout: 15000 });
 
   await context.close();
 });

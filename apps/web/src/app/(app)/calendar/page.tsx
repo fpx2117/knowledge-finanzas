@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { HeaderActions } from "@/components/shared/header-actions";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MoneyAmount } from "@/components/financial/money-amount";
@@ -10,8 +9,10 @@ import { CalendarGrid, CalendarEventRow, EVENT_META, LAYER_META } from "@/compon
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatLongDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { QuickAddButton } from "@/features/capture/components/quick-add-button";
 import {
   createCalendarService,
+  type CalendarEvent,
   type CalendarEventKind,
 } from "@/features/calendar/services/calendar-service";
 
@@ -44,9 +45,9 @@ function shiftPeriod(period: string, delta: number): string {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; day?: string; filter?: string }>;
+  searchParams: Promise<{ period?: string; day?: string; filter?: string; view?: string }>;
 }) {
-  const { period: periodParam, day: dayParam, filter: filterParam } = await searchParams;
+  const { period: periodParam, day: dayParam, filter: filterParam, view: viewParam } = await searchParams;
   const user = await requireCurrentUser();
 
   const month = await service.getMonth({
@@ -57,6 +58,8 @@ export default async function CalendarPage({
   });
 
   const { period, today, currencyCode, summary } = month;
+  const view = viewParam === "agenda" ? "agenda" : "month";
+  const currentPeriod = today.slice(0, 7);
   const layerLegend = ["CONFIRMED", "COMMITTED", "SCHEDULED", "OVERDUE"] as const;
   const activeFilter = FILTERS.some((f) => f.key === filterParam) ? filterParam! : "todos";
   const selectedDay = dayParam && /^\d{4}-\d{2}-\d{2}$/.test(dayParam) && dayParam.startsWith(period) ? dayParam : null;
@@ -64,10 +67,12 @@ export default async function CalendarPage({
   const visibleEvents =
     activeFilter === "todos" ? month.events : month.events.filter((event) => event.kind === (activeFilter as CalendarEventKind));
 
-  const buildHref = (next: { period?: string; day?: string | null; filter?: string }) => {
+  const buildHref = (next: { period?: string; day?: string | null; filter?: string; view?: string }) => {
     const params = new URLSearchParams();
+    const nextView = next.view ?? view;
+    if (nextView !== "month") params.set("view", nextView);
     const nextPeriod = next.period ?? period;
-    if (nextPeriod) params.set("period", nextPeriod);
+    if (nextPeriod && nextPeriod !== currentPeriod) params.set("period", nextPeriod);
     const nextFilter = next.filter ?? activeFilter;
     if (nextFilter && nextFilter !== "todos") params.set("filter", nextFilter);
     const nextDay = next.day === undefined ? selectedDay : next.day;
@@ -79,12 +84,44 @@ export default async function CalendarPage({
   const dayEvents = selectedDay ? visibleEvents.filter((event) => event.date === selectedDay) : [];
   const upcoming = visibleEvents.filter((event) => event.date >= today).slice(0, 6);
 
+  // spec 06 §6.1 — Mes | Agenda + Hoy en el header.
+  const viewSwitch = (
+    <div className="inline-flex rounded-lg border border-border bg-card p-0.5" role="group" aria-label="Vista del calendario">
+      {(["month", "agenda"] as const).map((v) => (
+        <Link
+          key={v}
+          href={buildHref({ view: v, day: null })}
+          aria-current={view === v ? "page" : undefined}
+          className={cn(
+            "rounded-md px-3 py-1 text-small font-medium transition-colors",
+            view === v ? "bg-brand-subtle text-brand" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {v === "month" ? "Mes" : "Agenda"}
+        </Link>
+      ))}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Calendario"
         description="Tus finanzas en el tiempo: ingresos, gastos, cuotas y movimientos previstos."
-        actions={<HeaderActions showPeriod={false} />}
+        actions={
+          <>
+            {viewSwitch}
+            {period !== currentPeriod ? (
+              <Link
+                href={buildHref({ period: currentPeriod, day: null })}
+                className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-small font-medium text-foreground transition-colors hover:bg-secondary"
+              >
+                Hoy
+              </Link>
+            ) : null}
+            <QuickAddButton>Agregar</QuickAddButton>
+          </>
+        }
       />
 
       {/* §6.4 / §0.1 — leyenda de estados temporales, detectable sin color */}
@@ -118,6 +155,9 @@ export default async function CalendarPage({
         ))}
       </div>
 
+      {view === "agenda" ? (
+        <AgendaView events={visibleEvents} today={today} currencyCode={currencyCode} monthLabelText={monthLabel(period)} shiftHref={(d) => buildHref({ period: shiftPeriod(period, d), day: null })} />
+      ) : (
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.7fr_1fr]">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -235,6 +275,102 @@ export default async function CalendarPage({
           </SectionCard>
         </div>
       </div>
+      )}
+    </div>
+  );
+}
+
+// spec 06 §7 — Vista Agenda: eventos en orden cronológico, agrupados por día, con un cierre por
+// día (Entradas programadas / Salidas comprometidas / Cambio proyectado). Nunca llamar "saldo
+// real" a un agregado futuro.
+function dayHeading(date: string, today: string): string {
+  const label = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short" }).format(new Date(`${date}T00:00:00`));
+  if (date === today) return `Hoy · ${label}`;
+  const diff = Math.round((new Date(`${date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
+  if (diff === 1) return `Mañana · ${label}`;
+  if (diff > 1 && diff < 7) {
+    const weekday = new Intl.DateTimeFormat("es-AR", { weekday: "long" }).format(new Date(`${date}T00:00:00`));
+    return `${weekday} · ${label}`;
+  }
+  return label;
+}
+
+function AgendaView({
+  events,
+  today,
+  currencyCode,
+  monthLabelText,
+  shiftHref,
+}: {
+  events: CalendarEvent[];
+  today: string;
+  currencyCode: string;
+  monthLabelText: string;
+  shiftHref: (delta: number) => string;
+}) {
+  const byDay = new Map<string, CalendarEvent[]>();
+  for (const event of [...events].sort((a, b) => a.date.localeCompare(b.date))) {
+    const list = byDay.get(event.date) ?? [];
+    list.push(event);
+    byDay.set(event.date, list);
+  }
+  const days = [...byDay.keys()];
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-h3 capitalize text-foreground">{monthLabelText}</h2>
+        <div className="flex items-center gap-1">
+          <Link href={shiftHref(-1)} aria-label="Mes anterior" className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <ChevronLeftIcon className="size-4" />
+          </Link>
+          <Link href={shiftHref(1)} aria-label="Mes siguiente" className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <ChevronRightIcon className="size-4" />
+          </Link>
+        </div>
+      </div>
+
+      {days.length === 0 ? (
+        <EmptyState icon={<CalendarDaysIcon />} title="No hay eventos este mes" description="Cuando cargues movimientos, cuotas o eventos programados los vas a ver acá en orden de fecha." />
+      ) : (
+        <ol className="flex flex-col gap-4">
+          {days.map((date) => {
+            const dayEvents = byDay.get(date)!;
+            const income = dayEvents.filter((e) => e.kind === "income").reduce((s, e) => s + Number(e.amount), 0);
+            const outflow = dayEvents.filter((e) => e.kind === "expense" || e.kind === "obligation").reduce((s, e) => s + Number(e.amount), 0);
+            const net = income - outflow;
+            return (
+              <li key={date}>
+                <SectionCard title={dayHeading(date, today)} contentClassName="gap-0">
+                  <ul className="flex flex-col divide-y divide-border">
+                    {dayEvents.map((event) => (
+                      <li key={event.id}>
+                        <CalendarEventRow event={event} />
+                      </li>
+                    ))}
+                  </ul>
+                  {income > 0 || outflow > 0 ? (
+                    <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 border-t border-border pt-3 text-caption">
+                      <div className="flex items-baseline gap-1.5">
+                        <dt className="text-muted-foreground">Entradas programadas</dt>
+                        <dd><MoneyAmount amount={String(income)} currency={currencyCode} variant="compact" sign="always" tone="positive" className="font-medium" /></dd>
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <dt className="text-muted-foreground">Salidas comprometidas</dt>
+                        <dd><MoneyAmount amount={`-${outflow}`} currency={currencyCode} variant="compact" className="font-medium" /></dd>
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <dt className="text-muted-foreground">Cambio proyectado</dt>
+                        <dd><MoneyAmount amount={String(net)} currency={currencyCode} variant="compact" sign="always" tone="auto" className="font-medium" /></dd>
+                      </div>
+                    </dl>
+                  ) : null}
+                </SectionCard>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }

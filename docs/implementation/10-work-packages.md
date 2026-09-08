@@ -1385,6 +1385,29 @@ pasada cierra los detalles del §9.2/§9.3:
 - **Follow-up:** subvistas §10 Próximas / §11 Deudas / §12 Cuotas / §13 Suscripciones contra su
   spec; acciones rápidas por fila §9.7 (Registrar pago / Posponer / Omitir ocurrencia).
 
+## WP-SCREEN-06 — Calendario (spec 06 §6.1, §7)  ·  P2  ·  **DONE (2026-09-08)**
+
+El grid mensual + la taxonomía de capas temporales ya estaban (WP-CALENDAR-LAYERS). Esta pasada
+agrega los controles del header §6.1 y la vista Agenda §7:
+
+- **§6.1 header** — switch `Mes | Agenda` (`role="group"` "Vista del calendario", `?view=agenda`),
+  botón **`Hoy`** que aparece sólo fuera del mes actual y vuelve a `/calendar` pelado, y CTA
+  **`Agregar`** que abre el Quick Add global (antes el header sólo tenía el `DateSelector`).
+- **§7 vista Agenda** — nuevo `AgendaView`: eventos en orden cronológico agrupados por día, con
+  encabezado relativo (`dayHeading()` → "Hoy · 8 sept" / "Mañana · 9 sept" / weekday si <7d / "DD mmm")
+  y un cierre por día (`Entradas programadas` / `Salidas comprometidas` / `Cambio proyectado`) —
+  nunca se lo llama "saldo real" (§7, §10). Navegación de mes prev/next dentro de la vista.
+- **`buildHref`** ahora omite `period` cuando coincide con el mes actual (URLs limpias) y propaga `view`.
+- **`Hoy` como `<Link>` plano** (no `<Button render={<Link>}>`) — el wrapper de base-ui tragaba el
+  click de navegación de forma intermitente bajo carga de suite.
+- **Tests:** `tests/e2e/screen-calendario.spec.ts` (2 — header §6.1 con switch/Agregar/Hoy
+  condicional + Quick Add; Agenda §7 con grupo "Hoy · …" y cierre "Salidas comprometidas"). Se
+  estabilizó `screen-presupuestos` (nav de mes por `page.waitForURL` en vez de `toPass` que
+  re-clickeaba y cancelaba el `router.push`) y `shell` (fill tras `goto` espera a que hidrate).
+- **Verificación:** lint web limpio · typecheck 0 · unit 869/869 · build web limpio · e2e 32/32.
+- **Follow-up:** drawer de Día §8 completo; selector `?currency=` §10; filtros por capa temporal en
+  la vista Agenda.
+
 ## Fases C–H (restante)
 
 Ver `09-implementation-roadmap.md`. Cada WP ahí listado se desglosa a este formato al comenzar su fase.

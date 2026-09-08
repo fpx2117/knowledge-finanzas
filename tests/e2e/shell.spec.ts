@@ -239,6 +239,7 @@ test.describe("app header + notification center (spec §9, §17)", () => {
     await newUser(page, baseURL!, "crumbs");
 
     await page.goto("/accounts/new");
+    await expect(page.getByRole("button", { name: "Crear cuenta" })).toBeEnabled();
     await page.getByLabel("Nombre de la cuenta").fill("Banco Galicia");
     await page.getByLabel("Tipo").selectOption("BANK");
     await page.getByLabel("Moneda").selectOption("ARS");
