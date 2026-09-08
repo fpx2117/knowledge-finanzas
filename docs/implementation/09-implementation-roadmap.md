@@ -130,7 +130,9 @@ spec extreme. Empezó por el Application Shell (spec 13) porque es la estructura
 | followup: filtros y orden | **DONE (commit 77671d6)** — `TransactionsFilters` estaba **roto** (router.push sobre query no commiteaba); reescrito con `<select>` nativo + carga completa, + selector de orden §9.7 (`listForUser` gana `sort`). Metas: nuevo `GoalsControls` (orden §9.2 + filtro de moneda §9.3). |
 | followup: subvistas Reportes | **DONE (commit a4fd329)** — Flujo de caja §12: agregado el dominio PROYECTADO (30 días, separado del histórico) vía `getCashFlowProjection` → dashboardService. Patrimonio §13: `getNetPosition` por moneda (§13.4) + disclaimer §13.2. Diferido: evolución histórica §13.5, columna "Vs. anterior" §14.2. |
 
-Subvistas todavía flacas o faltantes: Transacciones Gastos/Ingresos como rutas propias §10–11 (hoy sólo el resumen de la lista), Transacciones Recurrentes §13, Categorías §14.2 con comparación, Obligaciones acciones rápidas por fila §9.7.
+| followup: subvistas Transacciones | **DONE (commit 0fbb388)** — nuevas rutas `/transactions/{expenses,income}` (`TypedTransactionsView`, spec §10/§11): CTA con tipo preseleccionado, KPIs total/cantidad/ticket, distribución por categoría + CTA a Reportes. Subnav/nav ordenados al §5.2. |
+
+Subvistas todavía flacas: Transacciones Recurrentes §13 (detección real), Categorías §14.2 con comparación de períodos, Obligaciones acciones rápidas por fila §9.7, evolución histórica del patrimonio §13.5.
 
 Falta de filtros/orden todavía: Insights §11.2 (familia), Calendario Agenda por capa §10, Transacciones agrupación temporal §9.6 / selección múltiple §9.11 / config columnas §9.4, Metas búsqueda §9.4.
 | fix(budgets) MonthNav | — | **DONE (2026-09-08, commit 6c0e824)** — `MonthNav` (client component con href derivado de `useSearchParams()`) navegaba con `next/link`; bug Next 15.5: navegación de cliente que sólo cambia el query string sobre un segmento con `loading.tsx` pide el RSC (200) y no lo aplica → el mes no cambiaba. Fix: `<a>` (carga completa) + `<button disabled>` para el tope. Calendario NO afectado (`<Link>` server-side). |
