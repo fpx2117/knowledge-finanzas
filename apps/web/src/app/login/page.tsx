@@ -1,20 +1,14 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { AuthLayout } from "@/features/auth/components/auth-layout";
 import { LoginForm } from "@/features/auth/components/login-form";
-import { getCurrentUser } from "@/lib/auth/require-current-user";
 
+// NOTE: no "already logged in → /app" redirect here. It used to live in middleware keyed on
+// cookie *presence* and caused a redirect loop with a stale cookie (see middleware.ts). A
+// genuinely logged-in visitor landing on /login just sees the form; submitting it is harmless.
+// Cross-tab sign-out (SessionSync) also lands here and must stay put (spec 13 §29.5).
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ callbackURL?: string }> }) {
   const { callbackURL } = await searchParams;
-
-  // Already signed in (verified against the session, not just a cookie) → skip the form.
-  // Only ever redirect to an in-app path so a crafted ?callbackURL can't bounce elsewhere.
-  const user = await getCurrentUser();
-  if (user) {
-    const target = callbackURL && callbackURL.startsWith("/") && !callbackURL.startsWith("//") ? callbackURL : "/app";
-    redirect(target);
-  }
   return (
     <AuthLayout
       title="Iniciá sesión"
