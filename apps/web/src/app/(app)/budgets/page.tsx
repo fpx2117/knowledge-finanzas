@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { ChevronRightIcon, TriangleAlertIcon, WalletIcon } from "lucide-react";
 
-import { budgetRepository, categoryRepository, createBudgetQueries, db } from "@know-finanzas/db";
+import { budgetRepository, categoryRepository, createActivityQueries, createBudgetQueries, db } from "@know-finanzas/db";
 import { todayInTimezone } from "@know-finanzas/finance";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { MonthNav } from "@/components/shared/month-nav";
+import { DataFreshnessNote } from "@/components/shared/data-freshness-note";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -18,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createBudgetService, type BudgetOverviewItem } from "@/features/budgets/services/budget-service";
+
+const activityQueries = createActivityQueries(db);
 
 const service = createBudgetService({
   budgets: budgetRepository,
@@ -47,10 +50,13 @@ export default async function BudgetsPage({ searchParams }: { searchParams: Prom
   const period = requested?.match(/^\d{4}-\d{2}$/) && requested <= currentPeriod ? requested : currentPeriod;
   const [year, month] = period.split("-").map(Number);
 
-  const budgets =
-    period === currentPeriod
-      ? await service.getBudgetOverview(user)
-      : await service.getBudgetOverviewForMonth(user, year, month);
+  const [budgets, recent] = await Promise.all([
+    period === currentPeriod ? service.getBudgetOverview(user) : service.getBudgetOverviewForMonth(user, year, month),
+    activityQueries.listRecentActivity(user.id, { limit: 1 }).catch(() => []),
+  ]);
+  const lastMovementDate = recent[0]?.occurredAt
+    ? todayInTimezone(new Date(recent[0].occurredAt as string | Date), user.timezone)
+    : null;
 
   const header = (
     <PageHeader
@@ -96,6 +102,9 @@ export default async function BudgetsPage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-col gap-8">
       {header}
+
+      {/* spec 04 §9.9 — hasta cuándo hay datos: si faltan gastos recientes el consumo se ve bajo. */}
+      <DataFreshnessNote lastMovementDate={lastMovementDate} todayISO={today} />
 
       {/* spec 04 §9.3 — Presupuestado / Gastado (+%) / Restante (o Excedido) / En atención (§9.3
           Card D: nunca "mal", "fracaso", "descontrol"). */}

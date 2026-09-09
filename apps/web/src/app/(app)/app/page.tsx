@@ -12,12 +12,14 @@ import {
   createUpcomingObligationQueries,
   goalRepository,
   insightRepository,
+  transactionRepository,
   db,
 } from "@know-finanzas/db";
 import { monthRangeForTimezone, Money, todayInTimezone } from "@know-finanzas/finance";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { HeaderActions } from "@/components/shared/header-actions";
+import { DataFreshnessNote } from "@/components/shared/data-freshness-note";
 import { SectionCard } from "@/components/shared/section-card";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -28,6 +30,7 @@ import { CashflowChart } from "@/components/charts/cashflow-chart";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { Button } from "@/components/ui/button";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { formatDateInTimezone } from "@/lib/date";
 import { formatLongDate, formatShortDate, relativeDueLabel } from "@/lib/format";
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
 import { getBudgetOverview } from "@/features/dashboard/services/budget-overview";
@@ -57,7 +60,7 @@ export default async function DashboardPage() {
   const user = await requireCurrentUser();
   const now = new Date();
 
-  const [summary, budgets, categorySpend, categories, activeGoals, openInsights] = await Promise.all([
+  const [summary, budgets, categorySpend, categories, activeGoals, openInsights, uncategorizedCount] = await Promise.all([
     dashboardService.getDashboardSummary({ userId: user.id, timezone: user.timezone, now }),
     getBudgetOverview(user, { budgets: budgetRepository, categories: categoryRepository, budgetQueries }, now),
     (() => {
@@ -71,7 +74,14 @@ export default async function DashboardPage() {
     goalRepository.listForUser(user.id).catch(() => []),
     // spec 01 §16 — hasta 2 insights ya detectados (sin re-correr el motor en cada render).
     insightRepository.listOpenForUser(user.id).catch(() => []),
+    transactionRepository.countUncategorizedForUser(user.id).catch(() => 0),
   ]);
+
+  // spec 01 §7.2 / §17 — hasta cuándo hay datos.
+  const lastActivity = summary.recentActivity[0] as { occurredAt?: Date | string } | undefined;
+  const lastMovementDate = lastActivity?.occurredAt
+    ? formatDateInTimezone(new Date(lastActivity.occurredAt), user.timezone)
+    : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -85,6 +95,10 @@ export default async function DashboardPage() {
           </>
         }
       />
+
+      {summary.accounts.length > 0 ? (
+        <DataFreshnessNote lastMovementDate={lastMovementDate} todayISO={summary.today} uncategorizedCount={uncategorizedCount} />
+      ) : null}
 
       {summary.accounts.length === 0 ? (
         <EmptyState
