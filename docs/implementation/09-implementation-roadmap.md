@@ -131,10 +131,20 @@ spec extreme. Empezó por el Application Shell (spec 13) porque es la estructura
 | followup: subvistas Reportes | **DONE (commit a4fd329)** — Flujo de caja §12: agregado el dominio PROYECTADO (30 días, separado del histórico) vía `getCashFlowProjection` → dashboardService. Patrimonio §13: `getNetPosition` por moneda (§13.4) + disclaimer §13.2. Diferido: evolución histórica §13.5, columna "Vs. anterior" §14.2. |
 
 | followup: subvistas Transacciones | **DONE (commit 0fbb388)** — nuevas rutas `/transactions/{expenses,income}` (`TypedTransactionsView`, spec §10/§11): CTA con tipo preseleccionado, KPIs total/cantidad/ticket, distribución por categoría + CTA a Reportes. Subnav/nav ordenados al §5.2. |
+| followup: calidad/frescura de datos | **DONE (commit siguiente)** — `DataFreshnessNote` ("Datos hasta el X" + link a sin categoría; banner si +12 días) en Resumen (§7.2/§17) y Presupuestos (§9.9). |
+| followup: variación vs. período anterior | **DONE** — `getReport.comparison` (mes previo, sin query nueva) + `DeltaBadge` en KPIs de Panorama y `/reports/{expenses,income}` (§9.3/§15). `getReport` también agrega `delta` por categoría de gasto → "Vs. anterior" en `BreakdownTable` (§14.2). |
+| followup: varios chicos | **DONE** — "Último movimiento" por cuenta en Cuentas (§13.3); callout de riesgo de saldo negativo en Resumen (§11.6); `/budgets/categories` respeta el MonthNav (§10); filtro por familia en Insights (§11.2); búsqueda por nombre en Metas (§9.4). |
 
-Subvistas todavía flacas: Transacciones Recurrentes §13 (detección real), Categorías §14.2 con comparación de períodos, Obligaciones acciones rápidas por fila §9.7, evolución histórica del patrimonio §13.5.
-
-Falta de filtros/orden todavía: Insights §11.2 (familia), Calendario Agenda por capa §10, Transacciones agrupación temporal §9.6 / selección múltiple §9.11 / config columnas §9.4, Metas búsqueda §9.4.
+**Follow-ups restantes — necesitan subsistema o son trabajo grande (fuera del alcance de "follow-up"):**
+- `/settings/privacy` (export/borrado de datos) y `/settings/plan` (billing UI) → subsistemas completos.
+- Ayuda: `/help/articles` real, diagnósticos por módulo §11–13, ayuda contextual `?` §8, búsqueda NLP §6.4 → contenido/feature.
+- Insights: detectores de oportunidad §7.2/§12 → motor de reglas.
+- Patrimonio §13.5 evolución histórica → reconstrucción de balances mes a mes.
+- Cuentas: layout de cards §13, menú contextual §13.4, agrupación §12.5 → rediseño.
+- Registrar: fricción adaptativa §6.1, AccountPicker con búsqueda §7.4, SaveBar formal §7.10 → medio.
+- Transacciones: agrupación temporal §9.6, selección múltiple §9.11, config de columnas §9.4 → medio.
+- Calendario: drawer de Día §8, `?currency=` §10, filtros por capa en Agenda → medio.
+- Obligaciones: subvistas §10–13 propias, acciones rápidas por fila §9.7 → medio.
 | fix(budgets) MonthNav | — | **DONE (2026-09-08, commit 6c0e824)** — `MonthNav` (client component con href derivado de `useSearchParams()`) navegaba con `next/link`; bug Next 15.5: navegación de cliente que sólo cambia el query string sobre un segmento con `loading.tsx` pide el RSC (200) y no lo aplica → el mes no cambiaba. Fix: `<a>` (carga completa) + `<button disabled>` para el tope. Calendario NO afectado (`<Link>` server-side). |
 
 ## Dependencias críticas (§42) respetadas por este orden
