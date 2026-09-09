@@ -264,18 +264,43 @@ function DashboardBody({
         />
       </section>
 
+      {/* §8.3 / RF-03 — otras monedas: se muestran con su propio saldo y disponible (también se
+          gastan), nunca sumadas a los KPIs de arriba. */}
       {otherCurrencyBalances.length > 0 ? (
-        <p className="text-caption text-muted-foreground">
-          También tenés saldo en{" "}
-          {otherCurrencyBalances
-            .map((balance) => `${balance.currencyCode} ${new Intl.NumberFormat("es-AR").format(Number(balance.total))}`)
-            .join(" · ")}{" "}
-          — no se suma al saldo de arriba.{" "}
-          <Link href="/accounts" className="font-medium text-brand hover:underline">
-            Ver cuentas
-          </Link>
-          .
-        </p>
+        <section aria-label="Otras monedas" className="flex flex-col gap-2">
+          <h2 className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">Otras monedas</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {otherCurrencyBalances.map((balance) => {
+              const proj = summary.projections.find((p) => p.currencyCode === balance.currencyCode);
+              return (
+                <div key={balance.currencyCode} className="rounded-xl border border-border bg-card p-4">
+                  <p className="text-caption font-semibold uppercase tracking-wider text-muted-foreground">{balance.currencyCode}</p>
+                  <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-1 text-small">
+                    <div className="flex flex-col">
+                      <dt className="text-caption text-muted-foreground">Saldo total</dt>
+                      <dd><MoneyAmount amount={balance.total} currency={balance.currencyCode} variant="compact" className="text-body-lg font-medium text-foreground" /></dd>
+                    </div>
+                    <div className="flex flex-col">
+                      <dt className="text-caption text-muted-foreground">Dinero disponible</dt>
+                      <dd>
+                        <MoneyAmount
+                          amount={proj?.spendable.spendable.toString() ?? balance.total}
+                          currency={balance.currencyCode}
+                          variant="compact"
+                          tone="positive"
+                          className="text-body-lg font-medium"
+                        />
+                      </dd>
+                    </div>
+                  </dl>
+                  <Link href="/accounts" className="mt-2 inline-block text-caption font-medium text-brand hover:underline">
+                    Ver cuentas en {balance.currencyCode}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       ) : null}
 
       {/* spec 01 §11.6 — riesgo de saldo negativo. Descriptivo, con acceso al cálculo; sin alarmismo. */}

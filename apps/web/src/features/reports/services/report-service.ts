@@ -184,9 +184,24 @@ export function createReportService(database = db) {
         .sort((a, b) => a.currencyCode.localeCompare(b.currencyCode));
     },
 
-    async getReport(input: { userId: string; timezone: string; baseCurrency: string; period?: string; now?: Date }): Promise<ReportData> {
+    /** Currencies the user actually holds/moves money in — for the §7.7 report currency selector. */
+    async listReportCurrencies(userId: string, baseCurrency: string): Promise<string[]> {
+      const rows = await balances.getAccountBalancesForUser(userId);
+      const set = new Set<string>([baseCurrency, ...rows.map((row) => row.account.currencyCode)]);
+      return [...set].sort();
+    },
+
+    async getReport(input: {
+      userId: string;
+      timezone: string;
+      baseCurrency: string;
+      /** Which currency the report is expressed in (§7.7 — never combined). Defaults to base. */
+      currency?: string;
+      period?: string;
+      now?: Date;
+    }): Promise<ReportData> {
       const now = input.now ?? new Date();
-      const currencyCode = input.baseCurrency;
+      const currencyCode = input.currency ?? input.baseCurrency;
       const { year, month, period } = parsePeriod(input.period, input.timezone, now);
       const range = monthRangeForTimezone(year, month, input.timezone);
 

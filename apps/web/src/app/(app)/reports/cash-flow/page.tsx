@@ -9,6 +9,7 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatLongDate } from "@/lib/format";
 import { createReportService } from "@/features/reports/services/report-service";
 import { ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { ReportCurrencyPicker } from "@/features/reports/components/report-currency-picker";
 import { periodLabel } from "@/features/reports/components/report-format";
 
 const service = createReportService();
@@ -17,12 +18,14 @@ const HEAD = "text-caption font-semibold uppercase tracking-wider text-muted-for
 // spec 08 §12 — Flujo de caja. Dos dominios estrictamente separados (§12.2): REAL (histórico
 // confirmado, mes a mes) y PROYECTADO (próximos 30 días: obligaciones + programados). El
 // proyectado nunca se mezcla con la serie confirmada y siempre se etiqueta como proyección.
-export default async function CashFlowReportPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
-  const { period: periodParam } = await searchParams;
+export default async function CashFlowReportPage({ searchParams }: { searchParams: Promise<{ period?: string; currency?: string }> }) {
+  const { period: periodParam, currency: currencyParam } = await searchParams;
   const user = await requireCurrentUser();
+  const currencies = await service.listReportCurrencies(user.id, user.baseCurrency);
+  const currency = currencyParam && currencies.includes(currencyParam) ? currencyParam : user.baseCurrency;
   const [report, projection] = await Promise.all([
-    service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, period: periodParam }),
-    service.getCashFlowProjection({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency }),
+    service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, currency, period: periodParam }),
+    service.getCashFlowProjection({ userId: user.id, timezone: user.timezone, baseCurrency: currency }),
   ]);
   const { currencyCode, months, coverage } = report;
 
@@ -30,6 +33,7 @@ export default async function CashFlowReportPage({ searchParams }: { searchParam
     <div className="flex flex-col gap-8">
       <PageHeader title="Reportes / Flujo de caja" description="Lo que ya pasó, y por separado lo que está previsto." actions={<HeaderActions />} />
       <ReportsNav />
+      <ReportCurrencyPicker basePath="/reports/cash-flow" currencies={currencies} active={currencyCode} period={report.period} />
       <ExcludedCurrenciesNote currencies={coverage.excludedCurrencies} />
 
       {/* ── REAL ─────────────────────────────────────────────── */}

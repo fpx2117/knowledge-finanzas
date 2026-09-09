@@ -7,14 +7,17 @@ import { DonutChart } from "@/components/charts/donut-chart";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createReportService } from "@/features/reports/services/report-service";
 import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { ReportCurrencyPicker } from "@/features/reports/components/report-currency-picker";
 import { compactTotal, periodLabel, toSegments } from "@/features/reports/components/report-format";
 
 const service = createReportService();
 
-export default async function IncomeReportPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
-  const { period: periodParam } = await searchParams;
+export default async function IncomeReportPage({ searchParams }: { searchParams: Promise<{ period?: string; currency?: string }> }) {
+  const { period: periodParam, currency: currencyParam } = await searchParams;
   const user = await requireCurrentUser();
-  const report = await service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, period: periodParam });
+  const currencies = await service.listReportCurrencies(user.id, user.baseCurrency);
+  const currency = currencyParam && currencies.includes(currencyParam) ? currencyParam : user.baseCurrency;
+  const report = await service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, currency, period: periodParam });
   const { currencyCode, kpis, comparison, incomeByCategory, coverage } = report;
   const topCategory = incomeByCategory[0];
 
@@ -22,6 +25,7 @@ export default async function IncomeReportPage({ searchParams }: { searchParams:
     <div className="flex flex-col gap-8">
       <PageHeader title="Reportes / Ingresos" description={`Origen de tus ingresos — ${periodLabel(report.period)}.`} actions={<HeaderActions />} />
       <ReportsNav />
+      <ReportCurrencyPicker basePath="/reports/income" currencies={currencies} active={report.currencyCode} period={report.period} />
       <ExcludedCurrenciesNote currencies={coverage.excludedCurrencies} />
 
       <section aria-label="Resumen de ingresos" className="grid grid-cols-1 gap-4 sm:grid-cols-3">

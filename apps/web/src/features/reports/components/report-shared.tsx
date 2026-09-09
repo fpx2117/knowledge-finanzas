@@ -62,12 +62,17 @@ const TABS = [
   { label: "Categorías", href: "/reports/categories" },
 ];
 
-/** Canonical report routes (spec 14 §8) — preserves `?period=` across tabs. */
+/** Canonical report routes (spec 14 §8) — preserves `?period=`/`?currency=` across tabs. */
 export function ReportsNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const period = searchParams.get("period");
-  const withPeriod = (href: string) => (period ? `${href}?period=${period}` : href);
+  const carried = new URLSearchParams();
+  for (const key of ["period", "currency"]) {
+    const value = searchParams.get(key);
+    if (value) carried.set(key, value);
+  }
+  const qs = carried.toString();
+  const withPeriod = (href: string) => (qs ? `${href}?${qs}` : href);
 
   return (
     <nav aria-label="Secciones de reportes" className="-mb-px flex gap-1 overflow-x-auto border-b border-border">

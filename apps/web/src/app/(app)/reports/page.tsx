@@ -12,15 +12,18 @@ import { MoneyAmount } from "@/components/financial/money-amount";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createReportService } from "@/features/reports/services/report-service";
 import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { ReportCurrencyPicker } from "@/features/reports/components/report-currency-picker";
 import { compactTotal, periodLabel, toSegments } from "@/features/reports/components/report-format";
 import { DeltaBadge } from "@/components/shared/delta-badge";
 
 const service = createReportService();
 
-export default async function ReportsOverviewPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
-  const { period: periodParam } = await searchParams;
+export default async function ReportsOverviewPage({ searchParams }: { searchParams: Promise<{ period?: string; currency?: string }> }) {
+  const { period: periodParam, currency: currencyParam } = await searchParams;
   const user = await requireCurrentUser();
-  const report = await service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, period: periodParam });
+  const currencies = await service.listReportCurrencies(user.id, user.baseCurrency);
+  const currency = currencyParam && currencies.includes(currencyParam) ? currencyParam : user.baseCurrency;
+  const report = await service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, currency, period: periodParam });
   const { currencyCode, kpis, months, comparison, expenseByCategory, incomeByCategory, coverage } = report;
   const periodQuery = `?period=${report.period}`;
 
@@ -35,6 +38,7 @@ export default async function ReportsOverviewPage({ searchParams }: { searchPara
       />
 
       <ReportsNav />
+      <ReportCurrencyPicker basePath="/reports" currencies={currencies} active={currencyCode} period={report.period} />
       <ExcludedCurrenciesNote currencies={coverage.excludedCurrencies} />
 
       {!hasData ? (
