@@ -1,5 +1,5 @@
 import { createNotificationRepository, db } from "@know-finanzas/db";
-import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { getCurrentUser } from "@/lib/auth/require-current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +18,8 @@ function sseEvent(event: string, data: unknown) {
 // notification center itself reads — rather than reacting to an in-process event bus that would
 // miss writes from other processes/webhooks.
 export async function GET() {
-  let user: { id: string };
-  try {
-    user = await requireCurrentUser();
-  } catch {
+  const user = await getCurrentUser();
+  if (!user) {
     return new Response("Unauthorized", { status: 401 });
   }
 

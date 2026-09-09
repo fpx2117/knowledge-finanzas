@@ -6,7 +6,6 @@ import { buildSecurityHeaders, createBoundedInMemoryRateLimiter, REQUEST_ID_HEAD
 // Public routes reachable without a session. Everything else (including /onboarding and
 // /elegir-acceso, which need a session to resolve *which* onboarding step to show) requires one.
 const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/pricing"]);
-const AUTH_ENTRY_PATHS = new Set(["/login", "/signup"]);
 
 // Presence-only check (no DB round trip) — safe/fast for middleware, matches better-auth's
 // documented Next.js pattern. The authoritative check stays server-side via requireCurrentUser()
@@ -62,9 +61,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    if (hasSession && AUTH_ENTRY_PATHS.has(pathname)) {
-      return NextResponse.redirect(new URL("/app", request.url));
-    }
+    // NOTE: bouncing a "logged-in" visitor off /login used to live here, keyed on cookie
+    // *presence*. A stale/expired cookie then ping-ponged /login → /app → (session rejected
+    // server-side) → /login … forever. That redirect now lives in the /login page itself,
+    // which validates the session for real before sending anyone to /app.
   }
 
   // Webhook routes never get their x-request-id header touched: Mercado Pago's own x-request-id

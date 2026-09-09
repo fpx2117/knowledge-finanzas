@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 import {
   createNotificationRepository,
   createUserRepository,
@@ -18,8 +16,8 @@ const users = createUserRepository(db);
 // (resolveAccessRoute) is rebuilt with the onboarding screens in a later phase.
 // For now this layout only enforces authentication.
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const user = await requireCurrentUser().catch(() => null);
-  if (!user) redirect("/login");
+  // Redirects to /login itself when there's no session (or the cookie is stale).
+  const user = await requireCurrentUser();
 
   const [profile, unreadCount, pendingCount, insightsUnseen] = await Promise.all([
     users.findById(user.id).catch(() => undefined),

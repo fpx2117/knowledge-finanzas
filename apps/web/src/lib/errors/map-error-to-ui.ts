@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { ZodError } from "zod";
 
 import {
@@ -79,6 +80,11 @@ export function mapZodErrorToUi(error: ZodError): UiError {
 }
 
 export function mapErrorToUi(error: unknown): UiError {
+  // Next's redirect()/notFound() signal via a thrown control-flow error. A Server Action
+  // that calls requireCurrentUser() inside try/catch must let that propagate, not render
+  // it as INTERNAL_ERROR — rethrow it before any other handling.
+  unstable_rethrow(error);
+
   if (error instanceof ZodError) {
     return mapZodErrorToUi(error);
   }
