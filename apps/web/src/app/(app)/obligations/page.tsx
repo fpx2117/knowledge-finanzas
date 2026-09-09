@@ -21,6 +21,7 @@ import {
   OBLIGATION_STATUS_META,
   OBLIGATION_TYPE_LABEL,
 } from "@/features/obligations/components/obligations-shared";
+import { Pagination, paginate } from "@/components/shared/pagination";
 
 const service = createDebtService();
 const obligations = createObligationReadModel();
@@ -45,8 +46,8 @@ const HEAD = "text-caption font-semibold uppercase tracking-wider text-muted-for
 // spec 05 §9 — la vista principal ("Todas") agrupa las obligaciones por *tiempo*, no por tipo
 // (§9.5), sobre el read model unificado (deuda + suscripción + programado). Las pestañas Deudas /
 // Pagadas conservan el registro específico de deudas para su gestión.
-export default async function ObligationsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const { tab = "resumen" } = await searchParams;
+export default async function ObligationsPage({ searchParams }: { searchParams: Promise<{ tab?: string; page?: string }> }) {
+  const { tab = "resumen", page: pageParam } = await searchParams;
   const user = await requireCurrentUser();
   const currency = user.baseCurrency;
 
@@ -111,8 +112,10 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
     { key: "pagadas", label: "Pagadas", href: "/obligations?tab=pagadas" },
   ];
 
-  const tableDebts =
+  const allTableDebts =
     tab === "pagadas" ? debts.filter((d) => d.effectiveStatus === "PAID") : debts.filter((d) => d.effectiveStatus !== "CANCELLED");
+  const debtPage = paginate(allTableDebts, Number(pageParam) || 1);
+  const tableDebts = debtPage.rows;
 
   const groups = groupObligationsTemporally(model.items, model.today);
 
@@ -297,6 +300,11 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
           ) : (
             <p className="py-6 text-center text-small text-muted-foreground">Nada para mostrar acá.</p>
           )}
+          <Pagination
+            page={debtPage.page}
+            totalPages={debtPage.totalPages}
+            hrefFor={(p) => `/obligations?tab=${tab === "resumen" ? "deudas" : tab}${p > 1 ? `&page=${p}` : ""}`}
+          />
         </SectionCard>
       )}
     </div>

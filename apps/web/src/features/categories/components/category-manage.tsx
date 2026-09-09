@@ -18,6 +18,8 @@ import {
 import { Field, fieldControlClass } from "@/components/shared/form-field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { StatusChip } from "@/components/shared/status-chip";
+import { usePaginated } from "@/components/shared/use-paginated";
+import { ShowMoreButton } from "@/components/shared/show-more-button";
 import {
   archiveCategoryAction,
   renameCategoryAction,
@@ -163,11 +165,15 @@ export function CategoryManage({
   expenseNodes: MappableNode[];
   incomeNodes: MappableNode[];
 }) {
+  const { visible, remaining, showMore } = usePaginated(rows, 30);
   return (
-    <ul className="flex flex-col divide-y divide-border">
-      {rows.map((row) => (
-        <CategoryRow key={row.id} row={row} nodes={row.type === "INCOME" ? incomeNodes : expenseNodes} />
-      ))}
-    </ul>
+    <>
+      <ul className="flex flex-col divide-y divide-border">
+        {visible.map((row) => (
+          <CategoryRow key={row.id} row={row} nodes={row.type === "INCOME" ? incomeNodes : expenseNodes} />
+        ))}
+      </ul>
+      <ShowMoreButton remaining={remaining} onClick={showMore} />
+    </>
   );
 }

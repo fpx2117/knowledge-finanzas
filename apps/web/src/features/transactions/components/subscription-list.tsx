@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { ArrowUpRightIcon, RefreshCwIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { usePaginated } from "@/components/shared/use-paginated";
+import { ShowMoreButton } from "@/components/shared/show-more-button";
 import { dismissSubscriptionAction, scanSubscriptionsAction } from "../actions/subscription-detection-actions";
 import type { SubscriptionView } from "../services/subscription-detection-service";
 
@@ -55,10 +57,12 @@ export function SubscriptionScanButton({ hasAny }: { hasAny: boolean }) {
 export function SubscriptionList({ subscriptions }: { subscriptions: SubscriptionView[] }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const { visible, remaining, showMore } = usePaginated(subscriptions, 20);
 
   return (
+    <>
     <ul className="flex flex-col divide-y divide-border">
-      {subscriptions.map((s) => (
+      {visible.map((s) => (
         <li key={s.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
           <div className="min-w-0">
             <p className="text-small font-medium text-foreground">
@@ -95,5 +99,7 @@ export function SubscriptionList({ subscriptions }: { subscriptions: Subscriptio
         </li>
       ))}
     </ul>
+    <ShowMoreButton remaining={remaining} onClick={showMore} />
+    </>
   );
 }

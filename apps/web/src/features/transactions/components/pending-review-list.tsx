@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 
 import { fieldControlClass } from "@/components/shared/form-field";
+import { usePaginated } from "@/components/shared/use-paginated";
+import { ShowMoreButton } from "@/components/shared/show-more-button";
 import { categorizePendingItemAction } from "../actions/pending-review-actions";
 
 type Item = { id: string; description: string; merchant: string | null; amount: string; currencyCode: string; occurredOn: string };
@@ -19,10 +21,12 @@ export function PendingReviewList({ items, categories }: { items: Item[]; catego
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const visible = items.filter((i) => !done.has(i.id));
-  if (visible.length === 0) return <p className="py-4 text-center text-small text-muted-foreground">Todo categorizado. 🎉</p>;
+  const remainingItems = items.filter((i) => !done.has(i.id));
+  const { visible, remaining, showMore } = usePaginated(remainingItems, 25);
+  if (remainingItems.length === 0) return <p className="py-4 text-center text-small text-muted-foreground">Todo categorizado. 🎉</p>;
 
   return (
+    <>
     <ul className="flex flex-col divide-y divide-border">
       {visible.map((item) => (
         <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -53,5 +57,7 @@ export function PendingReviewList({ items, categories }: { items: Item[]; catego
         </li>
       ))}
     </ul>
+    <ShowMoreButton remaining={remaining} onClick={showMore} />
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { InsightsTabs } from "@/features/insights/components/insights-tabs";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusChip, type ChipTone } from "@/components/shared/status-chip";
+import { Pagination, paginate } from "@/components/shared/pagination";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatLongDate } from "@/lib/format";
 import { createInsightService } from "@/features/insights/services/insight-service";
@@ -22,9 +23,10 @@ const STATUS_META: Record<string, { label: string; tone: ChipTone }> = {
 };
 
 // spec 09 §13 — auditar qué insights se generaron, qué evidencia tenían y cómo se resolvieron.
-export default async function InsightHistoryPage() {
+export default async function InsightHistoryPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const user = await requireCurrentUser();
   const history = await service.getHistory(user);
+  const { page, totalPages, rows } = paginate(history, Number((await searchParams).page) || 1);
 
   return (
     <div className="flex flex-col gap-6">
@@ -37,7 +39,7 @@ export default async function InsightHistoryPage() {
           <EmptyState title="Sin historial todavía" description="Cuando descartes o resuelvas un insight, va a quedar registrado acá." />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
-            {history.map((insight) => {
+            {rows.map((insight) => {
               const meta = INSIGHT_FAMILY_META[insight.family];
               const statusMeta = STATUS_META[insight.status] ?? { label: insight.status, tone: "neutral" as ChipTone };
               return (
@@ -56,6 +58,7 @@ export default async function InsightHistoryPage() {
             })}
           </ul>
         )}
+        <Pagination page={page} totalPages={totalPages} hrefFor={(p) => (p > 1 ? `/insights/history?page=${p}` : "/insights/history")} />
       </SectionCard>
     </div>
   );

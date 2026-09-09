@@ -1,6 +1,10 @@
+"use client";
+
 import { ArrowDownIcon, ArrowUpIcon, FlagIcon } from "lucide-react";
 
 import { MoneyAmount } from "@/components/financial/money-amount";
+import { usePaginated } from "@/components/shared/use-paginated";
+import { ShowMoreButton } from "@/components/shared/show-more-button";
 import { formatLongDate } from "@/lib/format";
 import type { GoalAllocationKind } from "@know-finanzas/db";
 
@@ -22,13 +26,16 @@ const KIND_META: Record<GoalAllocationKind, { label: string; icon: typeof ArrowU
 // spec 07 §14.2 — historial de aportes. A read-only ledger of the goal's allocations; it never
 // implies a movement in the user's accounts.
 export function GoalHistory({ allocations }: { allocations: GoalAllocationView[] }) {
+  const { visible, remaining, showMore } = usePaginated(allocations, 20);
+
   if (allocations.length === 0) {
     return <p className="py-6 text-center text-small text-muted-foreground">Todavía no registraste aportes en esta meta.</p>;
   }
 
   return (
+    <>
     <ul className="flex flex-col divide-y divide-border">
-      {allocations.map((allocation) => {
+      {visible.map((allocation) => {
         const meta = KIND_META[allocation.kind];
         const Icon = meta.icon;
         return (
@@ -64,5 +71,7 @@ export function GoalHistory({ allocations }: { allocations: GoalAllocationView[]
         );
       })}
     </ul>
+    <ShowMoreButton remaining={remaining} onClick={showMore} />
+    </>
   );
 }

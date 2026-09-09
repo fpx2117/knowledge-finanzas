@@ -18,6 +18,7 @@ import { createGoalService, type GoalDetail } from "@/features/goals/services/go
 import { GOAL_CATEGORY_META } from "@/features/goals/goal-meta";
 import { GoalRow } from "@/features/goals/components/goal-row";
 import { GoalsControls, GOAL_SORTS, type GoalSort } from "@/features/goals/components/goals-controls";
+import { Pagination, paginate } from "@/components/shared/pagination";
 
 const service = createGoalService();
 
@@ -49,9 +50,9 @@ function compareGoals(sort: GoalSort): (a: GoalDetail, b: GoalDetail) => number 
 export default async function GoalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; sort?: string; currency?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; sort?: string; currency?: string; q?: string; page?: string }>;
 }) {
-  const { status, sort: sortParam, currency: currencyParam, q: queryParam } = await searchParams;
+  const { status, sort: sortParam, currency: currencyParam, q: queryParam, page: pageParam } = await searchParams;
   const activeTab = TAB_KEYS.some((tab) => tab.key === status) ? status! : "todas";
   const sort: GoalSort = GOAL_SORTS.some(([value]) => value === sortParam) ? (sortParam as GoalSort) : "atencion";
   const query = (queryParam ?? "").trim().slice(0, 60);
@@ -123,19 +124,23 @@ export default async function GoalsPage({
     .filter((segment) => segment.value > 0)
     .sort((a, b) => b.value - a.value);
 
-  const listGoals = (activeTab === "completadas" ? completed : active)
+  const allListGoals = (activeTab === "completadas" ? completed : active)
     .filter((goal) => !currency || goal.currencyCode === currency)
     .filter((goal) => !queryNorm || goal.name.toLowerCase().includes(queryNorm));
+  const { page, totalPages, rows: listGoals } = paginate(allListGoals, Number(pageParam) || 1);
 
-  const tabHref = (key: string) => {
+  const goalsHref = (overrides: { status?: string; page?: number }) => {
     const params = new URLSearchParams();
-    if (key !== "todas") params.set("status", key);
+    const s = overrides.status ?? activeTab;
+    if (s !== "todas") params.set("status", s);
     if (sort !== "atencion") params.set("sort", sort);
     if (currency) params.set("currency", currency);
     if (query) params.set("q", query);
+    if (overrides.page && overrides.page > 1) params.set("page", String(overrides.page));
     const qs = params.toString();
     return qs ? `/goals?${qs}` : "/goals";
   };
+  const tabHref = (key: string) => goalsHref({ status: key });
 
   return (
     <div className="flex flex-col gap-8">
@@ -193,11 +198,14 @@ export default async function GoalsPage({
           contentClassName="gap-0"
         >
           {listGoals.length > 0 ? (
-            <ul className="flex flex-col divide-y divide-border">
-              {listGoals.map((goal) => (
-                <GoalRow key={goal.id} goal={goal} today={today} />
-              ))}
-            </ul>
+            <>
+              <ul className="flex flex-col divide-y divide-border">
+                {listGoals.map((goal) => (
+                  <GoalRow key={goal.id} goal={goal} today={today} />
+                ))}
+              </ul>
+              <Pagination page={page} totalPages={totalPages} hrefFor={(p) => goalsHref({ page: p })} />
+            </>
           ) : (
             <p className="py-6 text-center text-small text-muted-foreground">
               {query || currency

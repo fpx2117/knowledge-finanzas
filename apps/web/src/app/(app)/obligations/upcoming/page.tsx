@@ -21,6 +21,7 @@ import {
   OBLIGATION_TYPE_LABEL,
   parseHorizon,
 } from "@/features/obligations/components/obligations-shared";
+import { Pagination, paginate } from "@/components/shared/pagination";
 
 const obligations = createObligationReadModel();
 const balances = createAccountBalanceQueries(db);
@@ -31,9 +32,9 @@ const balances = createAccountBalanceQueries(db);
 export default async function UpcomingObligationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ horizon?: string }>;
+  searchParams: Promise<{ horizon?: string; page?: string }>;
 }) {
-  const { horizon: horizonParam } = await searchParams;
+  const { horizon: horizonParam, page: pageParam } = await searchParams;
   const horizonDays = parseHorizon(horizonParam);
   const user = await requireCurrentUser();
 
@@ -57,6 +58,7 @@ export default async function UpcomingObligationsPage({
   const baseItems = model.items.filter(
     (item) => item.currencyCode === currency,
   );
+  const itemsPage = paginate(model.items, Number(pageParam) || 1);
   const projectedAfterKnown = Money.fromString(liquid, currency).subtract(
     Money.fromString(confirmed, currency),
   );
@@ -143,7 +145,7 @@ export default async function UpcomingObligationsPage({
             eyebrow={`Hoy · saldo ${new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 0 }).format(Number(liquid))}`}
           >
             <ul className="flex flex-col divide-y divide-border">
-              {model.items.map((item) => {
+              {itemsPage.rows.map((item) => {
                 const meta = OBLIGATION_STATUS_META[item.status];
                 return (
                   <li
@@ -191,6 +193,12 @@ export default async function UpcomingObligationsPage({
                 );
               })}
             </ul>
+
+            <Pagination
+              page={itemsPage.page}
+              totalPages={itemsPage.totalPages}
+              hrefFor={(p) => `/obligations/upcoming?horizon=${horizonDays}${p > 1 ? `&page=${p}` : ""}`}
+            />
 
             <div className="mt-3 flex flex-col gap-1 border-t border-border pt-3">
               <div className="flex items-center justify-between text-small">

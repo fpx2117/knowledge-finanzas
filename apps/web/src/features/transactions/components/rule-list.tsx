@@ -3,16 +3,20 @@
 import { useState, useTransition } from "react";
 import { Trash2Icon } from "lucide-react";
 
+import { usePaginated } from "@/components/shared/use-paginated";
+import { ShowMoreButton } from "@/components/shared/show-more-button";
 import { deleteClassificationRuleAction } from "../actions/classification-rule-actions";
 import type { ClassificationRuleView } from "../services/classification-rule-service";
 
 export function RuleList({ rules }: { rules: ClassificationRuleView[] }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const { visible, remaining, showMore } = usePaginated(rules);
 
   return (
+    <>
     <ul className="flex flex-col divide-y divide-border">
-      {rules.map((rule) => (
+      {visible.map((rule) => (
         <li key={rule.id} className="flex items-center justify-between gap-3 py-3">
           <p className="text-small text-foreground">
             Si <span className="font-medium">{rule.description}</span> → <span className="font-medium">{rule.categoryName}</span>
@@ -35,5 +39,7 @@ export function RuleList({ rules }: { rules: ClassificationRuleView[] }) {
         </li>
       ))}
     </ul>
+    <ShowMoreButton remaining={remaining} onClick={showMore} />
+    </>
   );
 }

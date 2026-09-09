@@ -9,6 +9,7 @@ import { SectionCard } from "@/components/shared/section-card";
 import { StatusChip } from "@/components/shared/status-chip";
 import { ProgressBar } from "@/components/shared/progress-bar";
 import { MoneyAmount } from "@/components/financial/money-amount";
+import { Pagination, paginate } from "@/components/shared/pagination";
 import { TransactionListItem, type TxnKind } from "@/components/financial/transaction-list-item";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
@@ -28,7 +29,13 @@ const STATUS_META = {
   EXCEEDED: { label: "Excedido", tone: "negative" as const, bar: "exceeded" as const },
 };
 
-export default async function BudgetDetailPage({ params }: { params: Promise<{ budgetId: string }> }) {
+export default async function BudgetDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ budgetId: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { budgetId: budgetIdParam } = await params;
   const budgetId = resourceIdOr404(budgetIdParam);
   const user = await requireCurrentUser();
@@ -43,6 +50,7 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ b
 
   const meta = STATUS_META[detail.status];
   const usage = Number(detail.usagePercent);
+  const txns = paginate(detail.transactions, Number((await searchParams).page) || 1);
 
   return (
     <div className="flex flex-col gap-8">
@@ -77,22 +85,29 @@ export default async function BudgetDetailPage({ params }: { params: Promise<{ b
 
       <SectionCard title="Movimientos que suman a este presupuesto" eyebrow="Este mes">
         {detail.transactions.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-border">
-            {detail.transactions.map((txn) => {
-              const kind: TxnKind = txn.type === "REFUND" ? "income" : "expense";
-              return (
-                <li key={txn.id}>
-                  <TransactionListItem
-                    concept={txn.description || txn.merchant || "Movimiento"}
-                    meta={formatShortDate(txn.occurredAt)}
-                    amount={String(txn.amount)}
-                    currency={txn.currencyCode}
-                    kind={kind}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            <ul className="flex flex-col divide-y divide-border">
+              {txns.rows.map((txn) => {
+                const kind: TxnKind = txn.type === "REFUND" ? "income" : "expense";
+                return (
+                  <li key={txn.id}>
+                    <TransactionListItem
+                      concept={txn.description || txn.merchant || "Movimiento"}
+                      meta={formatShortDate(txn.occurredAt)}
+                      amount={String(txn.amount)}
+                      currency={txn.currencyCode}
+                      kind={kind}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+            <Pagination
+              page={txns.page}
+              totalPages={txns.totalPages}
+              hrefFor={(p) => (p > 1 ? `/budgets/${budgetId}?page=${p}` : `/budgets/${budgetId}`)}
+            />
+          </>
         ) : (
           <p className="py-6 text-center text-small text-muted-foreground">Todavía no hay gastos en esta categoría este mes.</p>
         )}

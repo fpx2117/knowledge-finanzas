@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { CheckIcon, RefreshCwIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { usePaginated } from "@/components/shared/use-paginated";
+import { ShowMoreButton } from "@/components/shared/show-more-button";
 import { confirmRecurringAction, dismissRecurringAction, scanRecurringAction } from "../actions/recurring-detection-actions";
 import type { RecurringSuggestionView } from "../services/recurring-detection-service";
 
@@ -55,6 +57,7 @@ export function RecurringScanButton({ hasSuggestions }: { hasSuggestions: boolea
 export function RecurringSuggestionList({ suggestions }: { suggestions: RecurringSuggestionView[] }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const { visible, remaining, showMore } = usePaginated(suggestions, 20);
 
   const act = (id: string, fn: (id: string) => Promise<{ ok: boolean }>) =>
     startTransition(async () => {
@@ -64,8 +67,9 @@ export function RecurringSuggestionList({ suggestions }: { suggestions: Recurrin
     });
 
   return (
+    <>
     <ul className="flex flex-col divide-y divide-border">
-      {suggestions.map((s) => (
+      {visible.map((s) => (
         <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
           <div className="min-w-0">
             <p className="text-small font-medium text-foreground">
@@ -97,5 +101,7 @@ export function RecurringSuggestionList({ suggestions }: { suggestions: Recurrin
         </li>
       ))}
     </ul>
+    <ShowMoreButton remaining={remaining} onClick={showMore} />
+    </>
   );
 }

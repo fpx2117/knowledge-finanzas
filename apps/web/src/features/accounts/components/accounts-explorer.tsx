@@ -23,6 +23,8 @@ import {
 import { StatusChip } from "@/components/shared/status-chip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MoneyAmount } from "@/components/financial/money-amount";
+import { usePaginated } from "@/components/shared/use-paginated";
+import { ShowMoreButton } from "@/components/shared/show-more-button";
 import { formatShortDate } from "@/lib/format";
 
 type AccountRow = {
@@ -68,6 +70,7 @@ export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: 
       return true;
     })
     .sort(SORTS[sort] ?? SORTS["balance-desc"]);
+  const { visible, remaining, showMore } = usePaginated(filtered, 25);
 
   return (
     <div className="flex flex-col gap-4">
@@ -158,7 +161,7 @@ export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((account) => {
+              {visible.map((account) => {
                 const meta = TYPE_META[account.type];
                 const Icon = meta.icon;
                 return (
@@ -204,11 +207,13 @@ export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: 
               })}
             </TableBody>
           </Table>
+          <ShowMoreButton remaining={remaining} onClick={showMore} />
         </div>
       )}
 
       <p className="text-caption text-muted-foreground">
-        Mostrando {filtered.length} de {accounts.length} {accounts.length === 1 ? "cuenta" : "cuentas"}
+        Mostrando {visible.length} de {filtered.length}
+        {filtered.length !== accounts.length ? ` (${accounts.length} en total)` : ""} {accounts.length === 1 ? "cuenta" : "cuentas"}
       </p>
     </div>
   );
