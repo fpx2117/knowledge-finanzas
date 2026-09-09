@@ -15,11 +15,29 @@ import { createDashboardService } from "@/features/dashboard/services/dashboard-
 export type MonthPoint = { period: string; label: string; income: string; expense: string; net: string };
 export type CategorySlice = { id: string; name: string; amount: string; share: number };
 
+/**
+ * spec 08 §15 — variación vs. período comparable. `pct` es null cuando no hay base interpretable
+ * (comparativo = 0, §15.4). `delta` = actual − comparativo. La UI decide el color por métrica
+ * (§15.5 — más ingresos no es alerta).
+ */
+export type Delta = { value: string; pct: number | null };
+
+function computeDelta(current: string, previous: string): Delta {
+  const c = Number(current);
+  const p = Number(previous);
+  return {
+    value: String(Math.round(c - p)),
+    pct: Math.abs(p) > 0 ? Math.round(((c - p) / Math.abs(p)) * 100) : null,
+  };
+}
+
 export type ReportData = {
   period: string;
   currencyCode: string;
   kpis: { income: string; expense: string; savings: string; savingsRate: number | null; netWorth: string };
   months: MonthPoint[];
+  /** §15 — the month before `period` and how the period's totals moved against it. */
+  comparison: { period: string; label: string; income: Delta; expense: Delta; savings: Delta } | null;
   expenseByCategory: CategorySlice[];
   incomeByCategory: CategorySlice[];
   netWorthDetail: { liquidAssets: string; debtOutstanding: string; netWorth: string };
@@ -243,6 +261,18 @@ export function createReportService(database = db) {
         };
       });
 
+      // §15.1 — período anterior equivalente = el mes previo (ya calculado en `months`).
+      const prevMonth = months[months.length - 2];
+      const comparison = prevMonth
+        ? {
+            period: prevMonth.period,
+            label: MONTHS_ES_SHORT[Number(prevMonth.period.slice(5, 7)) - 1],
+            income: computeDelta(periodTotals.income.toString(), prevMonth.income),
+            expense: computeDelta(periodTotals.expense.toString(), prevMonth.expense),
+            savings: computeDelta(savings.toString(), prevMonth.net),
+          }
+        : null;
+
       const buildSlices = (entries: Array<{ id: string; name: string; amount: Money }>): CategorySlice[] => {
         const total = entries.reduce((sum, entry) => sum.add(entry.amount), zero());
         const totalNumber = Number(total.toString());
@@ -293,6 +323,7 @@ export function createReportService(database = db) {
           netWorth: netWorth.toString(),
         },
         months,
+        comparison,
         expenseByCategory,
         incomeByCategory,
         netWorthDetail: {

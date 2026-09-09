@@ -13,6 +13,7 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createReportService } from "@/features/reports/services/report-service";
 import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
 import { compactTotal, periodLabel, toSegments } from "@/features/reports/components/report-format";
+import { DeltaBadge } from "@/components/shared/delta-badge";
 
 const service = createReportService();
 
@@ -20,7 +21,7 @@ export default async function ReportsOverviewPage({ searchParams }: { searchPara
   const { period: periodParam } = await searchParams;
   const user = await requireCurrentUser();
   const report = await service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, period: periodParam });
-  const { currencyCode, kpis, months, expenseByCategory, incomeByCategory, coverage } = report;
+  const { currencyCode, kpis, months, comparison, expenseByCategory, incomeByCategory, coverage } = report;
   const periodQuery = `?period=${report.period}`;
 
   const hasData = Number(kpis.income) > 0 || Number(kpis.expense) > 0 || months.some((m) => Number(m.income) > 0 || Number(m.expense) > 0);
@@ -47,9 +48,28 @@ export default async function ReportsOverviewPage({ searchParams }: { searchPara
           {/* §9.2 KPIs P0: ingresos, gastos, resultado neto, tasa de ahorro simple cuando aplique.
               Patrimonio vive en su propia subvista (§13) — no se adelanta como KPI acá. */}
           <section aria-label="Indicadores del período" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Ingresos" icon={ArrowDownRightIcon} tone="positive" value={kpis.income} currency={currencyCode} hint="Ingresos confirmados del período" />
-            <StatCard label="Gastos" icon={ArrowUpRightIcon} tone="negative" value={kpis.expense} currency={currencyCode} hint="Gastos confirmados del período" />
-            <StatCard label="Resultado neto" icon={PiggyBankIcon} tone={Number(kpis.savings) >= 0 ? "positive" : "negative"} hint="Ingresos menos gastos confirmados">
+            <StatCard
+              label="Ingresos"
+              icon={ArrowDownRightIcon}
+              tone="positive"
+              value={kpis.income}
+              currency={currencyCode}
+              hint={comparison ? <DeltaBadge delta={comparison.income} comparedToLabel={comparison.label} /> : "Ingresos confirmados del período"}
+            />
+            <StatCard
+              label="Gastos"
+              icon={ArrowUpRightIcon}
+              tone="negative"
+              value={kpis.expense}
+              currency={currencyCode}
+              hint={comparison ? <DeltaBadge delta={comparison.expense} comparedToLabel={comparison.label} /> : "Gastos confirmados del período"}
+            />
+            <StatCard
+              label="Resultado neto"
+              icon={PiggyBankIcon}
+              tone={Number(kpis.savings) >= 0 ? "positive" : "negative"}
+              hint={comparison ? <DeltaBadge delta={comparison.savings} comparedToLabel={comparison.label} /> : "Ingresos menos gastos confirmados"}
+            >
               <MoneyAmount amount={kpis.savings} currency={currencyCode} variant="compact" sign="always" tone="auto" className="text-metric" />
             </StatCard>
             <StatCard
