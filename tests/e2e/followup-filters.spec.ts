@@ -111,3 +111,26 @@ test("§9.4 Metas: la búsqueda filtra por nombre", async ({ browser, baseURL })
   await expect(main.getByRole("link", { name: /Vacaciones a Brasil/ })).toBeVisible();
   await expect(main.getByRole("link", { name: /Fondo de emergencia/ })).toHaveCount(0);
 });
+
+test("§10 Calendario: el selector de moneda cambia el resumen (nunca combina)", async ({ browser, baseURL }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await signUpCompleteOnboardingAndStartTrial(page, baseURL!, { name: "Cl", email: `cl-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test` });
+
+  await createAccount(page, "Galicia", "ARS");
+  await createAccount(page, "Wise", "USD");
+  await expense(page, "Galicia", "15000", "Gasto ARS");
+  await page.goto("/transactions/new?type=EXPENSE");
+  await page.locator("#amount").fill("40");
+  await page.locator("#description").fill("Gasto USD");
+  await page.locator("#accountId").selectOption({ label: "Wise" });
+  await page.getByRole("button", { name: "Registrar gasto" }).click();
+  await expect(page).toHaveURL(/\/transactions$/);
+
+  await page.goto("/calendar");
+  const selector = page.getByRole("group", { name: "Moneda del resumen" });
+  await expect(selector).toBeVisible();
+  await selector.getByRole("link", { name: "USD" }).click();
+  await expect(page).toHaveURL(/currency=USD/);
+  await expect(page.getByText(/Este resumen es sólo en USD/)).toBeVisible();
+});

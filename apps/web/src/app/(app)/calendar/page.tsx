@@ -45,15 +45,16 @@ function shiftPeriod(period: string, delta: number): string {
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; day?: string; filter?: string; view?: string }>;
+  searchParams: Promise<{ period?: string; day?: string; filter?: string; view?: string; currency?: string }>;
 }) {
-  const { period: periodParam, day: dayParam, filter: filterParam, view: viewParam } = await searchParams;
+  const { period: periodParam, day: dayParam, filter: filterParam, view: viewParam, currency: currencyParam } = await searchParams;
   const user = await requireCurrentUser();
 
   const month = await service.getMonth({
     userId: user.id,
     timezone: user.timezone,
     baseCurrency: user.baseCurrency,
+    currency: currencyParam,
     period: periodParam,
   });
 
@@ -67,7 +68,7 @@ export default async function CalendarPage({
   const visibleEvents =
     activeFilter === "todos" ? month.events : month.events.filter((event) => event.kind === (activeFilter as CalendarEventKind));
 
-  const buildHref = (next: { period?: string; day?: string | null; filter?: string; view?: string }) => {
+  const buildHref = (next: { period?: string; day?: string | null; filter?: string; view?: string; currency?: string | null }) => {
     const params = new URLSearchParams();
     const nextView = next.view ?? view;
     if (nextView !== "month") params.set("view", nextView);
@@ -77,6 +78,8 @@ export default async function CalendarPage({
     if (nextFilter && nextFilter !== "todos") params.set("filter", nextFilter);
     const nextDay = next.day === undefined ? selectedDay : next.day;
     if (nextDay) params.set("day", nextDay);
+    const nextCurrency = next.currency === undefined ? (currencyCode !== user.baseCurrency ? currencyCode : null) : next.currency;
+    if (nextCurrency) params.set("currency", nextCurrency);
     const qs = params.toString();
     return qs ? `/calendar?${qs}` : "/calendar";
   };
@@ -198,6 +201,26 @@ export default async function CalendarPage({
         </div>
 
         <div className="flex flex-col gap-4">
+          {month.presentCurrencies.length > 1 ? (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Moneda del resumen">
+              <span className="mr-1 text-caption text-muted-foreground">Resumen en:</span>
+              {month.presentCurrencies.map((code) => (
+                <a
+                  key={code}
+                  href={buildHref({ currency: code === user.baseCurrency ? null : code, day: undefined })}
+                  aria-current={code === currencyCode ? "true" : undefined}
+                  className={
+                    code === currencyCode
+                      ? "rounded-full border border-brand-border bg-brand-subtle px-3 py-1 text-caption font-medium text-brand"
+                      : "rounded-full border border-border px-3 py-1 text-caption font-medium text-foreground-secondary hover:bg-secondary"
+                  }
+                >
+                  {code}
+                </a>
+              ))}
+            </div>
+          ) : null}
+
           <SectionCard title="Resumen del mes">
             <dl className="flex flex-col gap-3">
               <div className="flex items-center justify-between">

@@ -55,6 +55,8 @@ export type CalendarMonth = {
   };
   /** Currencies present among the month's events other than `currencyCode` (§10 — never summed). */
   excludedCurrencies: string[];
+  /** Every currency present in the month, for the §10 currency selector. */
+  presentCurrencies: string[];
 };
 
 function parsePeriod(period: string | undefined, timezone: string, now: Date): { year: number; month: number; period: string } {
@@ -70,7 +72,7 @@ export function createCalendarService(database = db) {
   const transfers = createTransferRepository(database);
 
   return {
-    async getMonth(input: { userId: string; timezone: string; baseCurrency: string; period?: string; now?: Date }): Promise<CalendarMonth> {
+    async getMonth(input: { userId: string; timezone: string; baseCurrency: string; currency?: string; period?: string; now?: Date }): Promise<CalendarMonth> {
       const now = input.now ?? new Date();
       const { year, month, period } = parsePeriod(input.period, input.timezone, now);
       const range = monthRangeForTimezone(year, month, input.timezone);
@@ -160,7 +162,11 @@ export function createCalendarService(database = db) {
 
       events.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
 
-      const currencyCode = input.baseCurrency;
+      // §10 — el resumen es en UNA moneda (nunca se suman). Por defecto la base; el usuario puede
+      // pedir otra de las presentes vía `currency`.
+      const presentCurrencies = [...new Set(events.map((event) => event.currencyCode))];
+      const currencyCode =
+        input.currency && presentCurrencies.includes(input.currency) ? input.currency : input.baseCurrency;
       const inBase = (event: CalendarEvent) => event.currencyCode === currencyCode;
       const sum = (predicate: (event: CalendarEvent) => boolean) =>
         events
@@ -205,6 +211,7 @@ export function createCalendarService(database = db) {
           },
         },
         excludedCurrencies,
+        presentCurrencies: presentCurrencies.slice().sort(),
       };
     },
   };
