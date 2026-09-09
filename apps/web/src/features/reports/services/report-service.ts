@@ -8,7 +8,7 @@ import {
   createUpcomingObligationQueries,
   db,
 } from "@know-finanzas/db";
-import { Money, monthRangeForTimezone, todayInTimezone } from "@know-finanzas/finance";
+import { convertAmount, isConvertiblePair, Money, monthRangeForTimezone, todayInTimezone, type FxQuote } from "@know-finanzas/finance";
 
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
 
@@ -56,6 +56,18 @@ export type ReportData = {
    * the UI must show the raw totals but must not make trend claims.
    */
   coverage: { excludedCurrencies: string[]; movementCount: number; sufficientData: boolean };
+  /**
+   * Set only when the report was asked to convert (`convert: true`) and a quote was available.
+   * Every total above then folds in the listed currencies at this quote — an explicit,
+   * estimated conversion the UI must label as such (spec 00 §285). `null` means the report is
+   * single-currency as usual.
+   */
+  conversion: {
+    convertedCurrencies: string[];
+    quote: { base: string; quote: string; bid: string; ask: string };
+    asOf: string;
+    stale: boolean;
+  } | null;
 };
 
 /** §9.9: minimum movements in the period before Panorama is allowed to describe a trend. */
@@ -199,9 +211,21 @@ export function createReportService(database = db) {
       currency?: string;
       period?: string;
       now?: Date;
+      /** When true and `fxQuote` is set, fold other currencies into `currency` at that quote. */
+      convert?: boolean;
+      /** The dólar-blue (or other) quote to convert at. Provided by the caller, never fetched here. */
+      fxQuote?: (FxQuote & { asOf: string; stale: boolean }) | null;
     }): Promise<ReportData> {
       const now = input.now ?? new Date();
       const currencyCode = input.currency ?? input.baseCurrency;
+      const quote = input.convert && input.fxQuote ? input.fxQuote : null;
+
+      /** Amount from `fromCode` expressed in `currencyCode`; identity when already there. */
+      const toDisplay = (amount: string, fromCode: string): string =>
+        fromCode === currencyCode || !quote ? amount : convertAmount(amount, fromCode, currencyCode, quote);
+      /** Rows we can include: the display currency, plus (in convert mode) convertible ones. */
+      const includable = (fromCode: string): boolean =>
+        fromCode === currencyCode || (quote != null && isConvertiblePair(fromCode, currencyCode, quote));
       const { year, month, period } = parsePeriod(input.period, input.timezone, now);
       const range = monthRangeForTimezone(year, month, input.timezone);
 
@@ -212,7 +236,7 @@ export function createReportService(database = db) {
       const prevSpan = shiftMonth(year, month, -1);
       const prevRange = monthRangeForTimezone(prevSpan.year, prevSpan.month, input.timezone);
 
-      const [monthlyRows, categorySpend, prevCategorySpend, categoryList, incomeActivity, liquidRows, debtRows, ...monthlyBack] = await Promise.all([
+      const [rawMonthly, rawCategorySpend, rawPrevCategorySpend, categoryList, rawIncomeActivity, rawLiquidRows, rawDebtRows, ...rawMonthlyBack] = await Promise.all([
         monthly.getMonthlyIncomeExpense(input.userId, { from: range.start, to: range.end }),
         budgets.getCategorySpendingForUser(input.userId, { from: range.start, to: range.end }),
         budgets.getCategorySpendingForUser(input.userId, { from: prevRange.start, to: prevRange.end }),
@@ -222,6 +246,75 @@ export function createReportService(database = db) {
         debtSummary.listDebtInputsForUser(input.userId),
         ...monthSpans.map((span) => monthly.getMonthlyIncomeExpense(input.userId, { from: span.range.start, to: span.range.end })),
       ]);
+
+      // Convert mode (spec 00 §285): rewrite every fetched row we can convert into the display
+      // currency, so all the single-currency aggregation below just works. Rows in a currency
+      // the quote can't reach are dropped here and reported under `excludedCurrencies`. Without
+      // a quote the arrays pass through untouched.
+      const convertedCurrencies = new Set<string>();
+      const money = (amount: string, from: string) => {
+        if (from !== currencyCode) convertedCurrencies.add(from);
+        return toDisplay(amount, from);
+      };
+      const monthMap = <T extends { currencyCode: string; incomeTotal: string; expenseTotal: string; netExpense?: string | null }>(rows: T[]): T[] =>
+        rows
+          .filter((row) => includable(row.currencyCode))
+          .map((row) => ({
+            ...row,
+            currencyCode,
+            incomeTotal: money(row.incomeTotal, row.currencyCode),
+            expenseTotal: money(row.expenseTotal, row.currencyCode),
+            netExpense: row.netExpense == null ? row.netExpense : money(row.netExpense, row.currencyCode),
+          }));
+      const spendMap = <T extends { currencyCode: string; expenseTotal: string; netExpense?: string | null }>(rows: T[]): T[] =>
+        rows
+          .filter((row) => includable(row.currencyCode))
+          .map((row) => ({
+            ...row,
+            currencyCode,
+            expenseTotal: money(row.expenseTotal, row.currencyCode),
+            netExpense: row.netExpense == null ? row.netExpense : money(row.netExpense, row.currencyCode),
+          }));
+
+      const monthlyRows = quote ? monthMap(rawMonthly) : rawMonthly;
+      const monthlyBack = quote ? rawMonthlyBack.map((rows) => monthMap(rows)) : rawMonthlyBack;
+      const categorySpend = quote ? spendMap(rawCategorySpend) : rawCategorySpend;
+      const prevCategorySpend = quote ? spendMap(rawPrevCategorySpend) : rawPrevCategorySpend;
+      const incomeActivity = quote
+        ? rawIncomeActivity
+            .filter((row) => includable(row.currencyCode))
+            .map((row) => ({ ...row, currencyCode, amount: money(row.amount, row.currencyCode) }))
+        : rawIncomeActivity;
+      const liquidRows = quote
+        ? rawLiquidRows
+            .filter((row) => includable(row.account.currencyCode))
+            .map((row) => {
+              const from = row.account.currencyCode;
+              return {
+                ...row,
+                account: { ...row.account, currencyCode, openingBalance: money(row.account.openingBalance, from) },
+                incomeTotal: money(row.incomeTotal, from),
+                expenseTotal: money(row.expenseTotal, from),
+                refundTotal: row.refundTotal == null ? row.refundTotal : money(row.refundTotal, from),
+                adjustmentInTotal: row.adjustmentInTotal == null ? row.adjustmentInTotal : money(row.adjustmentInTotal, from),
+                adjustmentOutTotal: row.adjustmentOutTotal == null ? row.adjustmentOutTotal : money(row.adjustmentOutTotal, from),
+                liabilityPaymentTotal: row.liabilityPaymentTotal == null ? row.liabilityPaymentTotal : money(row.liabilityPaymentTotal, from),
+              };
+            })
+        : rawLiquidRows;
+      const debtRows = quote
+        ? rawDebtRows
+            .filter((row) => includable(row.debt.currencyCode))
+            .map((row) => {
+              const from = row.debt.currencyCode;
+              return {
+                ...row,
+                debt: { ...row.debt, currencyCode },
+                installment: { ...row.installment, totalAmount: money(row.installment.totalAmount, from) },
+                allocatedAmount: money(row.allocatedAmount, from),
+              };
+            })
+        : rawDebtRows;
 
       const prevExpenseByCategoryId = new Map<string, number>();
       for (const row of prevCategorySpend) {
@@ -270,7 +363,13 @@ export function createReportService(database = db) {
         );
       const netWorth = liquidAssets.subtract(debtOutstanding);
 
-      const excludedCurrencies = [...new Set(liquidRows.map((row) => row.account.currencyCode).filter((code) => code !== currencyCode))];
+      // Currencies still left out of the totals: those we never converted — either convert mode
+      // is off, or the quote can't reach them.
+      const excludedCurrencies = [
+        ...new Set(
+          rawLiquidRows.map((row) => row.account.currencyCode).filter((code) => code !== currencyCode && !includable(code)),
+        ),
+      ];
 
       const months: MonthPoint[] = monthSpans.map((span, index) => {
         const rows = pickBase(monthlyBack[index] as Array<{ currencyCode: string; incomeTotal: string; expenseTotal: string; netExpense?: string }>);
@@ -363,6 +462,15 @@ export function createReportService(database = db) {
         },
         calculationVersion: 1,
         coverage: { excludedCurrencies, movementCount, sufficientData: movementCount >= SUFFICIENT_DATA_THRESHOLD },
+        conversion:
+          quote && convertedCurrencies.size > 0
+            ? {
+                convertedCurrencies: [...convertedCurrencies].sort(),
+                quote: { base: quote.base, quote: quote.quote, bid: quote.bid, ask: quote.ask },
+                asOf: quote.asOf,
+                stale: quote.stale,
+              }
+            : null,
       };
     },
   };

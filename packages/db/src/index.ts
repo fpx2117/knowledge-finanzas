@@ -30,6 +30,7 @@ import {
   createSubscriptionRepository,
   createTransactionRepository,
   createUserPreferencesRepository,
+  createFxRateRepository,
 } from "./repositories";
 
 export const accountRepository = createAccountRepository(db);
@@ -51,3 +52,4 @@ export const goalRepository = createGoalRepository(db);
 export const goalAllocationRepository = createGoalAllocationRepository(db);
 export const insightRepository = createInsightRepository(db);
 export const userPreferencesRepository = createUserPreferencesRepository(db);
+export const fxRateRepository = createFxRateRepository(db);

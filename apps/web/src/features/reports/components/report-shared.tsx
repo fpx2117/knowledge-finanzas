@@ -60,6 +60,7 @@ const TABS = [
   { label: "Flujo de caja", href: "/reports/cash-flow" },
   { label: "Patrimonio", href: "/reports/net-worth" },
   { label: "Categorías", href: "/reports/categories" },
+  { label: "Conversor", href: "/conversor" },
 ];
 
 /** Canonical report routes (spec 14 §8) — preserves `?period=`/`?currency=` across tabs. */
@@ -67,7 +68,7 @@ export function ReportsNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const carried = new URLSearchParams();
-  for (const key of ["period", "currency"]) {
+  for (const key of ["period", "currency", "convert"]) {
     const value = searchParams.get(key);
     if (value) carried.set(key, value);
   }
@@ -93,6 +94,41 @@ export function ReportsNav() {
         );
       })}
     </nav>
+  );
+}
+
+/**
+ * The disclosure that must sit next to any converted total (spec 00 §285 — la conversión es
+ * explícita y estimada). Shows the blue quote used, its age, and which currencies were folded in.
+ */
+export function ConversionNote({
+  conversion,
+  displayCurrency,
+}: {
+  conversion: {
+    convertedCurrencies: string[];
+    quote: { base: string; quote: string; bid: string; ask: string };
+    asOf: string;
+    stale: boolean;
+  } | null;
+  displayCurrency: string;
+}) {
+  if (!conversion) return null;
+  const fmt = (value: string) =>
+    new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(Number(value));
+  const when = new Date(conversion.asOf).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return (
+    <p className="rounded-md bg-muted/40 px-3 py-2 text-small text-muted-foreground">
+      Los totales incluyen tus cuentas en {conversion.convertedCurrencies.join(", ")} convertidas a{" "}
+      {displayCurrency} <strong className="text-foreground">≈ estimado</strong>, al dólar blue (compra{" "}
+      {fmt(conversion.quote.bid)} · venta {fmt(conversion.quote.ask)}), actualizado {when}
+      {conversion.stale ? " — no pudimos refrescar la cotización, puede estar desactualizada" : ""}.
+    </p>
   );
 }
 

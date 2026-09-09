@@ -194,6 +194,11 @@ export const env = createEnv({
     // diagnostic endpoint (which reports which optional capabilities are configured) is never
     // reachable without a secret; optional in development where nothing sensitive is at stake.
     INTERNAL_HEALTH_TOKEN: optionalSecret,
+    // Bearer token protecting the scheduled-refresh routes under /api/cron/* (e.g. the dólar
+    // blue quote refresh). When unset those routes 401 — the on-demand refresh path still
+    // works, quotes just aren't pre-warmed. In production a scheduler (Vercel/Railway cron)
+    // must send `Authorization: Bearer <CRON_SECRET>`.
+    CRON_SECRET: optionalSecret,
   },
   client: {},
   runtimeEnv: {
@@ -204,6 +209,7 @@ export const env = createEnv({
     NODE_ENV: process.env.NODE_ENV,
     RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME,
     REDIS_URL: process.env.REDIS_URL,
+    CRON_SECRET: process.env.CRON_SECRET,
     AI_ENABLED: process.env.AI_ENABLED,
     AI_CATEGORIZATION_ENABLED: process.env.AI_CATEGORIZATION_ENABLED,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,

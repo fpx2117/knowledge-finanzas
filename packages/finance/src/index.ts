@@ -72,6 +72,7 @@ export {
   monthRangeForTimezone,
   todayInTimezone,
 } from "./dates/timezone";
+export { convertAmount, isConvertiblePair, type FxQuote } from "./fx/convert";
 export { calculateBudget } from "./budgets/calculate-budget";
 export { BUDGET_NEAR_LIMIT_PERCENT, type BudgetUsageStatus } from "./budgets/budget-types";
 export { resolveBudgetAlertType, type BudgetAlertType } from "./budgets/budget-alerts";

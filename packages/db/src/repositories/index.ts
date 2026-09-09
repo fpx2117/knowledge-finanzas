@@ -55,3 +55,4 @@ export type { AICreditPool, PoolBalances } from "./ai-credits";
 export { createNotificationRepository } from "./notifications";
 export { createNotificationDeliveryRepository } from "./notification-deliveries";
 export { createNotificationPreferenceRepository } from "./notification-preferences";
+export { createFxRateRepository, type FxRateSource, type FxRateInput } from "./fx-rates";

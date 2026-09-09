@@ -5,19 +5,14 @@ import { StatCard } from "@/components/shared/stat-card";
 import { DeltaBadge } from "@/components/shared/delta-badge";
 import { DonutChart } from "@/components/charts/donut-chart";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
-import { createReportService } from "@/features/reports/services/report-service";
-import { BreakdownTable, ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
+import { BreakdownTable, ConversionNote, ExcludedCurrenciesNote, ReportsNav } from "@/features/reports/components/report-shared";
 import { ReportCurrencyPicker } from "@/features/reports/components/report-currency-picker";
+import { loadReport } from "@/features/reports/services/load-report";
 import { compactTotal, periodLabel, toSegments } from "@/features/reports/components/report-format";
 
-const service = createReportService();
-
-export default async function ExpensesReportPage({ searchParams }: { searchParams: Promise<{ period?: string; currency?: string }> }) {
-  const { period: periodParam, currency: currencyParam } = await searchParams;
+export default async function ExpensesReportPage({ searchParams }: { searchParams: Promise<{ period?: string; currency?: string; convert?: string }> }) {
   const user = await requireCurrentUser();
-  const currencies = await service.listReportCurrencies(user.id, user.baseCurrency);
-  const currency = currencyParam && currencies.includes(currencyParam) ? currencyParam : user.baseCurrency;
-  const report = await service.getReport({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, currency, period: periodParam });
+  const { currencies, report, canConvert, converting } = await loadReport(user, await searchParams);
   const { currencyCode, kpis, comparison, expenseByCategory, coverage } = report;
   const topCategory = expenseByCategory[0];
 
@@ -25,7 +20,8 @@ export default async function ExpensesReportPage({ searchParams }: { searchParam
     <div className="flex flex-col gap-8">
       <PageHeader title="Reportes / Gastos" description={`Distribución de gastos — ${periodLabel(report.period)}.`} actions={<HeaderActions />} />
       <ReportsNav />
-      <ReportCurrencyPicker basePath="/reports/expenses" currencies={currencies} active={report.currencyCode} period={report.period} />
+      <ReportCurrencyPicker basePath="/reports/expenses" currencies={currencies} active={report.currencyCode} period={report.period} converting={converting} canConvert={canConvert} />
+      <ConversionNote conversion={report.conversion} displayCurrency={currencyCode} />
       <ExcludedCurrenciesNote currencies={coverage.excludedCurrencies} />
 
       {/* §10.3 — total del período, variación, categoría principal. */}

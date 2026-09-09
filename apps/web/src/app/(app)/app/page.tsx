@@ -15,7 +15,7 @@ import {
   transactionRepository,
   db,
 } from "@know-finanzas/db";
-import { monthRangeForTimezone, Money, todayInTimezone } from "@know-finanzas/finance";
+import { convertAmount, isConvertiblePair, monthRangeForTimezone, Money, todayInTimezone } from "@know-finanzas/finance";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { HeaderActions } from "@/components/shared/header-actions";
@@ -36,6 +36,7 @@ import { createDashboardService } from "@/features/dashboard/services/dashboard-
 import { getBudgetOverview } from "@/features/dashboard/services/budget-overview";
 import { AvailableMoneyDialog } from "@/features/dashboard/components/available-money-dialog";
 import { QuickAddButton } from "@/features/capture/components/quick-add-button";
+import { getBlueQuote } from "@/features/fx/services/fx-service";
 
 const dashboardService = createDashboardService({
   balances: createAccountBalanceQueries(db),
@@ -60,7 +61,7 @@ export default async function DashboardPage() {
   const user = await requireCurrentUser();
   const now = new Date();
 
-  const [summary, budgets, categorySpend, categories, activeGoals, openInsights, uncategorizedCount] = await Promise.all([
+  const [summary, budgets, categorySpend, categories, activeGoals, openInsights, uncategorizedCount, blueQuote] = await Promise.all([
     dashboardService.getDashboardSummary({ userId: user.id, timezone: user.timezone, now }),
     getBudgetOverview(user, { budgets: budgetRepository, categories: categoryRepository, budgetQueries }, now),
     (() => {
@@ -75,6 +76,7 @@ export default async function DashboardPage() {
     // spec 01 §16 — hasta 2 insights ya detectados (sin re-correr el motor en cada render).
     insightRepository.listOpenForUser(user.id).catch(() => []),
     transactionRepository.countUncategorizedForUser(user.id).catch(() => 0),
+    getBlueQuote().catch(() => null),
   ]);
 
   // spec 01 §7.2 / §17 — hasta cuándo hay datos.
@@ -116,6 +118,7 @@ export default async function DashboardPage() {
           goals={activeGoals}
           insights={openInsights}
           baseCurrency={user.baseCurrency}
+          blueQuote={blueQuote}
         />
       )}
     </div>
@@ -137,6 +140,7 @@ function DashboardBody({
   goals,
   insights,
   baseCurrency,
+  blueQuote,
 }: {
   summary: Summary;
   budgets: BudgetItem[];
@@ -145,6 +149,7 @@ function DashboardBody({
   goals: GoalRow[];
   insights: InsightRow[];
   baseCurrency: string;
+  blueQuote: Awaited<ReturnType<typeof getBlueQuote>>;
 }) {
   // §8.3/RF-03/D-09: never sum currencies implicitly. `currency` drives the
   // headline KPIs; any other currency the user holds is surfaced separately
@@ -156,6 +161,29 @@ function DashboardBody({
   const projection = summary.projections.find((p) => p.currencyCode === currency) ?? summary.projections[0];
 
   const liquidTotal = summary.liquidBalances.find((b) => b.currencyCode === currency)?.total ?? "0";
+
+  // §8.3 — el consolidado NO reemplaza los KPIs de arriba (que siguen en una sola moneda). Es
+  // una lectura extra, explícita y estimada, para "¿cuánto tengo en total?" (spec 00 §285).
+  const consolidated = blueQuote
+    ? (() => {
+        const parts = otherCurrencyBalances.filter((b) => isConvertiblePair(b.currencyCode, currency, blueQuote.fx));
+        if (parts.length === 0) return null;
+        let total = Money.fromString(liquidTotal, currency);
+        let spendable = Money.fromString(projection?.spendable.spendable.toString() ?? liquidTotal, currency);
+        for (const b of parts) {
+          total = total.add(Money.fromString(convertAmount(b.total, b.currencyCode, currency, blueQuote.fx), currency));
+          const proj = summary.projections.find((p) => p.currencyCode === b.currencyCode);
+          const sp = proj?.spendable.spendable.toString() ?? b.total;
+          spendable = spendable.add(Money.fromString(convertAmount(sp, b.currencyCode, currency, blueQuote.fx), currency));
+        }
+        return {
+          total: total.toString(),
+          spendable: spendable.toString(),
+          currencies: parts.map((p) => p.currencyCode),
+          stale: blueQuote.stale,
+        };
+      })()
+    : null;
 
   const primaryMonthly = summary.monthly.find((m) => m.currencyCode === currency);
   const periodIncome = primaryMonthly?.income ?? "0";
@@ -300,6 +328,17 @@ function DashboardBody({
               );
             })}
           </div>
+          {consolidated ? (
+            <p className="text-caption text-muted-foreground">
+              Todo junto ≈{" "}
+              <MoneyAmount amount={consolidated.total} currency={currency} variant="compact" className="font-medium text-foreground" />{" "}
+              (disponible ≈ <MoneyAmount amount={consolidated.spendable} currency={currency} variant="compact" />) — incluye{" "}
+              {consolidated.currencies.join(", ")} al dólar blue{consolidated.stale ? ", cotización sin refrescar" : ""}.{" "}
+              <Link href="/conversor" className="font-medium text-brand hover:underline">
+                Conversor
+              </Link>
+            </p>
+          ) : null}
         </section>
       ) : null}
 

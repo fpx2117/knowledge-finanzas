@@ -323,6 +323,13 @@
       "when": 1788668209449,
       "tag": "0045_ordinary_tomas",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1788927937990,
+      "tag": "0046_last_scarecrow",
+      "breakpoints": true
     }
   ]
 }

@@ -1457,6 +1457,34 @@ export const userPreferences = pgTable("user_preferences", {
   check("user_preferences_week_starts_on_check", sql`${table.weekStartsOn} in (0, 1)`),
 ]);
 
+// Cached foreign-exchange quotes from an external source (currently only dolarapi's "dólar
+// blue", USD/ARS). Never part of the ledger — money is always stored in its own currency.
+// These rows only back the *explicit, labelled, estimated* conversions the reports and the
+// dashboard offer on demand (spec 00 §285). One row per (source, pair, provider timestamp);
+// the newest by `fetchedAt` is the one in effect.
+export const fxRateSourceEnum = pgEnum("fx_rate_source", ["DOLAR_BLUE"]);
+
+export const fxRates = pgTable("fx_rates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  source: fxRateSourceEnum("source").notNull(),
+  base: varchar("base", { length: 3 }).notNull(),
+  quote: varchar("quote", { length: 3 }).notNull(),
+  /** compra — the market pays this for one unit of `base`. */
+  bid: numeric("bid", { precision: 20, scale: 6 }).notNull(),
+  /** venta — the market charges this for one unit of `base`. */
+  ask: numeric("ask", { precision: 20, scale: 6 }).notNull(),
+  /** The source's own "last updated" timestamp for this quote. */
+  asOf: timestamp("as_of", { withTimezone: true }).notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("fx_rates_source_pair_as_of_unique").on(table.source, table.base, table.quote, table.asOf),
+  index("fx_rates_pair_fetched_idx").on(table.base, table.quote, table.fetchedAt),
+  check("fx_rates_base_length_check", sql`char_length(${table.base}) = 3`),
+  check("fx_rates_quote_length_check", sql`char_length(${table.quote}) = 3`),
+  check("fx_rates_positive_check", sql`${table.bid} > 0 and ${table.ask} > 0`),
+]);
+
 export type User = typeof users.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type Category = typeof categories.$inferSelect;
@@ -1492,3 +1520,4 @@ export type AnalyticsCohortMetric = typeof analyticsCohortMetrics.$inferSelect;
 export type NotificationWhatsappConsent = typeof notificationWhatsappConsent.$inferSelect;
 export type UserOnboarding = typeof userOnboarding.$inferSelect;
 export type UserFinancialProfile = typeof userFinancialProfiles.$inferSelect;
+export type FxRate = typeof fxRates.$inferSelect;
