@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 import { ProgressBar } from "@/components/shared/progress-bar";
 import { MoneyAmount } from "@/components/financial/money-amount";
+import { DeltaBadge } from "@/components/shared/delta-badge";
 import { cn } from "@/lib/utils";
 import type { CategorySlice } from "../services/report-service";
 
@@ -45,6 +46,7 @@ export function BreakdownTable({
             </span>
           </div>
           <ProgressBar value={slice.share * 100} aria-label={`${slice.name}: ${Math.round(slice.share * 100)}%`} />
+          {slice.delta ? <DeltaBadge delta={slice.delta} comparedToLabel="el mes anterior" className="self-start" /> : null}
         </li>
       ))}
     </ul>

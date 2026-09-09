@@ -278,6 +278,20 @@ function DashboardBody({
         </p>
       ) : null}
 
+      {/* spec 01 §11.6 — riesgo de saldo negativo. Descriptivo, con acceso al cálculo; sin alarmismo. */}
+      {projection?.cashflow.firstNegativeDate ? (
+        <p role="alert" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-warning-soft px-3 py-2.5 text-small text-[var(--warning)]">
+          <span>
+            Con los compromisos registrados, tu saldo proyectado en {currency} podría quedar en{" "}
+            <MoneyAmount amount={projection.cashflow.minimumProjectedBalance.toString()} currency={currency} variant="compact" /> el{" "}
+            {formatLongDate(projection.cashflow.minimumBalanceDate)}.
+          </span>
+          <Link href="/reports/cash-flow" className="font-medium underline">
+            Ver el cálculo
+          </Link>
+        </p>
+      ) : null}
+
       {/* Analytical row — §17.1 */}
       <section aria-label="Proyección y gastos" className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
         <SectionCard

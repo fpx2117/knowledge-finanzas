@@ -13,7 +13,7 @@ import { Money, monthRangeForTimezone, todayInTimezone } from "@know-finanzas/fi
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
 
 export type MonthPoint = { period: string; label: string; income: string; expense: string; net: string };
-export type CategorySlice = { id: string; name: string; amount: string; share: number };
+export type CategorySlice = { id: string; name: string; amount: string; share: number; delta?: Delta | null };
 
 /**
  * spec 08 §15 — variación vs. período comparable. `pct` es null cuando no hay base interpretable
@@ -194,16 +194,25 @@ export function createReportService(database = db) {
         ...entry,
         range: monthRangeForTimezone(entry.year, entry.month, input.timezone),
       }));
+      const prevSpan = shiftMonth(year, month, -1);
+      const prevRange = monthRangeForTimezone(prevSpan.year, prevSpan.month, input.timezone);
 
-      const [monthlyRows, categorySpend, categoryList, incomeActivity, liquidRows, debtRows, ...monthlyBack] = await Promise.all([
+      const [monthlyRows, categorySpend, prevCategorySpend, categoryList, incomeActivity, liquidRows, debtRows, ...monthlyBack] = await Promise.all([
         monthly.getMonthlyIncomeExpense(input.userId, { from: range.start, to: range.end }),
         budgets.getCategorySpendingForUser(input.userId, { from: range.start, to: range.end }),
+        budgets.getCategorySpendingForUser(input.userId, { from: prevRange.start, to: prevRange.end }),
         categories.listForUser(input.userId, { includeArchived: true }),
         activity.listRecentActivity(input.userId, { from: range.start, to: range.end, limit: 1000 }),
         balances.getAccountBalancesForUser(input.userId),
         debtSummary.listDebtInputsForUser(input.userId),
         ...monthSpans.map((span) => monthly.getMonthlyIncomeExpense(input.userId, { from: span.range.start, to: span.range.end })),
       ]);
+
+      const prevExpenseByCategoryId = new Map<string, number>();
+      for (const row of prevCategorySpend) {
+        if (row.currencyCode !== currencyCode || !row.categoryId) continue;
+        prevExpenseByCategoryId.set(row.categoryId, Number(row.netExpense ?? row.expenseTotal));
+      }
 
       const categoryName = new Map(categoryList.map((category) => [category.id, category.name]));
 
@@ -295,7 +304,13 @@ export function createReportService(database = db) {
             amount: Money.fromString(row.netExpense ?? row.expenseTotal, currencyCode),
           }))
           .filter((entry) => Number(entry.amount.toString()) > 0),
-      );
+      ).map((slice) => ({
+        // §14.2 "Vs. anterior" — variación de cada categoría contra el mes previo.
+        ...slice,
+        delta: prevExpenseByCategoryId.has(slice.id)
+          ? computeDelta(slice.amount, String(prevExpenseByCategoryId.get(slice.id)))
+          : null,
+      }));
 
       const incomeGroups = new Map<string, Money>();
       for (const row of incomeActivity) {
