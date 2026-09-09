@@ -14,12 +14,13 @@ export const GOAL_SORTS: Array<[GoalSort, string]> = [
   ["nombre", "Nombre"],
 ];
 
-function href(base: { status: string; sort: GoalSort; currency: string | null }, patch: Partial<typeof base>): string {
+function href(base: { status: string; sort: GoalSort; currency: string | null; query: string }, patch: Partial<typeof base>): string {
   const merged = { ...base, ...patch };
   const params = new URLSearchParams();
   if (merged.status !== "todas") params.set("status", merged.status);
   if (merged.sort !== "atencion") params.set("sort", merged.sort);
   if (merged.currency) params.set("currency", merged.currency);
+  if (merged.query) params.set("q", merged.query);
   const qs = params.toString();
   return qs ? `/goals?${qs}` : "/goals";
 }
@@ -35,16 +36,36 @@ export function GoalsControls({
   sort,
   currency,
   currencies,
+  query,
 }: {
   status: string;
   sort: GoalSort;
   currency: string | null;
   /** Currencies present among active goals — the filter only shows with 2+. */
   currencies: string[];
+  query: string;
 }) {
-  const base = { status, sort, currency };
+  const base = { status, sort, currency, query };
   return (
     <div className="flex flex-col gap-3">
+      {/* §9.4 búsqueda — GET form, carga completa, funciona sin JS. */}
+      <form method="get" action="/goals" className="flex gap-2" role="search">
+        {status !== "todas" ? <input type="hidden" name="status" value={status} /> : null}
+        {sort !== "atencion" ? <input type="hidden" name="sort" value={sort} /> : null}
+        {currency ? <input type="hidden" name="currency" value={currency} /> : null}
+        <input
+          type="search"
+          name="q"
+          defaultValue={query}
+          placeholder="Buscar una meta…"
+          aria-label="Buscar una meta"
+          className="h-9 w-full max-w-xs rounded-md border border-input bg-background px-3 text-small"
+        />
+        <button type="submit" className="rounded-md border border-border px-3 text-small font-medium text-foreground-secondary hover:bg-secondary">
+          Buscar
+        </button>
+      </form>
+
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Ordenar metas">
         <span className="mr-1 text-caption text-muted-foreground">Ordenar:</span>
         {GOAL_SORTS.map(([value, label]) => (

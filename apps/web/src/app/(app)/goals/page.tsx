@@ -49,11 +49,13 @@ function compareGoals(sort: GoalSort): (a: GoalDetail, b: GoalDetail) => number 
 export default async function GoalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; sort?: string; currency?: string }>;
+  searchParams: Promise<{ status?: string; sort?: string; currency?: string; q?: string }>;
 }) {
-  const { status, sort: sortParam, currency: currencyParam } = await searchParams;
+  const { status, sort: sortParam, currency: currencyParam, q: queryParam } = await searchParams;
   const activeTab = TAB_KEYS.some((tab) => tab.key === status) ? status! : "todas";
   const sort: GoalSort = GOAL_SORTS.some(([value]) => value === sortParam) ? (sortParam as GoalSort) : "atencion";
+  const query = (queryParam ?? "").trim().slice(0, 60);
+  const queryNorm = query.toLowerCase();
 
   const user = await requireCurrentUser();
   const today = todayInTimezone(new Date(), user.timezone);
@@ -121,15 +123,16 @@ export default async function GoalsPage({
     .filter((segment) => segment.value > 0)
     .sort((a, b) => b.value - a.value);
 
-  const listGoals = (activeTab === "completadas" ? completed : active).filter(
-    (goal) => !currency || goal.currencyCode === currency,
-  );
+  const listGoals = (activeTab === "completadas" ? completed : active)
+    .filter((goal) => !currency || goal.currencyCode === currency)
+    .filter((goal) => !queryNorm || goal.name.toLowerCase().includes(queryNorm));
 
   const tabHref = (key: string) => {
     const params = new URLSearchParams();
     if (key !== "todas") params.set("status", key);
     if (sort !== "atencion") params.set("sort", sort);
     if (currency) params.set("currency", currency);
+    if (query) params.set("q", query);
     const qs = params.toString();
     return qs ? `/goals?${qs}` : "/goals";
   };
@@ -141,7 +144,7 @@ export default async function GoalsPage({
       <TabBar tabs={TAB_KEYS.map((tab) => ({ ...tab, href: tabHref(tab.key) }))} active={activeTab} />
 
       {activeTab !== "completadas" ? (
-        <GoalsControls status={activeTab} sort={sort} currency={currency} currencies={activeCurrencyList} />
+        <GoalsControls status={activeTab} sort={sort} currency={currency} currencies={activeCurrencyList} query={query} />
       ) : null}
 
       <section aria-label="Resumen de metas" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -197,7 +200,11 @@ export default async function GoalsPage({
             </ul>
           ) : (
             <p className="py-6 text-center text-small text-muted-foreground">
-              {activeTab === "completadas" ? "Todavía no completaste ninguna meta." : "No tenés metas activas."}
+              {query || currency
+                ? "Ninguna meta coincide con el filtro."
+                : activeTab === "completadas"
+                  ? "Todavía no completaste ninguna meta."
+                  : "No tenés metas activas."}
             </p>
           )}
         </SectionCard>

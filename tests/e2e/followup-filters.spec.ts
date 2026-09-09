@@ -87,3 +87,27 @@ test("§9.2/§9.3 Metas: sort chips and the currency filter change the list", as
   await expect(main.getByRole("link", { name: /Zeta viaje/ })).toHaveCount(0);
   await expect(main.getByRole("link", { name: /Alfa fondo/ })).toBeVisible();
 });
+
+test("§9.4 Metas: la búsqueda filtra por nombre", async ({ browser, baseURL }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await signUpCompleteOnboardingAndStartTrial(page, baseURL!, { name: "Gs", email: `gs-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test` });
+
+  for (const name of ["Vacaciones a Brasil", "Fondo de emergencia"]) {
+    await page.goto("/goals/new");
+    await page.getByLabel("Nombre de la meta").fill(name);
+    await page.getByLabel("Categoría").selectOption("TRAVEL");
+    await page.getByLabel("Moneda").selectOption("ARS");
+    await page.getByLabel("Monto objetivo").fill("500000");
+    await page.getByRole("button", { name: /Crear meta/ }).click();
+    await page.waitForURL(/\/goals(\/[0-9a-f-]+)?$/, { timeout: 10000 });
+  }
+
+  await page.goto("/goals");
+  await page.getByRole("searchbox", { name: "Buscar una meta" }).fill("brasil");
+  await page.getByRole("button", { name: "Buscar", exact: true }).click();
+  await expect(page).toHaveURL(/q=brasil/);
+  const main = page.locator("#main-content");
+  await expect(main.getByRole("link", { name: /Vacaciones a Brasil/ })).toBeVisible();
+  await expect(main.getByRole("link", { name: /Fondo de emergencia/ })).toHaveCount(0);
+});

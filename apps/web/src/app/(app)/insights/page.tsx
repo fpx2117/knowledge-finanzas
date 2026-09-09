@@ -8,14 +8,21 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createInsightService } from "@/features/insights/services/insight-service";
 import { InsightCard } from "@/features/insights/components/insight-card";
 import { InsightsTabs } from "@/features/insights/components/insights-tabs";
+import { InsightsFamilyFilter } from "@/features/insights/components/insights-family-filter";
+import type { InsightFamily } from "@know-finanzas/finance";
 
 const service = createInsightService();
 
 // spec 09 §11 "Para vos" — la superficie principal: sólo insights activos, ordenados por
 // prioridad, sin score opaco (D-07). §11.1 separa "lo más importante ahora" del resto.
-export default async function InsightsPage() {
+export default async function InsightsPage({ searchParams }: { searchParams: Promise<{ family?: string }> }) {
   const user = await requireCurrentUser();
-  const { items, coverage } = await service.getParaVos(user);
+  const { items: allItems, coverage } = await service.getParaVos(user);
+
+  const presentFamilies = [...new Set(allItems.map((insight) => insight.family))];
+  const { family: familyParam } = await searchParams;
+  const activeFamily = (presentFamilies.includes(familyParam as InsightFamily) ? familyParam : null) as InsightFamily | null;
+  const items = activeFamily ? allItems.filter((insight) => insight.family === activeFamily) : allItems;
 
   const [hero, ...rest] = items;
   // §8.1 anti-saturación — como máximo 5 P0/P1 visibles sin agrupar; el resto se cuenta.
@@ -33,11 +40,17 @@ export default async function InsightsPage() {
 
       <InsightsTabs active="para-vos" />
 
+      {allItems.length > 0 ? <InsightsFamilyFilter present={presentFamilies} active={activeFamily} /> : null}
+
       {items.length === 0 ? (
         <EmptyState
           icon={<LightbulbIcon />}
-          title="No detectamos nada que requiera tu atención"
-          description="Cuando haya un cambio de gasto, un presupuesto al límite, un riesgo de caja o una meta atrasada con evidencia suficiente, lo vas a ver acá."
+          title={activeFamily ? "Sin observaciones de este tipo" : "No detectamos nada que requiera tu atención"}
+          description={
+            activeFamily
+              ? "Probá con otro filtro."
+              : "Cuando haya un cambio de gasto, un presupuesto al límite, un riesgo de caja o una meta atrasada con evidencia suficiente, lo vas a ver acá."
+          }
         />
       ) : (
         <>
