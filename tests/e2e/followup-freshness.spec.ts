@@ -66,3 +66,32 @@ test("Presupuestos shows the data-freshness note (§9.9)", async ({ browser, bas
   await page.goto("/budgets");
   await expect(page.getByText(/Datos hasta el/)).toBeVisible();
 });
+
+test("Cuentas shows the last-movement date per account (§13.3)", async ({ browser, baseURL }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await newUser(page, baseURL!, "acc");
+
+  await page.goto("/accounts/new");
+  await page.getByLabel("Nombre de la cuenta").fill("Galicia");
+  await page.getByLabel("Tipo").selectOption("BANK");
+  await page.getByLabel("Moneda").selectOption("ARS");
+  await page.getByLabel("Saldo inicial").fill("500000");
+  await page.getByLabel("Fecha de apertura").fill("2026-01-01");
+  await page.getByRole("button", { name: "Crear cuenta" }).click();
+  await expect(page).toHaveURL(/\/accounts$/);
+
+  // No movements yet.
+  await page.goto("/accounts");
+  await expect(page.getByText("Sin movimientos")).toBeVisible();
+
+  await page.goto("/transactions/new?type=EXPENSE");
+  await page.locator("#amount").fill("9000");
+  await page.locator("#description").fill("Compra");
+  await page.locator("#accountId").selectOption({ label: "Galicia" });
+  await page.getByRole("button", { name: "Registrar gasto" }).click();
+  await expect(page).toHaveURL(/\/transactions$/);
+
+  await page.goto("/accounts");
+  await expect(page.getByText(/Últ\. mov\./)).toBeVisible();
+});

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { LayersIcon, PiggyBankIcon, WalletIcon } from "lucide-react";
 
-import { accountRepository, createDebtSummaryQueries, db } from "@know-finanzas/db";
+import { accountRepository, createActivityQueries, createDebtSummaryQueries, db } from "@know-finanzas/db";
 import { Money } from "@know-finanzas/finance";
+import { formatDateInTimezone } from "@/lib/date";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
@@ -17,6 +18,7 @@ import { AccountsExplorer } from "@/features/accounts/components/accounts-explor
 
 const service = createAccountService({ accounts: accountRepository });
 const debtQueries = createDebtSummaryQueries(db);
+const activityQueries = createActivityQueries(db);
 
 const DONUT_COLORS = ["var(--chart-1)", "var(--chart-5)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
@@ -39,11 +41,25 @@ export async function AccountsView({ type }: { type?: AccountType }) {
   const description = "Administrá dónde está tu dinero y revisá qué movimientos explican cada saldo.";
   const breadcrumb = type ? [{ label: "Cuentas", href: "/accounts" }, { label: TYPE_LABEL[type] }] : undefined;
 
-  const [allAccounts, debtRows] = await Promise.all([
+  const [allAccounts, debtRows, recentActivity] = await Promise.all([
     service.listAccounts(user.id, { includeArchived: true }),
     debtQueries.listDebtInputsForUser(user.id),
+    activityQueries.listRecentActivity(user.id, { limit: 300 }).catch(() => []),
   ]);
-  const accounts = type ? allAccounts.filter((a) => a.type === type) : allAccounts;
+
+  // spec 02 §13.3 — "Último movimiento" por cuenta. `listRecentActivity` viene ordenada por
+  // fecha desc, así que la primera aparición de cada cuenta es su último movimiento.
+  const lastActivityByAccount = new Map<string, string>();
+  for (const row of recentActivity as Array<{ accountId?: string; occurredAt?: Date | string }>) {
+    if (row.accountId && !lastActivityByAccount.has(row.accountId) && row.occurredAt) {
+      lastActivityByAccount.set(row.accountId, formatDateInTimezone(new Date(row.occurredAt), user.timezone));
+    }
+  }
+
+  const accounts = (type ? allAccounts.filter((a) => a.type === type) : allAccounts).map((a) => ({
+    ...a,
+    lastActivityAt: lastActivityByAccount.get(a.id) ?? null,
+  }));
 
   const active = accounts.filter((a) => a.status === "ACTIVE");
 

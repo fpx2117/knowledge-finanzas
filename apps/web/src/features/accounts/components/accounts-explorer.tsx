@@ -23,6 +23,7 @@ import {
 import { StatusChip } from "@/components/shared/status-chip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MoneyAmount } from "@/components/financial/money-amount";
+import { formatShortDate } from "@/lib/format";
 
 type AccountRow = {
   id: string;
@@ -31,6 +32,7 @@ type AccountRow = {
   currencyCode: string;
   status: "ACTIVE" | "ARCHIVED";
   balance: string;
+  lastActivityAt: string | null;
 };
 
 const TYPE_META: Record<AccountRow["type"], { label: string; icon: typeof WalletIcon }> = {
@@ -166,9 +168,14 @@ export function AccountsExplorer({ accounts, defaultType = "ALL" }: { accounts: 
                         <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand-subtle text-brand">
                           <Icon className="size-4" />
                         </span>
-                        <Link href={`/accounts/${account.id}`} className="text-small font-medium text-foreground hover:text-brand hover:underline">
-                          {account.name}
-                        </Link>
+                        <span className="flex min-w-0 flex-col">
+                          <Link href={`/accounts/${account.id}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
+                            {account.name}
+                          </Link>
+                          <span className="text-caption text-muted-foreground">
+                            {account.lastActivityAt ? `Últ. mov. ${formatShortDate(account.lastActivityAt)}` : "Sin movimientos"}
+                          </span>
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="hidden text-small text-muted-foreground sm:table-cell">{meta.label}</TableCell>
