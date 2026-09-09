@@ -9,26 +9,27 @@
   --surface: #ffffff;
   --accent: var(--blue-600);
 
-  /* Knowledge Blue scale — design-system.md §3. Anchored on the official logo
-     mark colour (#0068ea, rgb(0 104 234)) at step 600; the rest of the ramp is
-     tuned to that hue so brand, primary, focus ring and chart-1 all match the
-     logo. */
-  --blue-50: #ecf3ff;
-  --blue-100: #d7e6ff;
-  --blue-200: #b0ccff;
-  --blue-300: #7aabff;
-  --blue-400: #3d86fb;
-  --blue-500: #1470f0;
-  --blue-600: #0068ea;
-  --blue-700: #0056c4;
-  --blue-800: #08469b;
-  --blue-900: #0d3c7c;
-  --blue-950: #0a274e;
+  /* KnowFinanzas brand ramp — anchored on the brand indigo #1737c8 at step 600
+     (KnowFinanzas.html reference). --brand-soft (#eef1ff) is step 50, --brand-dark
+     (#102ba6) is step 700; the rest of the ramp is tuned to that hue so brand,
+     primary, focus ring and chart-1 all match. */
+  --blue-50: #eef1ff;
+  --blue-100: #dfe4fb;
+  --blue-200: #c5cef6;
+  --blue-300: #9fadec;
+  --blue-400: #6d80df;
+  --blue-500: #3a53d2;
+  --blue-600: #1737c8;
+  --blue-700: #102ba6;
+  --blue-800: #102584;
+  --blue-900: #14225f;
+  --blue-950: #0d1740;
   --brand: var(--blue-600);
   --brand-hover: var(--blue-700);
   --brand-subtle: var(--blue-50);
   --brand-border: var(--blue-200);
-  --focus-ring: var(--brand);
+  /* Reference focus ring — a lighter periwinkle, not the brand itself. */
+  --focus-ring: #7691ff;
 
   /* Financial semantic tokens — design-system.md §5, §78
      --success/--warning/--negative darkened from their original values
@@ -36,21 +37,24 @@
      text-on-color/10 rendering fell below WCAG AA (4.5:1) at 12px for all
      three — recomputed against the actual composited /10 background (not
      plain white) to land each at >=4.5:1 real (F19.1b). */
-  --success: #117d39;
-  --success-soft: #f0fdf4;
-  --success-border: #bbf7d0;
-  --negative: #d02424;
-  --negative-soft: #fef2f2;
-  --negative-border: #fecaca;
-  --warning: #a55a05;
-  --warning-soft: #fffbeb;
-  --warning-border: #fde68a;
-  /* Vivid solid-fill variants — for progress bars, chart marks and status dots,
-     where the token sits on its own (not as text over a /10 tint) so it can be
-     brighter than the WCAG-tuned text colours above. */
-  --success-vivid: #16a34a;
-  --warning-vivid: #ea9006;
-  --negative-vivid: #e0332f;
+  /* Financial semantics — muted, low-chroma tones from the KnowFinanzas.html
+     reference (--positive #238368, --negative #b75953, --warning #8b681f) with
+     their pale tinted backgrounds. */
+  --success: #238368;
+  --success-soft: #edf7f2;
+  --success-border: #cfe8dd;
+  --negative: #b75953;
+  --negative-soft: #fff0ed;
+  --negative-border: #f2d6d1;
+  --warning: #8b681f;
+  --warning-soft: #fff9e9;
+  --warning-border: #ecdeb8;
+  /* Vivid solid-fill variants — for progress bars, chart marks and status dots.
+     The reference uses the same muted tones for meters, so these stay close to
+     the base values (a touch more saturated). */
+  --success-vivid: #1f8a6b;
+  --warning-vivid: #b07d1f;
+  --negative-vivid: #c25a53;
 
   /* Calendario event category colours — visual-design-personal.md §17.6.
      Income green / expense blue / obligation red / transfer violet / reminder
@@ -72,29 +76,30 @@
   --financial-warning-soft: var(--warning-soft);
   --financial-neutral: var(--muted-foreground);
 
-  /* Neutral system — design-system.md §4 */
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --surface-secondary: #f8fafc;
-  --surface-tertiary: #f1f5f9;
-  --foreground-secondary: #475569;
-  --foreground-muted: #64748b;
-  --border-subtle: #f1f5f9;
-  --border-strong: #cbd5e1;
+  /* Neutral system — KnowFinanzas.html reference: --bg #f7f8fb, --ink #1c2539,
+     --muted #717b8e, --subtle #939aad, --border #e9ecf2. */
+  --background: #f7f8fb;
+  --foreground: #1c2539;
+  --surface-secondary: #f7f8fb;
+  --surface-tertiary: #f1f3f8;
+  --foreground-secondary: #4d576c;
+  --foreground-muted: #717b8e;
+  --border-subtle: #f1f3f8;
+  --border-strong: #d7dce6;
 
   --card: var(--surface);
   --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
   --primary: var(--brand);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --primary-foreground: #ffffff;
+  --secondary: #f4f6fa;
+  --secondary-foreground: #485368;
+  --muted-foreground: #717b8e;
+  --accent-foreground: #ffffff;
   --destructive: var(--negative);
-  --border: #e2e8f0;
-  --input: oklch(0.922 0 0);
+  --border: #e9ecf2;
+  --input: #dfe4ee;
   --ring: var(--focus-ring);
   /* Chart tokens — design-system.md §31/§79. Progresión controlada de
      Knowledge Blue + neutral (evitar "rainbow charts"); verde/rojo/ámbar
@@ -105,15 +110,17 @@
   --chart-3: var(--blue-300);
   --chart-4: var(--border-strong);
   --chart-5: var(--blue-800);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Reference cards use a large 22px corner; the fixed radius scale below keys
+     buttons/inputs/dialogs off their own values. */
+  --radius: 22px;
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--brand-subtle);
+  --sidebar-accent-foreground: var(--brand);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--focus-ring);
 }
 
 * { box-sizing: border-box; }
@@ -136,7 +143,7 @@ p { text-wrap: pretty; }
 svg.lucide { stroke-width: 1.5px; }
 
 button, a { font: inherit; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
 
 
 
@@ -153,20 +160,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   --font-sans: var(--font-sans);
 
   /* Typography scale — design-system.md §10 */
-  --text-display: 36px;
+  /* Reference: headings are Satoshi Black (900) with tight tracking; h1 32/1.25
+     at -1.2px, h2 16/700, h3 15/700. */
+  --text-display: 34px;
   --text-display--line-height: 40px;
-  --text-display--font-weight: 600;
-  --text-display--letter-spacing: -0.03em;
-  --text-h1: 30px;
-  --text-h1--line-height: 36px;
-  --text-h1--font-weight: 600;
-  --text-h1--letter-spacing: -0.025em;
-  --text-h2: 24px;
-  --text-h2--line-height: 32px;
-  --text-h2--font-weight: 600;
-  --text-h3: 20px;
-  --text-h3--line-height: 28px;
-  --text-h3--font-weight: 600;
+  --text-display--font-weight: 900;
+  --text-display--letter-spacing: -0.037em;
+  --text-h1: 32px;
+  --text-h1--line-height: 40px;
+  --text-h1--font-weight: 900;
+  --text-h1--letter-spacing: -0.037em;
+  --text-h2: 18px;
+  --text-h2--line-height: 24px;
+  --text-h2--font-weight: 700;
+  --text-h2--letter-spacing: -0.022em;
+  --text-h3: 16px;
+  --text-h3--line-height: 22px;
+  --text-h3--font-weight: 700;
+  --text-h3--letter-spacing: -0.013em;
   --text-body-lg: 16px;
   --text-body-lg--line-height: 24px;
   --text-body: 14px;
@@ -178,12 +189,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   /* Financial figures — visual-design-personal.md §5.3 (Metric XL / Metric L). */
   --text-metric-xl: 30px;
   --text-metric-xl--line-height: 36px;
-  --text-metric-xl--font-weight: 500;
-  --text-metric-xl--letter-spacing: -0.02em;
-  --text-metric: 24px;
+  --text-metric-xl--font-weight: 700;
+  --text-metric-xl--letter-spacing: -0.035em;
+  --text-metric: 23px;
   --text-metric--line-height: 30px;
-  --text-metric--font-weight: 500;
-  --text-metric--letter-spacing: -0.015em;
+  --text-metric--font-weight: 700;
+  --text-metric--letter-spacing: -0.03em;
 
   /* Spacing scale — design-system.md §12 (1=4px…16=64px). Intentionally not
      overridden: Tailwind v4's built-in --spacing (0.25rem base, multiplied
@@ -253,13 +264,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
      cards=lg(12px), dialogs=xl(16px). Valores fijos (no derivados de
      --radius) porque el Design System define 4 valores independientes,
      no una progresión de un único múltiplo base. */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Reference: buttons 10px (small 9px), inputs 10px, nav items 11px, cards 22px,
+     dialogs ~23px. */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+  --radius-2xl: 26px;
+  --radius-3xl: 32px;
+  --radius-4xl: 40px;
 
   /* z-index scale — spec 13 §21.4: escala central única, ningún componente usa un z-index
      arbitrario. Orden conceptual: base < raised < sticky < popover < modal < command palette <
@@ -283,9 +296,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
   /* Elevation scale — design-system.md §17. Cards normales no necesitan
      sombra (usan borde, --border); reservar para dropdown/dialog/floating. */
-  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.05);
-  --shadow-md: 0 4px 12px oklch(0 0 0 / 0.08);
-  --shadow-floating: 0 12px 32px oklch(0 0 0 / 0.14);
+  /* Reference: --shadow is barely-there (0 4px 18px rgb(20 35 80 / 3%)); floating
+     elements (dialogs) get a deep soft drop. */
+  --shadow-sm: 0 1px 2px rgb(20 35 80 / 0.04);
+  --shadow-md: 0 4px 18px rgb(20 35 80 / 0.04);
+  --shadow-floating: 0 25px 100px rgb(12 22 55 / 0.2);
 }
 
 /* Dark theme — every token the light `:root` defines gets a dark value here, or it renders with
@@ -319,12 +334,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   --input: oklch(1 0 0 / 15%);
   --ring: var(--brand);
 
-  /* Brand tints over the dark ground. */
-  --brand: #2f86ff;
-  --brand-hover: #57a0ff;
+  /* Brand tints over the dark ground — a lightened cut of the #1737c8 indigo so
+     it stays legible on the dark surface. */
+  --brand: #6f86ff;
+  --brand-hover: #8b9cff;
   --brand-subtle: color-mix(in oklch, var(--brand) 16%, transparent);
   --brand-border: color-mix(in oklch, var(--brand) 35%, transparent);
-  --focus-ring: var(--brand);
+  --focus-ring: #8b9cff;
   --info: var(--brand);
   --info-soft: var(--brand-subtle);
 
@@ -351,8 +367,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   --event-reminder: var(--warning-vivid);
 
   /* Charts — chart-1 stays a light Knowledge-Blue tint; the rest step through neutral. */
-  --chart-1: #5b9bff;
-  --chart-2: #3d6fc7;
+  --chart-1: #8b9cff;
+  --chart-2: #5266d6;
   --chart-3: oklch(0.55 0.006 265);
   --chart-4: oklch(0.42 0.006 265);
   --chart-5: #7db0ff;
