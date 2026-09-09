@@ -193,7 +193,8 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
                       <TableHead className={`hidden sm:table-cell ${HEAD}`}>Tipo</TableHead>
                       <TableHead className={`hidden sm:table-cell ${HEAD}`}>Fecha</TableHead>
                       <TableHead className={`text-right ${HEAD}`}>Monto</TableHead>
-                      <TableHead className={`pr-5 sm:pr-6 ${HEAD}`}>Estado</TableHead>
+                      <TableHead className={HEAD}>Estado</TableHead>
+                      <TableHead className="w-px pr-5 sm:pr-6" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -220,8 +221,20 @@ export default async function ObligationsPage({ searchParams }: { searchParams: 
                               <MoneyAmount amount={item.remainingAmount} currency={item.currencyCode} variant="compact" className="text-small font-medium" />
                             </span>
                           </TableCell>
-                          <TableCell className="pr-5 sm:pr-6">
+                          <TableCell>
                             <StatusChip tone={meta.tone}>{meta.label}</StatusChip>
+                          </TableCell>
+                          {/* §9.7 — acción rápida por fila: pagar la cuota (para deudas no pagadas). */}
+                          <TableCell className="pr-5 text-right sm:pr-6">
+                            {item.href && item.sourceType === "DEBT_INSTALLMENT" ? (
+                              <Link href={item.href} className="whitespace-nowrap text-caption font-medium text-brand hover:underline">
+                                Registrar pago
+                              </Link>
+                            ) : item.href ? (
+                              <Link href={item.href} className="whitespace-nowrap text-caption text-muted-foreground hover:text-foreground">
+                                Ver
+                              </Link>
+                            ) : null}
                           </TableCell>
                         </TableRow>
                       );
