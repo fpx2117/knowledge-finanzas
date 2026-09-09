@@ -1,5 +1,6 @@
 import { NotificationButton } from "./notification-button";
 import { SidebarToggle } from "./sidebar-toggle";
+import { ThemeToggle } from "./theme-toggle";
 import { CommandPaletteTrigger } from "@/features/shell/components/command-palette-trigger";
 
 // Spec 13 §9 — the desktop app header holds only *global* actions (sidebar toggle, search,
@@ -12,7 +13,10 @@ export function AppHeader({ unreadCount = 0 }: { unreadCount?: number }) {
         <SidebarToggle />
         <CommandPaletteTrigger />
       </div>
-      <NotificationButton unreadCount={unreadCount} />
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <NotificationButton unreadCount={unreadCount} />
+      </div>
     </header>
   );
 }

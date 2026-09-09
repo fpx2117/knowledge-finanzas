@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 import { Field, fieldControlClass } from "@/components/shared/form-field";
@@ -26,6 +27,7 @@ function Toggle({ name, label, hint, defaultChecked }: { name: string; label: st
 
 export function PreferencesForm({ defaults }: { defaults: Prefs }) {
   const router = useRouter();
+  const { setTheme } = useTheme();
   const [state, action, pending] = useActionState(updatePreferencesAction, initial);
   if (state?.ok) router.refresh();
 
@@ -40,7 +42,13 @@ export function PreferencesForm({ defaults }: { defaults: Prefs }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Apariencia" htmlFor="theme">
-          <select id="theme" name="theme" defaultValue={defaults.theme} className={fieldControlClass}>
+          <select
+            id="theme"
+            name="theme"
+            defaultValue={defaults.theme}
+            onChange={(event) => setTheme(event.target.value.toLowerCase())}
+            className={fieldControlClass}
+          >
             <option value="SYSTEM">Seguir el sistema</option>
             <option value="LIGHT">Claro</option>
             <option value="DARK">Oscuro</option>

@@ -62,7 +62,7 @@ export function InstitutionLogo({
         alt=""
         aria-hidden="true"
         className={cn(
-          "shrink-0 bg-card object-contain p-1 outline outline-1 -outline-offset-1 outline-[oklch(0_0_0/0.08)]",
+          "shrink-0 bg-card object-contain p-1 outline outline-1 -outline-offset-1 outline-border",
           dims.box,
           dims.radius,
           className,

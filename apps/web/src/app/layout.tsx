@@ -5,6 +5,7 @@ import { satoshi } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "Know Finanzas",
@@ -17,10 +18,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={cn("font-sans", satoshi.variable)}>
+    <html lang="es" className={cn("font-sans", satoshi.variable)} suppressHydrationWarning>
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster duration={6000} />
+        <ThemeProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster duration={6000} />
+        </ThemeProvider>
       </body>
     </html>
   );

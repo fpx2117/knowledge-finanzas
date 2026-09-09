@@ -2,11 +2,13 @@
 
 // Last-resort boundary for errors thrown in the root layout itself. It replaces
 // the whole document, so it must render its own <html>/<body>. Route-level
-// error.tsx files handle everything below the layout.
+// error.tsx files handle everything below the layout. Colours come from the
+// design tokens (globals.css is still injected here); `color-scheme` lets the
+// browser paint a matching ground if a token ever fails to resolve.
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <html lang="es">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "#f8fafc", color: "#0f172a" }}>
+    <html lang="es" style={{ colorScheme: "light dark" }}>
+      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif", background: "var(--background)", color: "var(--foreground)" }}>
         <main
           style={{
             minHeight: "100svh",
@@ -20,7 +22,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
           }}
         >
           <h1 style={{ fontSize: "1.75rem", margin: 0 }}>Algo salió mal</h1>
-          <p style={{ maxWidth: "28rem", color: "#64748b" }}>
+          <p style={{ maxWidth: "28rem", color: "var(--muted-foreground)" }}>
             Ocurrió un error inesperado. Tus datos financieros están a salvo.
           </p>
           <button
@@ -32,8 +34,8 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
               padding: "0 1.25rem",
               borderRadius: "0.5rem",
               border: 0,
-              background: "#0068ea",
-              color: "#fff",
+              background: "var(--brand)",
+              color: "var(--primary-foreground)",
               fontSize: "0.875rem",
               cursor: "pointer",
             }}
