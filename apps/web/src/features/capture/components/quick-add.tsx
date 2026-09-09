@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { SparklesIcon, ArrowRightIcon } from "lucide-react";
 
 import { FinanceIcon, type FinanceIconName } from "@/design-system/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,7 +15,6 @@ import { MerchantAutocomplete } from "./merchant-autocomplete";
 import type { MerchantAutocompleteSuggestion } from "../lib/merchant-autocomplete";
 import {
   getQuickAddContextAction,
-  parseQuickTextAction,
   quickCreateTransactionAction,
   quickVoidTransactionAction,
   type QuickAddContext,
@@ -60,14 +58,6 @@ export function QuickAdd({
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [amountHints, setAmountHints] = useState<string[]>([]);
   const [categoryTrust, setCategoryTrust] = useState<"ask" | "auto_undo" | "silent" | null>(null);
-  const [nlText, setNlText] = useState("");
-  const [interpretation, setInterpretation] = useState<{
-    text: string;
-    ambiguities: string[];
-    source: "DETERMINISTIC" | "AI";
-  } | null>(null);
-  const [parsing, startParse] = useTransition();
-  const parsingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
   // Idempotency key (spec 14 §38): one per movement intent — refreshed each time the dialog
@@ -96,8 +86,6 @@ export function QuickAdd({
     setSelectedMerchant(null);
     setAllowDuplicate(false);
     setAmountHints([]);
-    setNlText("");
-    setInterpretation(null);
     setShowDetail(false);
   };
 
@@ -144,15 +132,11 @@ export function QuickAdd({
       setSelectedMerchant(null);
       setAmountHints([]);
       setShowDetail(Boolean(prefill.categoryId || prefill.merchant));
-      setNlText("");
-      setInterpretation(null);
     } else {
       setForm(emptyForm);
       setTemplateId(null);
       setSelectedMerchant(null);
       setAmountHints([]);
-      setNlText("");
-      setInterpretation(null);
       setShowDetail(false);
       setType("EXPENSE");
     }
@@ -195,43 +179,6 @@ export function QuickAdd({
     requestAnimationFrame(() => document.getElementById("qa-amount")?.focus());
   }
 
-  function runParse() {
-    const text = nlText.trim();
-    if (!text || parsingRef.current) return;
-    parsingRef.current = true;
-    const operationId = crypto.randomUUID();
-    startParse(async () => {
-      try {
-        const parsed = await parseQuickTextAction(text, operationId);
-        if (parsed.type === "TRANSFER") {
-          setSelectedMerchant(null);
-          setInterpretation({ text: parsed.interpretation, ambiguities: parsed.ambiguities, source: parsed.source });
-          setType("TRANSFER");
-          return;
-        }
-        setType(parsed.type);
-        setTemplateId(null);
-        setSelectedMerchant(parsed.merchantId && parsed.merchant ? {
-          id: parsed.merchantId,
-          name: parsed.merchant,
-          categoryId: parsed.categoryId,
-        } : null);
-        setCategoryTrust(parsed.merchantId ? parsed.categoryAutomationLevel : null);
-        setForm((f) => ({
-          ...f,
-          amount: parsed.amount ?? f.amount,
-          description: parsed.description,
-          merchant: parsed.type === "EXPENSE" ? parsed.merchant ?? "" : "",
-          categoryId: parsed.merchantId ? "" : parsed.categoryId ?? "",
-        }));
-        if (parsed.merchant || parsed.categoryId) setShowDetail(true);
-        setInterpretation({ text: parsed.interpretation, ambiguities: parsed.ambiguities, source: parsed.source });
-      } finally {
-        parsingRef.current = false;
-      }
-    });
-  }
-
   const errors = state?.ok === false && "error" in state ? state.error.fieldErrors ?? {} : {};
   const duplicateOf = state?.ok === false && "duplicateOf" in state ? state.duplicateOf : null;
   const isTxn = type === "EXPENSE" || type === "INCOME";
@@ -251,11 +198,9 @@ export function QuickAdd({
   const categoryOrigin: InferenceOrigin | null =
     selectedCategoryName || !suggestedCategoryName
       ? null
-      : interpretation && !selectedMerchant
-        ? "text"
-        : categoryTrust === "ask"
-          ? "review"
-          : "history";
+      : categoryTrust === "ask"
+        ? "review"
+        : "history";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -342,48 +287,6 @@ export function QuickAdd({
                   ))}
                 </div>
               ) : null}
-
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="qa-nl" className="text-caption font-medium text-muted-foreground">
-                  Escribilo en una frase
-                </label>
-                <p className="text-caption text-muted-foreground">
-                  Primero se procesa sin IA. Si hay dudas, la IA puede usar 1 crédito.
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    id="qa-nl"
-                    value={nlText}
-                    maxLength={240}
-                    onChange={(e) => setNlText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        runParse();
-                      }
-                    }}
-                    placeholder={type === "INCOME" ? "cobré 250 mil de honorarios" : "gasté 14k en nafta con Galicia"}
-                    className={fieldControlClass}
-                  />
-                  <Button type="button" variant="outline" size="icon" aria-label="Interpretar" disabled={parsing} onClick={runParse}>
-                    {parsing ? <SparklesIcon className="size-4 animate-pulse" /> : <ArrowRightIcon className="size-4" />}
-                  </Button>
-                </div>
-                {interpretation ? (
-                  <div className="rounded-md bg-brand-subtle px-2.5 py-1.5 text-caption text-foreground-secondary">
-                    <span className="flex items-center gap-1.5">
-                      <SparklesIcon className="size-3.5 text-brand" />
-                      {interpretation.source === "AI" ? "IA · " : null}
-                      {interpretation.text}
-                    </span>
-                    {interpretation.ambiguities.map((a) => (
-                      <span key={a} className="mt-0.5 block text-[var(--warning)]">
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
 
               <form ref={formRef} action={action} className="flex flex-col gap-3.5">
                 <input type="hidden" name="type" value={type} />
