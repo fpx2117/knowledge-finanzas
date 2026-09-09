@@ -93,8 +93,18 @@ function NavGroup({
         </button>
       </div>
 
-      {expanded ? (
-        <ul className="mb-1 ml-[1.55rem] mt-0.5 flex flex-col gap-0.5 border-l border-border pl-3">
+      {/* §6.8/§6.9 — el submenú se contrae/expande con animación. Truco grid-rows 0fr↔1fr: no hace
+          falta medir la altura. `inert` lo saca del foco / a11y cuando está cerrado. */}
+      <div
+        className={cn(
+          "grid overflow-hidden transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none",
+          expanded ? "visible grid-rows-[1fr] opacity-100" : "invisible grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <ul
+          inert={!expanded || undefined}
+          className="mb-1 ml-[1.55rem] mt-0.5 flex min-h-0 flex-col gap-0.5 border-l border-border pl-3"
+        >
           {item.children!.map((child) => {
             const active = isNavChildActive(pathname, child.href);
             return (
@@ -114,7 +124,7 @@ function NavGroup({
             );
           })}
         </ul>
-      ) : null}
+      </div>
     </li>
   );
 }
