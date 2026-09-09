@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { accounts, transactions, transfers } from "../schema";
 
@@ -54,6 +54,26 @@ export function createTransferRepository(database: Database) {
 
     listForUser(userId: string, options: { limit?: number; offset?: number } = {}) {
       return database.select().from(transfers).where(eq(transfers.userId, userId)).orderBy(asc(transfers.occurredAt)).limit(options.limit ?? 50).offset(options.offset ?? 0);
+    },
+
+    /** Every transfer for the user, newest first, with a `voided` flag (both legs voided). */
+    async listForUserWithStatus(userId: string) {
+      const rows = await database
+        .select()
+        .from(transfers)
+        .where(eq(transfers.userId, userId))
+        .orderBy(desc(transfers.occurredAt), desc(transfers.createdAt));
+      if (rows.length === 0) return [];
+      const legStatus = await database
+        .select({
+          transferId: transactions.transferId,
+          anyPosted: sql<boolean>`bool_or(${transactions.status} = 'POSTED')`,
+        })
+        .from(transactions)
+        .where(and(eq(transactions.userId, userId), isNotNull(transactions.transferId)))
+        .groupBy(transactions.transferId);
+      const posted = new Map(legStatus.map((row) => [row.transferId, row.anyPosted]));
+      return rows.map((transfer) => ({ ...transfer, voided: posted.get(transfer.id) !== true }));
     },
 
     voidLegPair(transferId: string, userId: string, voidedAt: Date) {
