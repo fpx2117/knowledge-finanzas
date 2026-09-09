@@ -1,3 +1,4 @@
+import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -46,6 +47,23 @@ function Button({
   size = "default",
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // `<Button render={<Link href="…">…</Link>}>` is a navigation link that only *looks* like a
+  // button. Base UI's Button would force button semantics on it (`role="button"`, Space handler,
+  // and a dev-only warning about a non-<button> element). Instead, style the passed element
+  // directly so it keeps its native <a> link semantics.
+  if (React.isValidElement<{ className?: string; children?: React.ReactNode }>(props.render)) {
+    const el = props.render
+    return React.cloneElement(
+      el,
+      {
+        "data-slot": "button",
+        className: cn(buttonVariants({ variant, size }), el.props.className, className),
+      } as React.HTMLAttributes<HTMLElement>,
+      // `<Button render={<Link href="…" />}>Label</Button>` puts the label on the Button.
+      el.props.children ?? props.children,
+    )
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"

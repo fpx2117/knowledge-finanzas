@@ -72,6 +72,27 @@ test.describe("sidebar (spec §5–6, §18)", () => {
 
     await context.close();
   });
+
+  test("a section submenu expands and collapses (spec §6.8/§6.9)", async ({ browser, baseURL }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await newUser(page, baseURL!, "submenu");
+    await page.goto("/app");
+
+    const nav = page.getByRole("navigation", { name: "Navegación principal" }).first();
+    const subLink = nav.getByRole("link", { name: "Recurrentes", exact: true });
+
+    // Collapsed by default (not on a /transactions route) → the child is hidden (0 height, inert).
+    await expect(subLink).toBeHidden();
+
+    await nav.getByRole("button", { name: "Expandir Transacciones" }).click();
+    await expect(subLink).toBeVisible();
+
+    await nav.getByRole("button", { name: "Contraer Transacciones" }).click();
+    await expect(subLink).toBeHidden();
+
+    await context.close();
+  });
 });
 
 test.describe("sidebar collapse (spec §6.10–6.12)", () => {
