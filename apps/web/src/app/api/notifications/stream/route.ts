@@ -60,7 +60,9 @@ export async function GET() {
         if (newest && newest.id !== lastSeenNewestId) {
           const alreadySeen = lastSeenNewestId === null; // first tick: seed, don't toast history
           lastSeenNewestId = newest.id;
-          if (!alreadySeen && (newest.priority === "HIGH" || newest.priority === "CRITICAL")) {
+          // Push every new notification except LOW (those only bump the unread badge via
+          // `snapshot`); the client decides whether to toast.
+          if (!alreadySeen && newest.priority !== "LOW") {
             safeEnqueue(sseEvent("created", { id: newest.id, type: newest.type, category: newest.category, priority: newest.priority, metadata: newest.metadata, createdAt: newest.createdAt }));
           }
         }

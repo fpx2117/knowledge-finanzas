@@ -6,6 +6,7 @@ import type { NavBadgeCounts } from "./nav-items";
 import { QuickAddRoot } from "@/features/capture/components/quick-add-root";
 import { CommandPaletteRoot } from "@/features/shell/components/command-palette-root";
 import { SessionSync } from "@/features/shell/components/session-sync";
+import { NotificationsProvider } from "@/features/notifications/components/notifications-provider";
 
 type ShellUser = { name: string; email: string; image?: string | null };
 
@@ -22,6 +23,7 @@ export function AppShell({
 }) {
   return (
     <SidebarStateProvider>
+      <NotificationsProvider initialUnreadCount={unreadCount}>
       <div className="min-h-svh bg-background">
         {/* WCAG 2.4.1 — first focusable element on every authed page: lets keyboard and screen-reader
             users jump past the sidebar/mobile nav straight to the page content. */}
@@ -32,12 +34,13 @@ export function AppShell({
           Saltar al contenido
         </a>
         <Sidebar user={user} badges={navBadges} />
-        <MobileNav user={user} unreadCount={unreadCount} navBadges={navBadges} />
-        <AppShellMain unreadCount={unreadCount}>{children}</AppShellMain>
+        <MobileNav user={user} navBadges={navBadges} />
+        <AppShellMain>{children}</AppShellMain>
         <QuickAddRoot />
         <CommandPaletteRoot />
         <SessionSync />
       </div>
+      </NotificationsProvider>
     </SidebarStateProvider>
   );
 }

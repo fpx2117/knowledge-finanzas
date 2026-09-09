@@ -16,11 +16,9 @@ type MobileUser = { name: string; email: string; image?: string | null };
 
 export function MobileNav({
   user,
-  unreadCount,
   navBadges,
 }: {
   user: MobileUser;
-  unreadCount: number;
   navBadges?: NavBadgeCounts;
 }) {
   const [open, setOpen] = useState(false);
@@ -59,7 +57,7 @@ export function MobileNav({
 
       <div className="flex items-center gap-2">
         <QuickAddTrigger variant="mobile" />
-        <NotificationButton unreadCount={unreadCount} />
+        <NotificationButton />
       </div>
     </header>
   );
