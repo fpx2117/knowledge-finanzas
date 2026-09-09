@@ -4,6 +4,7 @@ import { AppShellMain } from "./app-shell-main";
 import { SidebarStateProvider } from "./sidebar-state";
 import type { NavBadgeCounts } from "./nav-items";
 import { QuickAddRoot } from "@/features/capture/components/quick-add-root";
+import { AssistantRoot } from "@/features/assistant/components/assistant-root";
 import { CommandPaletteRoot } from "@/features/shell/components/command-palette-root";
 import { SessionSync } from "@/features/shell/components/session-sync";
 import { NotificationsProvider } from "@/features/notifications/components/notifications-provider";
@@ -37,6 +38,7 @@ export function AppShell({
         <MobileNav user={user} navBadges={navBadges} />
         <AppShellMain>{children}</AppShellMain>
         <QuickAddRoot />
+        <AssistantRoot />
         <CommandPaletteRoot />
         <SessionSync />
       </div>

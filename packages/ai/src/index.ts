@@ -115,6 +115,17 @@ export {
 } from "./capabilities/merchant-normalization";
 
 export {
+  assistantChat,
+  ASSISTANT_CHAT_PROMPT_VERSION,
+  ASSISTANT_CHAT_SYSTEM_PROMPT,
+  buildAssistantChatPrompt,
+  assistantChatSchema,
+  type AssistantChatInput,
+  type AssistantChatReply,
+  type AssistantChatTurn,
+} from "./capabilities/assistant-chat";
+
+export {
   parseCaptureWithAI,
   buildCaptureParsePrompt,
   CAPTURE_PARSE_PROMPT_VERSION,
