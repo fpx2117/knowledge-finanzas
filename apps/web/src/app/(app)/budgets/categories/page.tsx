@@ -3,7 +3,10 @@ import { ChevronRightIcon } from "lucide-react";
 
 import { budgetRepository, categoryRepository, createBudgetQueries, db } from "@know-finanzas/db";
 
+import { todayInTimezone } from "@know-finanzas/finance";
+
 import { PageHeader } from "@/components/shared/page-header";
+import { MonthNav } from "@/components/shared/month-nav";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ProgressBar } from "@/components/shared/progress-bar";
@@ -32,16 +35,27 @@ const HEAD = "text-caption font-semibold uppercase tracking-wider text-muted-for
 
 // WP-ROUTES-SUBVIEWS: the "por categoría" spec subview (04 §3) — every budget as a browsable
 // table, no dashboard stat cards. /budgets (Resumen) stays the higher-level view.
-export default async function BudgetsByCategoryPage() {
+export default async function BudgetsByCategoryPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const user = await requireCurrentUser();
-  const budgets = await service.getBudgetOverview(user);
+  const today = todayInTimezone(new Date(), user.timezone);
+  const currentPeriod = today.slice(0, 7);
+  const requested = (await searchParams).period;
+  const period = requested?.match(/^\d{4}-\d{2}$/) && requested <= currentPeriod ? requested : currentPeriod;
+  const [year, month] = period.split("-").map(Number);
+  const budgets =
+    period === currentPeriod ? await service.getBudgetOverview(user) : await service.getBudgetOverviewForMonth(user, year, month);
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Presupuestos / Por categoría"
         description="Todos tus presupuestos activos, uno por categoría."
-        actions={<Button render={<Link href="/budgets/new">Nuevo presupuesto</Link>} />}
+        actions={
+          <>
+            <MonthNav current={currentPeriod} />
+            <Button render={<Link href="/budgets/new">Nuevo presupuesto</Link>} />
+          </>
+        }
       />
 
       <SectionCard title="Categorías" eyebrow={`${budgets.length}`} contentClassName="gap-0">

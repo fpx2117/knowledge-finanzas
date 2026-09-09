@@ -95,3 +95,28 @@ test("Cuentas shows the last-movement date per account (§13.3)", async ({ brows
   await page.goto("/accounts");
   await expect(page.getByText(/Últ\. mov\./)).toBeVisible();
 });
+
+test("Presupuestos / Por categoría respeta el MonthNav (§10)", async ({ browser, baseURL }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await newUser(page, baseURL!, "budcat");
+
+  await page.goto("/accounts/new");
+  await page.getByLabel("Nombre de la cuenta").fill("Galicia");
+  await page.getByLabel("Tipo").selectOption("BANK");
+  await page.getByLabel("Moneda").selectOption("ARS");
+  await page.getByLabel("Saldo inicial").fill("500000");
+  await page.getByLabel("Fecha de apertura").fill("2026-01-01");
+  await page.getByRole("button", { name: "Crear cuenta" }).click();
+  await expect(page).toHaveURL(/\/accounts$/);
+
+  await page.goto("/budgets/new");
+  await page.locator("#limitAmount").fill("50000");
+  await page.getByRole("button", { name: /Crear presupuesto/ }).click();
+  await expect(page).toHaveURL(/\/budgets$/, { timeout: 10000 });
+
+  await page.goto("/budgets/categories");
+  await expect(page.getByRole("button", { name: "Mes siguiente" })).toBeDisabled();
+  await page.getByRole("link", { name: "Mes anterior" }).click();
+  await expect(page).toHaveURL(/\/budgets\/categories\?period=\d{4}-\d{2}/);
+});
