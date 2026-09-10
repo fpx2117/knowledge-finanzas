@@ -78,6 +78,13 @@ export const auth = betterAuth({
   }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
+  // Extra origins allowed to hit the auth endpoints — for dev tunnels / preview URLs
+  // (e.g. a cloudflared `*.trycloudflare.com` link). Comma-separated. Read straight from
+  // process.env so it stays out of the validated config contract; unset in prod.
+  trustedOrigins: [
+    env.BETTER_AUTH_URL,
+    ...(process.env.EXTRA_TRUSTED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) ?? []),
+  ],
   user: {
     modelName: "users",
     additionalFields: {

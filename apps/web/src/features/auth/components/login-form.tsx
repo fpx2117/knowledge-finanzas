@@ -30,7 +30,15 @@ export function LoginForm({ callbackURL = "/app" }: { callbackURL?: string }) {
     setFormError(null);
     const { error } = await authClient.signIn.email({ email: values.email, password: values.password });
     if (error) {
-      setFormError("Email o contraseña incorrectos.");
+      const credentialsWrong =
+        !error.code ||
+        error.code === "INVALID_EMAIL_OR_PASSWORD" ||
+        error.status === 401;
+      setFormError(
+        credentialsWrong
+          ? "Email o contraseña incorrectos."
+          : (error.message ?? "No pudimos iniciar sesión. Intentá de nuevo."),
+      );
       return;
     }
     router.push(callbackURL);

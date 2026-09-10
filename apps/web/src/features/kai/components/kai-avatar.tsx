@@ -9,41 +9,42 @@ const SRC: Record<KaiVisualState, string> = {
   POSITIVE: "/brand/kai/kai-positive.png",
 };
 
-const RING: Record<KaiVisualState, string> = {
-  NEUTRAL: "ring-[var(--color-kai-neutral)]/30 bg-[var(--color-kai-neutral-soft)]",
-  ANALYTICAL: "ring-[var(--color-kai-analytical)]/30 bg-[var(--color-kai-analytical-soft)]",
-  ALERT: "ring-[var(--color-kai-alert)]/35 bg-[var(--color-kai-alert-soft)]",
-  POSITIVE: "ring-[var(--color-kai-positive)]/35 bg-[var(--color-kai-positive-soft)]",
+const GLOW: Record<KaiVisualState, string> = {
+  NEUTRAL: "drop-shadow(0 0 16px rgb(23 55 200 / 0.35))",
+  ANALYTICAL: "drop-shadow(0 0 16px rgb(60 90 230 / 0.40))",
+  ALERT: "drop-shadow(0 0 16px rgb(240 150 20 / 0.45))",
+  POSITIVE: "drop-shadow(0 0 16px rgb(35 160 110 / 0.45))",
 };
 
 /**
- * KAI's face. Same geometry across states (spec §5) — only the image expression, the accent
- * ring and a subtle pulse when processing change.
+ * KAI's face — the mascot. The crescent arc, glossy shell and visor colour are baked into the
+ * PNG per state (`kai-{state}.png`); we render it bare (transparent, `object-contain`) so it
+ * matches the design mockups exactly. `glow` adds the state-coloured halo used for the large
+ * floating mascot on proactive alerts.
  */
 export function KaiAvatar({
   state = "NEUTRAL",
   size = 32,
   processing = false,
+  glow = false,
   className,
 }: {
   state?: KaiVisualState;
   size?: number;
   processing?: boolean;
+  glow?: boolean;
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 transition-colors duration-[var(--motion-duration-base)]",
-        RING[state],
-        processing && "animate-pulse",
-        className,
-      )}
-      style={{ width: size, height: size }}
-    >
-      {/* Plain <img>, like BrandLogoImg — avoids the next/image optimizer for a tiny local asset. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={SRC[state]} alt="" width={size} height={size} className="size-full object-cover" />
-    </span>
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={SRC[state]}
+      alt=""
+      width={size}
+      height={size}
+      className={cn("shrink-0 select-none object-contain", processing && "animate-pulse", className)}
+      style={{ width: size, height: size, filter: glow ? GLOW[state] : undefined }}
+      draggable={false}
+    />
   );
 }

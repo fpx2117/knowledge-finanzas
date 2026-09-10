@@ -31,11 +31,32 @@ import { cn } from "@/lib/utils";
 import { openQuickAdd } from "@/features/capture/components/quick-add-root";
 import { quickVoidTransactionAction } from "@/features/capture/actions/quick-actions";
 import type { KaiAccess } from "../lib/kai-points.instance";
+import type { KaiProactiveMessage } from "@know-finanzas/kai";
 import { getKaiAccessAction, sendKaiMessageAction } from "../actions/kai-actions";
+import { getKaiProactiveMessageAction } from "../actions/kai-proactive-actions";
 import { kaiCreateTransactionAction } from "../actions/kai-create-actions";
 import { MAX_KAI_MESSAGE_LENGTH } from "../lib/constants";
+import { KaiAlertCard } from "./kai-alert-card";
 import { KaiAvatar } from "./kai-avatar";
 import { KaiResponseCard } from "./kai-response-card";
+
+const DISMISSED_KEY = "kai:dismissed-proactive";
+
+function readDismissed(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+function addDismissed(id: string) {
+  try {
+    const next = [...new Set([...readDismissed(), id])].slice(-30);
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode / disabled storage — the message just reappears next load */
+  }
+}
 
 type Entry = { role: "user"; text: string } | { role: "assistant"; response: KaiResponse; feedback?: "up" | "down" };
 
@@ -77,6 +98,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   const [access, setAccess] = useState<KaiAccess>(initialAccess);
   const [banner, setBanner] = useState<string | null>(null);
   const [followups, setFollowups] = useState<KaiFollowup[]>([]);
+  const [proactive, setProactive] = useState<KaiProactiveMessage | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -96,6 +118,27 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     if (!open) return;
     getKaiAccessAction().then(setAccess).catch(() => {});
   }, [open]);
+
+  // Proactive message (spec §7): fetched once; hidden if already dismissed this period.
+  useEffect(() => {
+    let cancelled = false;
+    getKaiProactiveMessageAction()
+      .then((msg) => {
+        if (cancelled || !msg) return;
+        if (!readDismissed().includes(msg.id)) setProactive(msg);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dismissProactive = useCallback(() => {
+    setProactive((current) => {
+      if (current) addDismissed(current.id);
+      return null;
+    });
+  }, []);
 
   // Global trigger — window event + the "J" shortcut (N = Quick Add, ⌘K = palette).
   useEffect(() => {
@@ -241,7 +284,22 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
 
   return (
     <>
-      {!open ? (
+      {!open && proactive ? (
+        <div className="fixed bottom-24 right-4 z-[var(--z-popover)] sm:bottom-16 sm:right-6">
+          <KaiAlertCard
+            message={proactive}
+            onOpen={() => {
+              setProactive(null);
+              setOpen(true);
+            }}
+            onDismiss={dismissProactive}
+            onNavigate={(route) => {
+              dismissProactive();
+              router.push(route);
+            }}
+          />
+        </div>
+      ) : !open ? (
         <button
           type="button"
           onClick={() => setOpen(true)}

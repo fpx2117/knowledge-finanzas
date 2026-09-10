@@ -69,6 +69,11 @@ export type { KaiHandler, KaiHandlerContext, KaiHandlerResult } from "./handlers
 // Templates
 export { formatMoney, formatMoneyList, formatPercent, formatDayMonth } from "./templates/format";
 
+// Proactive
+export { buildProactiveMessage } from "./proactive/build-proactive-message";
+export type { ProactiveInput } from "./proactive/build-proactive-message";
+export type { KaiProactiveMessage, KaiProactiveAction } from "./domain/kai-proactive";
+
 // Orchestrator
 export { resolveKaiInteraction } from "./orchestrator/resolve-kai-interaction";
 export type {
