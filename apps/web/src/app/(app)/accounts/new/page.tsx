@@ -15,7 +15,7 @@ export default async function NewAccountPage() {
       title="Empezá por lo que tenés"
       description="El saldo inicial es un punto de partida, no un ingreso."
     >
-      <AccountForm timezone={user.timezone} />
+      <AccountForm timezone={user.timezone} isFirstAccount={isFirstAccount} />
     </FormPage>
   );
 }
