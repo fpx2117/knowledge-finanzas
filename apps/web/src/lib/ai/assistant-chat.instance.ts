@@ -22,9 +22,11 @@ export async function runAssistantChat(input: RunAssistantChatInput) {
     userId: input.userId,
     capability: "assistant.query.simple",
     operationId: input.operationId,
-    execute: async () => {
+    execute: async ({ access }) => {
       const snapshot = await buildAssistantSnapshot(input.userId, input.timezone);
-      return assistantChat(aiProvider, { snapshot, history: input.history, message: input.message });
+      // FREE tier runs on the fast model; TRIAL/PRO get the balanced default.
+      const role = access === "FREE" ? ("FAST" as const) : undefined;
+      return assistantChat(aiProvider, { snapshot, history: input.history, message: input.message }, { role });
     },
   });
 }

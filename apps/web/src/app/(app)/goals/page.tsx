@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TargetIcon } from "lucide-react";
+import { PencilIcon, TargetIcon } from "lucide-react";
 
 import { Money, todayInTimezone } from "@know-finanzas/finance";
 
@@ -9,6 +9,9 @@ import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { InsightCard } from "@/components/shared/insight-card";
 import { TabBar } from "@/components/shared/tab-bar";
+import { InfoBar } from "@/components/shared/info-bar";
+import { EntityGrid, EntityCard, AddEntityCard } from "@/components/shared/entity-grid";
+import { ProgressBar } from "@/components/shared/progress-bar";
 import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { Button } from "@/components/ui/button";
@@ -16,7 +19,7 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { formatLongDate, relativeDueLabel } from "@/lib/format";
 import { createGoalService, type GoalDetail } from "@/features/goals/services/goal-service";
 import { GOAL_CATEGORY_META } from "@/features/goals/goal-meta";
-import { GoalRow } from "@/features/goals/components/goal-row";
+import { GoalActions } from "@/features/goals/components/goal-actions";
 import { GoalsControls, GOAL_SORTS, type GoalSort } from "@/features/goals/components/goals-controls";
 import { Pagination, paginate } from "@/components/shared/pagination";
 
@@ -82,9 +85,10 @@ export default async function GoalsPage({
       <div className="flex flex-col gap-8">
         {header}
         <EmptyState
+          size="section"
           icon={<TargetIcon />}
-          title="Todavía no tenés metas"
-          description="Definí un objetivo de ahorro —un viaje, un fondo de emergencia, una compra— y seguí cuánto te falta."
+          title="Un objetivo. Un paso a la vez."
+          description="Dale un nombre a tu plan, elegí un importe y llevá el seguimiento de lo que vas ahorrando."
           action={<Button render={<Link href="/goals/new">Crear mi primera meta</Link>} />}
         />
       </div>
@@ -149,7 +153,12 @@ export default async function GoalsPage({
       <TabBar tabs={TAB_KEYS.map((tab) => ({ ...tab, href: tabHref(tab.key) }))} active={activeTab} />
 
       {activeTab !== "completadas" ? (
-        <GoalsControls status={activeTab} sort={sort} currency={currency} currencies={activeCurrencyList} query={query} />
+        <>
+          <GoalsControls status={activeTab} sort={sort} currency={currency} currencies={activeCurrencyList} query={query} />
+          <InfoBar>
+            Las metas son un seguimiento manual de ahorro. Registrar un avance no mueve dinero ni modifica el saldo de tus cuentas.
+          </InfoBar>
+        </>
       ) : null}
 
       <section aria-label="Resumen de metas" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -192,31 +201,87 @@ export default async function GoalsPage({
         </StatCard>
       </section>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <SectionCard
-          title={activeTab === "completadas" ? "Metas cumplidas" : "Metas activas"}
-          contentClassName="gap-0"
-        >
-          {listGoals.length > 0 ? (
-            <>
-              <ul className="flex flex-col divide-y divide-border">
-                {listGoals.map((goal) => (
-                  <GoalRow key={goal.id} goal={goal} today={today} />
-                ))}
-              </ul>
-              <Pagination page={page} totalPages={totalPages} hrefFor={(p) => goalsHref({ page: p })} />
-            </>
-          ) : (
-            <p className="py-6 text-center text-small text-muted-foreground">
-              {query || currency
-                ? "Ninguna meta coincide con el filtro."
-                : activeTab === "completadas"
-                  ? "Todavía no completaste ninguna meta."
-                  : "No tenés metas activas."}
-            </p>
-          )}
+      {listGoals.length === 0 ? (
+        <p className="py-6 text-center text-small text-muted-foreground">
+          {query || currency
+            ? "Ninguna meta coincide con el filtro."
+            : activeTab === "completadas"
+              ? "Todavía no completaste ninguna meta."
+              : "No tenés metas activas."}
+        </p>
+      ) : activeTab === "completadas" ? (
+        <SectionCard title="Metas cumplidas" contentClassName="gap-0">
+          <ul className="flex flex-col divide-y divide-border">
+            {listGoals.map((goal) => {
+              const meta = GOAL_CATEGORY_META[goal.category];
+              return (
+                <li key={goal.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="flex min-w-0 flex-col">
+                    <Link href={`/goals/${goal.id}`} className="truncate text-small font-medium text-foreground hover:text-brand hover:underline">
+                      {goal.name}
+                    </Link>
+                    <span className="text-caption text-muted-foreground">{meta.label}</span>
+                  </span>
+                  <MoneyAmount amount={goal.targetAmount} currency={goal.currencyCode} variant="compact" tone="positive" className="text-small font-medium" />
+                </li>
+              );
+            })}
+          </ul>
+          <Pagination page={page} totalPages={totalPages} hrefFor={(p) => goalsHref({ page: p })} />
         </SectionCard>
+      ) : (
+        <>
+          <EntityGrid>
+            {listGoals.map((goal) => {
+              const meta = GOAL_CATEGORY_META[goal.category];
+              const Icon = meta.icon;
+              const done = goal.percent >= 100;
+              return (
+                <EntityCard
+                  key={goal.id}
+                  icon={<Icon />}
+                  topAction={
+                    <Link
+                      href={`/goals/${goal.id}/edit`}
+                      aria-label={`Editar ${goal.name}`}
+                      className="grid size-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-secondary hover:text-foreground"
+                    >
+                      <PencilIcon className="size-3.5" />
+                    </Link>
+                  }
+                  name={goal.name}
+                  meta={`${goal.targetDate ? `Objetivo: ${formatLongDate(goal.targetDate)}` : "A tu ritmo, sin fecha límite"} · ${goal.currencyCode}`}
+                  footer={
+                    <GoalActions
+                      goalId={goal.id}
+                      currencyCode={goal.currencyCode}
+                      remainingAmount={goal.remainingAmount}
+                      currentAmount={goal.currentAmount}
+                      status={goal.status}
+                    />
+                  }
+                >
+                  <div className="mt-4 flex flex-wrap items-baseline gap-1.5">
+                    <MoneyAmount amount={goal.currentAmount} currency={goal.currencyCode} variant="compact" className="text-metric font-bold text-foreground" />
+                    <span className="text-caption text-muted-foreground">
+                      de <MoneyAmount amount={goal.targetAmount} currency={goal.currencyCode} variant="compact" className="text-caption text-muted-foreground" />
+                    </span>
+                  </div>
+                  <ProgressBar value={goal.percent} className="mt-4" aria-label={`${goal.percent}% del objetivo`} />
+                  <div className="mt-2 flex items-center justify-between gap-2 text-caption text-muted-foreground">
+                    <span>{goal.percent}% del objetivo</span>
+                    <strong className="font-bold text-brand">{done ? "Meta alcanzada" : "Paso a paso"}</strong>
+                  </div>
+                </EntityCard>
+              );
+            })}
+            <AddEntityCard href="/goals/new" label="Crear otra meta" />
+          </EntityGrid>
+          <Pagination page={page} totalPages={totalPages} hrefFor={(p) => goalsHref({ page: p })} />
+        </>
+      )}
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-4">
           {donutSegments.length > 0 && singleCurrency ? (
             <SectionCard title="Distribución del ahorro">

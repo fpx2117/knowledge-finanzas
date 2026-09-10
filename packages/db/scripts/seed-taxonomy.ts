@@ -86,6 +86,7 @@ async function main() {
           canonicalName: seed.name,
           defaultTaxonomyNodeId: seed.taxonomySlug ? taxonomyIdBySlug.get(seed.taxonomySlug) ?? null : null,
           homeCountry: "AR",
+          domain: seed.domain ?? null,
           active: true,
         })
         .onConflictDoUpdate({
@@ -93,6 +94,7 @@ async function main() {
           set: {
             canonicalName: seed.name,
             defaultTaxonomyNodeId: seed.taxonomySlug ? taxonomyIdBySlug.get(seed.taxonomySlug) ?? null : null,
+            domain: seed.domain ?? null,
             active: true,
             updatedAt: new Date(),
           },
@@ -123,7 +125,7 @@ async function main() {
         const inserted = await tx
           .insert(merchantAliases)
           .values({ merchantId, pattern: entry.pattern, matchType: entry.matchType, source: "SEED" })
-          .onConflictDoNothing({ target: [merchantAliases.pattern, merchantAliases.matchType] })
+          .onConflictDoNothing()
           .returning({ id: merchantAliases.id });
         aliasCount += inserted.length;
       }

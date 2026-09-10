@@ -28,7 +28,7 @@ async function openQuickAdd(page: Page) {
   await expect(page.getByRole("dialog")).toBeVisible();
 }
 
-test("§4.2 the type picker has the 4 types plus 'Importar movimientos'", async ({ browser, baseURL }) => {
+test("§4.2 the type picker has Gasto/Ingreso plus 'Importar movimientos' (transferencias y obligaciones viven en su propia superficie)", async ({ browser, baseURL }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await newUser(page, baseURL!, "picker");
@@ -36,8 +36,11 @@ test("§4.2 the type picker has the 4 types plus 'Importar movimientos'", async 
 
   await openQuickAdd(page);
   const dialog = page.getByRole("dialog");
-  for (const label of ["Gasto", "Ingreso", "Transferencia", "Obligación"]) {
+  for (const label of ["Gasto", "Ingreso"]) {
     await expect(dialog.getByRole("tab", { name: label })).toBeVisible();
+  }
+  for (const gone of ["Transferencia", "Obligación"]) {
+    await expect(dialog.getByRole("tab", { name: gone })).toHaveCount(0);
   }
   await expect(dialog.getByRole("button", { name: "Importar movimientos" })).toBeVisible();
   await dialog.getByRole("button", { name: "Importar movimientos" }).click();
@@ -81,9 +84,10 @@ test("§8.6 a back-dated expense lands in the month it happened, not the current
   await dialog.getByLabel(/¿En qué\?/).fill("Gasto viejo");
   await dialog.getByLabel("Fecha").fill("2026-06-15");
   await dialog.getByLabel("Monto").fill("12345");
-  await expect(dialog.getByLabel("Monto")).toHaveValue("12345");
+  // The amount input formats thousands as it's typed.
+  await expect(dialog.getByLabel("Monto")).toHaveValue("12.345");
   await dialog.getByRole("button", { name: "Registrar gasto" }).click();
-  await expect(page.getByText("Gasto registrado")).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/registré el gasto/i)).toBeVisible({ timeout: 10000 });
 
   await page.goto("/transactions?period=2026-06");
   await expect(page.getByText("Gasto viejo")).toBeVisible();

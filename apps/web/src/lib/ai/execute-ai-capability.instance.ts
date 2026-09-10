@@ -1,4 +1,4 @@
-import { createAICreditService, createExecuteAICapability, createInMemoryRateLimiter, isAIError, resolvePoolOrder, type ExecuteAICapabilityInput } from "@know-finanzas/ai";
+import { createAICreditService, createExecuteAICapability, createGrantFreePeriodCredits, createInMemoryRateLimiter, isAIError, resolvePoolOrder, type ExecuteAICapabilityInput } from "@know-finanzas/ai";
 import { createAICreditRepository, createUserRepository, db } from "@know-finanzas/db";
 import { hasCapability } from "@know-finanzas/billing";
 import { env } from "@know-finanzas/config";
@@ -9,6 +9,10 @@ import { analyticsService, isInternalAccount } from "@/lib/analytics/analytics-s
 
 const creditService = createAICreditService(createAICreditRepository(db));
 const users = createUserRepository(db);
+
+// FREE tier: lazily grant the current calendar month's AI allowance the first time the user
+// touches an AI capability that month. Idempotent (see createGrantFreePeriodCredits).
+const grantFreePeriodCredits = createGrantFreePeriodCredits(createAICreditRepository(db), env.FREE_AI_CREDITS_PER_PERIOD);
 
 async function trackAiTelemetry(event: { userId: string; capability: string; operationId: string; status: "SUCCESS" | "FAILED"; credits: number | null }) {
   const email = await users.findEmailById(event.userId);
@@ -33,6 +37,16 @@ const baseExecuteAICapability = createExecuteAICapability({
   creditService,
   resolveAccess: (userId) => productAccessGate.getAccessState(userId),
   checkCapabilityEntitlement: async ({ access, capability }) => hasCapability(access, resolveEntitlementCapability(capability)),
+  onAccessResolved: async ({ userId, access }) => {
+    if (access !== "FREE") return;
+    // Best-effort: a housekeeping failure here must not crash the AI request with a raw error. If
+    // the grant genuinely didn't land, creditService.reserve() surfaces a clean AI_CREDITS_EXHAUSTED.
+    try {
+      await grantFreePeriodCredits({ userId });
+    } catch (error) {
+      console.error("[ai] grantFreePeriodCredits failed", error);
+    }
+  },
   checkRateLimit,
   telemetry: {
     record: (event) => trackAiTelemetry({ userId: event.userId, capability: event.capability, operationId: event.operationId, status: event.status, credits: event.credits }),

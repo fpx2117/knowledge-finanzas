@@ -330,16 +330,16 @@ function trustSetup(options: { priorCount: number; personal?: { taxonomyNodeId: 
 const noCategory = { accountId: account.id, amount: "100.50", description: "Compra", occurredAt: "2026-02-01T12:00:00Z", merchant: "carrefour" };
 
 describe("transaction service — progressive trust (#13)", () => {
-  it("only suggests (does not apply) a merchant category the user has seen 2 times or fewer", async () => {
+  it("applies a merchant's curated default category from the first movement, with an undo affordance", async () => {
     const s = trustSetup({ priorCount: 1 });
     await s.service.createExpenseTransaction("user-a", noCategory, "UTC");
     expect(s.created[0]).toMatchObject({
-      categoryId: null,
-      classification: { method: "suggested", automationLevel: "ask", suggestion: { categoryId: groceriesCategory.id } },
+      categoryId: groceriesCategory.id,
+      classification: { method: "merchant_default", automationLevel: "auto_undo" },
     });
   });
 
-  it("auto-applies with an undo affordance once the pattern has been seen a few times", async () => {
+  it("still applies with an undo affordance while the pattern is only somewhat established", async () => {
     const s = trustSetup({ priorCount: 5 });
     await s.service.createExpenseTransaction("user-a", noCategory, "UTC");
     expect(s.created[0]).toMatchObject({ categoryId: groceriesCategory.id, classification: { method: "merchant_default", automationLevel: "auto_undo" } });

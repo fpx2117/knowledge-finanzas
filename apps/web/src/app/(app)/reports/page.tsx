@@ -28,7 +28,7 @@ export default async function ReportsOverviewPage({ searchParams }: { searchPara
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Reportes"
-        description={`Análisis de tus finanzas — ${periodLabel(report.period)}.`}
+        description={`Resumen de ${periodLabel(report.period)}. Sin mezclar monedas.`}
         actions={<HeaderActions />}
       />
 
@@ -39,9 +39,10 @@ export default async function ReportsOverviewPage({ searchParams }: { searchPara
 
       {!hasData ? (
         <EmptyState
+          size="section"
           icon={<LineChartIcon />}
-          title="Todavía no hay datos para reportar"
-          description="Cargá transacciones durante el mes y acá vas a ver la evolución, la distribución de gastos y tu ahorro."
+          title="La claridad también se ve."
+          description="Tus ingresos y gastos de los últimos seis meses aparecerán acá cuando registres movimientos."
         />
       ) : (
         <>

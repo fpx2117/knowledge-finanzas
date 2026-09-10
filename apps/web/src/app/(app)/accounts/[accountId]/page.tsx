@@ -69,7 +69,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         description={`${TYPE_LABEL[account.type] ?? account.type} · ${account.currencyCode}`}
         actions={
           account.status === "ACTIVE" ? (
-            <AccountActions accountId={account.id} accountName={account.name} balance={account.balance} currencyCode={account.currencyCode} />
+            <AccountActions accountId={account.id} accountName={account.name} balance={account.balance} currencyCode={account.currencyCode} isPrimary={account.isPrimary} />
           ) : undefined
         }
       />

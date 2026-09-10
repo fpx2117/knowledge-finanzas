@@ -3,9 +3,9 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookmarkIcon, PencilIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { kaiToast } from "@/components/shared/kai-toast";
 import { fieldControlClass } from "@/components/shared/form-field";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
@@ -60,13 +60,13 @@ export function TransactionActions({
   useEffect(() => {
     if (!templateState?.ok) return;
     setTemplateOpen(false);
-    toast.success("Acción rápida guardada");
+    kaiToast("Guardé la acción rápida.", { state: "POSITIVE", duration: 3500 });
   }, [templateState]);
 
   useEffect(() => {
     if (!editState?.ok) return;
     setEditOpen(false);
-    toast.success("Movimiento actualizado");
+    kaiToast("Actualicé el movimiento.", { state: "POSITIVE", duration: 3500 });
     router.refresh();
   }, [router, editState]);
 

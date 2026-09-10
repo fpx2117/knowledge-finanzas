@@ -8,11 +8,28 @@ export const createAccountSchema = z
   .object({
     name: z.string().trim().min(1, "Ingresá un nombre").max(120),
     type: accountTypeSchema,
+    // Institution registry slug — optional, "" / "all" normalised to undefined by the form.
+    institution: z
+      .string()
+      .trim()
+      .max(60)
+      .optional()
+      .transform((value) => (value && value !== "all" ? value : undefined)),
     currencyCode: currencyCodeSchema,
+    isPrimary: z
+      .union([z.literal("on"), z.literal("true"), z.literal("1"), z.boolean()])
+      .optional()
+      .transform((value) => value === true || value === "on" || value === "true" || value === "1"),
     openingBalance: openingBalanceInputSchema,
     openingDate: localDateSchema,
   })
-  .strict();
+  .strict()
+  // §RF — un banco en KnowFinanzas es siempre en pesos (el usuario lleva sus cuentas en ARS;
+  // los dólares van a una cuenta de ahorro/inversión).
+  .refine((v) => v.type !== "BANK" || v.currencyCode === "ARS", {
+    message: "Las cuentas de tipo Banco se llevan en pesos (ARS).",
+    path: ["currencyCode"],
+  });
 
 export const updateAccountMetadataSchema = z
   .object({ accountId: idSchema, name: z.string().trim().min(1, "Ingresá un nombre").max(120) })

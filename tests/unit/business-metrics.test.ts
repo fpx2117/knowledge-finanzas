@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 // @know-finanzas/config's eager createEnv() validation, which requires a full real environment —
 // same reasoning as tests/unit/config-production-hardening.test.ts.
 import { loadPricingConfigFromEnv, parsePricingConfig } from "../../packages/config/src/pricing";
-import { buildUnitEconomicsSnapshot, calculateContribution, calculateCosts, calculateRevenue, calculateTrialEconomics, evaluateCostGuardrails } from "@know-finanzas/observability";
+import { buildUnitEconomicsSnapshot, calculateContribution, calculateCosts, calculateFreeEconomics, calculateRevenue, calculateTrialEconomics, evaluateCostGuardrails } from "@know-finanzas/observability";
 
 // Defaults exactly match this task's own documented reference-scenario assumptions.
 const defaultConfig = loadPricingConfigFromEnv({});
@@ -156,6 +156,39 @@ describe("evaluateCostGuardrails", () => {
     const contribution = calculateContribution(revenue, costs);
     const breaches = evaluateCostGuardrails(defaultConfig, { revenue, costs, contribution });
     expect(breaches.map((breach) => breach.guardrail)).toContain("gateway_fee_rate");
+  });
+
+  it("computes FREE-tier imputed AI cost and the FREE→TRIAL rate, kept separate from Pro costs", () => {
+    const free = calculateFreeEconomics(defaultConfig, {
+      freeUserCount: 200,
+      freeToTrialCount: 20,
+      freeToProCount: 6,
+      freeAiCreditsConsumed: 1500,
+    });
+    // 1500 credits × USD 0.01/credit
+    expect(free.freeAiCostAssumed).toBe("15.00");
+    expect(free.freeToTrialRate).toBe("0.1000");
+  });
+
+  it("only includes the free segment in the snapshot when free inputs are provided", () => {
+    const base = { revenue: { proMonthlyPrice: defaultConfig.proMonthlyPrice, proSubscriberCount: 10 }, usage: { aiCreditsConsumed: 0, whatsappMessagesSent: 0 }, trial: { trialStartCount: 0, trialToProConversionCount: 0, retainedProUserCount: 0, expiredTrialUserCount: 0, trialAiCreditsConsumed: 0, trialWhatsappMessagesSent: 0 } };
+    expect(buildUnitEconomicsSnapshot(defaultConfig, base).free).toBeUndefined();
+    const withFree = buildUnitEconomicsSnapshot(defaultConfig, { ...base, free: { freeUserCount: 5, freeToTrialCount: 1, freeToProCount: 0, freeAiCreditsConsumed: 30 } });
+    expect(withFree.free?.freeUserCount).toBe(5);
+  });
+
+  it("uses the real AI cost for totalVariableCosts and the guardrail when actualAiCostTotal is provided", () => {
+    const assumed = calculateCosts(defaultConfig, { aiCreditsConsumed: 1000, whatsappMessagesSent: 0 }, 100);
+    expect(assumed.actualAiCostTotal).toBeNull();
+    // assumed AI cost = 1000 × 0.01 = 10.00
+    expect(assumed.aiCostAssumed).toBe("10.00");
+
+    const withActual = calculateCosts(defaultConfig, { aiCreditsConsumed: 1000, whatsappMessagesSent: 0, actualAiCostTotal: "2.50" }, 100);
+    expect(withActual.aiCostAssumed).toBe("10.00");
+    expect(withActual.actualAiCostTotal).toBe("2.50");
+    // totalVariableCosts uses 2.50 (real), not 10.00 (assumed)
+    const infraPlusOther = Number(defaultConfig.infrastructureAllocationPerProUser) * 100 + Number(defaultConfig.otherCostPerProUser) * 100;
+    expect(Number(withActual.totalVariableCosts)).toBeCloseTo(2.5 + infraPlusOther, 2);
   });
 
   it("never mutates its inputs", () => {

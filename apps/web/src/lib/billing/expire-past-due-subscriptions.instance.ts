@@ -23,10 +23,17 @@ export async function expirePastDueSubscriptions() {
       await notifySubscriptionExpired({ userId: item.userId, userTimezone: timezone ?? "UTC", subscriptionId: item.subscriptionId });
 
       const email = await users.findEmailById(item.userId);
+      const internal = email ? isInternalAccount(email) : false;
       await analyticsService(
         "subscription_expired",
         {},
-        { eventId: `subscription_expired:${item.subscriptionId}`, userId: item.userId, internal: email ? isInternalAccount(email) : false },
+        { eventId: `subscription_expired:${item.subscriptionId}`, userId: item.userId, internal },
+      );
+      // A lapsed subscription drops the user to the permanent FREE tier (no longer read-only).
+      await analyticsService(
+        "product_access_changed",
+        { from: "PRO", to: "FREE", source: "NONE", reason: "subscription_expired" },
+        { eventId: `product_access_changed:free:${item.subscriptionId}`, userId: item.userId, internal },
       );
     }));
   return result;

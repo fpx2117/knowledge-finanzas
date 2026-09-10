@@ -1,6 +1,7 @@
 import { NotificationButton } from "./notification-button";
 import { SidebarToggle } from "./sidebar-toggle";
 import { ThemeToggle } from "./theme-toggle";
+import { HeaderDate } from "./header-date";
 import { CommandPaletteTrigger } from "@/features/shell/components/command-palette-trigger";
 
 // Spec 13 §9 — the desktop app header holds only *global* actions (sidebar toggle, search,
@@ -8,12 +9,13 @@ import { CommandPaletteTrigger } from "@/features/shell/components/command-palet
 // live in each screen's own PageHeader (§9.4). Sticky (§9.5).
 export function AppHeader() {
   return (
-    <header aria-label="Acciones globales" className="sticky top-0 z-[var(--z-raised)] hidden h-14 items-center justify-between gap-4 border-b border-border bg-background/85 px-6 backdrop-blur lg:flex lg:px-10">
+    <header aria-label="Acciones globales" className="sticky top-0 z-[var(--z-raised)] hidden h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-6 backdrop-blur lg:flex lg:px-10">
       <div className="flex items-center gap-2">
         <SidebarToggle />
         <CommandPaletteTrigger />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        <HeaderDate />
         <ThemeToggle />
         <NotificationButton />
       </div>

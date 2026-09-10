@@ -2,7 +2,8 @@ import type { NotificationSubjectType } from "@know-finanzas/notifications";
 
 // Only ever resolves to a known internal route built from a typed subjectType + our own uuid —
 // never a provider-supplied or otherwise arbitrary URL (domain rule in TASK-047/048 specs).
-// Paths follow the canonical route map (ADR-IMPL-001): obligations, transactions/scheduled, settings/plan.
+// Paths follow the canonical route map (ADR-IMPL-001 + consolidación 2026-09): los movimientos
+// programados se gestionan en /obligations.
 export function resolveRelatedRoute(subjectType: NotificationSubjectType, subjectId: string | null): string | null {
   switch (subjectType) {
     case "DEBT":
@@ -12,7 +13,7 @@ export function resolveRelatedRoute(subjectType: NotificationSubjectType, subjec
     case "BUDGET":
       return subjectId ? `/budgets/${subjectId}` : null;
     case "SCHEDULED_TRANSACTION":
-      return "/transactions/scheduled";
+      return "/obligations";
     case "SUBSCRIPTION":
       return "/settings/plan";
     case "NONE":

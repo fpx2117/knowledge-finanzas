@@ -18,6 +18,9 @@ export type OpenRouterChatCompletionRequest = {
   response_format: OpenRouterJsonSchemaFormat;
   temperature?: number;
   max_tokens?: number;
+  // Ask OpenRouter to include the real accounting figures (USD cost, cached tokens) in the
+  // completion response instead of requiring a follow-up /generation call.
+  usage?: { include: boolean };
 };
 
 export type OpenRouterChatCompletionResponse = {
@@ -31,6 +34,10 @@ export type OpenRouterChatCompletionResponse = {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+    // Present only when the request set `usage.include = true`.
+    cost?: number;
+    cost_details?: { upstream_inference_cost?: number | null };
+    prompt_tokens_details?: { cached_tokens?: number };
   };
 };
 

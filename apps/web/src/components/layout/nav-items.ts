@@ -15,6 +15,14 @@ import {
 
 export type NavChild = { label: string; href: string };
 
+/** One of the user's accounts, rendered under "Cuentas" in the sidebar with its bank logo. */
+export type SidebarAccountLink = {
+  id: string;
+  name: string;
+  institution: string | null;
+  isPrimary: boolean;
+};
+
 /** Which live count, if any, feeds this item's badge (spec 13 §6.13 — badges only when actionable). */
 export type NavBadgeKey = "transactions-pending" | "insights-unseen";
 
@@ -35,17 +43,13 @@ export type NavItem = {
 // of their routes is active. New capture surfaces attach here, never as a new top-level item.
 export const NAV_ITEMS: NavItem[] = [
   { label: "Resumen", href: "/app", icon: LayoutDashboardIcon },
+  // Consolidación 2026-09: las subvistas por tipo (/accounts/{banks,wallets,cash,savings}) eran
+  // /accounts filtrado — con pocas cuentas no aportan. El filtro por tipo vive ahora dentro de
+  // la card "Tus cuentas". Las rutas viejas redirigen a /accounts.
   {
     label: "Cuentas",
     href: "/accounts",
     icon: WalletIcon,
-    children: [
-      { label: "Todas", href: "/accounts" },
-      { label: "Bancos", href: "/accounts/banks" },
-      { label: "Billeteras", href: "/accounts/wallets" },
-      { label: "Efectivo", href: "/accounts/cash" },
-      { label: "Ahorro", href: "/accounts/savings" },
-    ],
   },
   {
     label: "Transacciones",
@@ -54,11 +58,6 @@ export const NAV_ITEMS: NavItem[] = [
     badge: "transactions-pending",
     children: [
       { label: "Movimientos", href: "/transactions" },
-      { label: "Gastos", href: "/transactions/expenses" },
-      { label: "Ingresos", href: "/transactions/income" },
-      { label: "Transferencias", href: "/transactions/transfers" },
-      { label: "Recurrentes", href: "/transactions/recurring" },
-      { label: "Programados", href: "/transactions/scheduled" },
       { label: "Pendientes", href: "/transactions/pending" },
     ],
   },

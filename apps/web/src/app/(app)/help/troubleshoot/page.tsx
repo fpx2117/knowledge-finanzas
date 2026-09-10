@@ -13,7 +13,7 @@ const service = createHelpService();
 const PROBLEMS = [
   { key: "balance", label: "Mi saldo no coincide", active: true },
   { key: "duplicate", label: "Veo un movimiento duplicado", href: "/transactions/pending#duplicados" },
-  { key: "transfer", label: "Una transferencia aparece mal", href: "/transactions/transfers" },
+  { key: "transfer", label: "Una transferencia aparece mal", href: "/transactions?type=TRANSFER" },
   { key: "import", label: "Una importación falló", href: "/settings/imports" },
   { key: "category", label: "Una categoría no es correcta", href: "/settings/rules" },
   { key: "budget", label: "Mi presupuesto no coincide", href: "/budgets" },

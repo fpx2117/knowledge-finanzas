@@ -27,6 +27,24 @@ export type SubscriptionCandidate = {
 
 const MONTHS_PER_CHARGE: Record<SubscriptionFrequency, number> = { MONTHLY: 1, YEARLY: 12 };
 
+/**
+ * Cadence from exactly two charges of a known subscription merchant (`minCharges === 2`). One
+ * interval can't establish regularity, so we accept it at a modest confidence when it lands near a
+ * monthly or yearly spacing.
+ */
+function cadenceFromPair(
+  sorted: RecurringTxn[],
+  minCharges: number,
+): { frequency: SubscriptionFrequency; regularity: number } | null {
+  if (minCharges > 2 || sorted.length !== 2) return null;
+  const gap = (Date.parse(`${sorted[1].occurredOn}T00:00:00Z`) - Date.parse(`${sorted[0].occurredOn}T00:00:00Z`)) / 86_400_000;
+  for (const frequency of ["MONTHLY", "YEARLY"] as const) {
+    const target = cadenceDays(frequency);
+    if (Math.abs(gap - target) <= target * 0.35) return { frequency, regularity: 0.7 };
+  }
+  return null;
+}
+
 /** Monthly / yearly impact of a per-charge price change. */
 export function priceChangeImpact(frequency: SubscriptionFrequency, perChargeDelta: number): { monthly: number; yearly: number } {
   const monthly = perChargeDelta / MONTHS_PER_CHARGE[frequency];
@@ -62,8 +80,12 @@ function mostCommon<T>(values: T[]): T | null {
   return best;
 }
 
-export function detectSubscriptions(txns: RecurringTxn[], options: { now?: string } = {}): SubscriptionCandidate[] {
+export function detectSubscriptions(
+  txns: RecurringTxn[],
+  options: { now?: string; lowThresholdMerchantIds?: ReadonlySet<string> } = {},
+): SubscriptionCandidate[] {
   const now = options.now ?? new Date().toISOString().slice(0, 10);
+  const lowThreshold = options.lowThresholdMerchantIds ?? new Set<string>();
   const groups = new Map<string, RecurringTxn[]>();
   for (const txn of txns) {
     if (!txn.merchantId) continue;
@@ -76,10 +98,12 @@ export function detectSubscriptions(txns: RecurringTxn[], options: { now?: strin
   const candidates: SubscriptionCandidate[] = [];
 
   for (const rows of groups.values()) {
-    if (rows.length < 3) continue;
+    // Known subscription/streaming merchants are recognised from 2 charges; everyone else needs 3.
+    const minCharges = rows[0].merchantId && lowThreshold.has(rows[0].merchantId) ? 2 : 3;
+    if (rows.length < minCharges) continue;
     const sorted = [...rows].sort((a, b) => a.occurredOn.localeCompare(b.occurredOn));
 
-    const cadence = analyzeCadence(sorted.map((r) => r.occurredOn));
+    const cadence = analyzeCadence(sorted.map((r) => r.occurredOn)) ?? cadenceFromPair(sorted, minCharges);
     if (!cadence || (cadence.frequency !== "MONTHLY" && cadence.frequency !== "YEARLY")) continue;
     const frequency = cadence.frequency;
     const target = cadenceDays(frequency);

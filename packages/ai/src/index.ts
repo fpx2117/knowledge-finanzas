@@ -14,6 +14,8 @@ export { buildChatCompletionRequest, mapChatCompletionResponse } from "./provide
 export type { OpenRouterChatCompletionRequest, OpenRouterChatCompletionResponse } from "./providers/openrouter/types";
 
 export { noopTelemetryRecorder, type GenerationTelemetry, type TelemetryRecorder } from "./telemetry/types";
+export { runWithGenerationContext, getGenerationContext, type GenerationContext } from "./telemetry/generation-context";
+export { createTelemetryProvider } from "./providers/with-telemetry";
 
 export {
   createAIExecutor,
@@ -50,6 +52,7 @@ export {
 
 export { createGrantTrialCredits, type GrantTrialCreditsInput } from "./credits/grant-trial-credits";
 export { createGrantProPeriodCredits, type ProPeriodGrantInput } from "./credits/grant-pro-period-credits";
+export { createGrantFreePeriodCredits, freePeriodKey, freePeriodExpiry } from "./credits/grant-free-period-credits";
 export { createAdminAdjustCredits, type AdminAdjustCreditsRepository, type AdminAdjustCreditsResult } from "./credits/admin-adjust-credits";
 export { createGetAIUsageSummary, type AIUsageSummary, type GetAIUsageSummaryInput } from "./credits/usage-summary";
 export { createReconcileStaleReservations } from "./credits/reconcile-stale-reservations";

@@ -43,7 +43,9 @@ export async function notifyUser(input: { userId: string; userTimezone: string; 
   }
 
   const whatsappDelivery = result.deliveries.find((delivery) => delivery.channel === "WHATSAPP");
-  if (whatsappDelivery && sendWhatsAppDelivery && state !== "EXPIRED_READ_ONLY" && state !== "NO_ACCESS") {
+  // Only TRIAL/PRO carry a WhatsApp entitlement + numeric allowance; FREE never produces a
+  // WHATSAPP delivery row, but narrow explicitly so the allowance check stays well-typed.
+  if (whatsappDelivery && sendWhatsAppDelivery && (state === "TRIAL" || state === "PRO")) {
     try {
       const consent = await preferences.findWhatsappConsentForUser(input.userId);
       const optedIn = Boolean(consent?.optInAt && !consent.optOutAt && consent.phoneNumber);

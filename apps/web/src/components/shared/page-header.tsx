@@ -28,12 +28,14 @@ export function PageHeader({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       {breadcrumb && breadcrumb.length > 0 ? <Breadcrumb items={breadcrumb} /> : null}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-h1 text-foreground">{title}</h1>
-          {description ? <p className="text-body text-muted-foreground">{description}</p> : null}
+      {/* Reference mobile: the title and the period control share the top line; the subtitle sits
+          full-width underneath (never inflating the title column so the control can't wrap away). */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-row flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:gap-4">
+          <h1 className="text-[1.7rem] font-black leading-[1.15] tracking-[-0.03em] text-foreground sm:text-h1">{title}</h1>
+          {actions ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">{actions}</div> : null}
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div> : null}
+        {description ? <p className="text-small text-muted-foreground sm:text-body">{description}</p> : null}
       </div>
     </div>
   );

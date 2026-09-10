@@ -1,11 +1,13 @@
 "use client";
 
-import { ArchiveIcon } from "lucide-react";
+import { useActionState } from "react";
+import { ArchiveIcon, StarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MoneyAmount } from "@/components/financial/money-amount";
 import { archiveAccountAction } from "../actions/archive-account";
+import { setPrimaryAccountAction } from "../actions/set-primary-account";
 
 // OQ-007: archiving a non-zero-balance account is allowed — it doesn't destroy or move money,
 // transactions/history stay intact — but the user must see, before confirming, that this balance
@@ -15,15 +17,31 @@ export function AccountActions({
   accountName,
   balance,
   currencyCode,
+  isPrimary = false,
 }: {
   accountId: string;
   accountName: string;
   balance: string;
   currencyCode: string;
+  isPrimary?: boolean;
 }) {
   const hasBalance = Number(balance) !== 0;
+  const [, setPrimary, settingPrimary] = useActionState(setPrimaryAccountAction, null);
 
   return (
+    <>
+      {isPrimary ? (
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-subtle px-2.5 py-1.5 text-small font-medium text-brand">
+          <StarIcon className="size-4 fill-current" /> Cuenta principal
+        </span>
+      ) : (
+        <form action={setPrimary}>
+          <input type="hidden" name="accountId" value={accountId} />
+          <Button type="submit" variant="outline" disabled={settingPrimary}>
+            <StarIcon className="size-4" /> {settingPrimary ? "Guardando…" : "Marcar como principal"}
+          </Button>
+        </form>
+      )}
     <ConfirmDialog
       trigger={
         <Button variant="outline">
@@ -47,5 +65,6 @@ export function AccountActions({
       action={archiveAccountAction}
       hiddenFields={{ accountId }}
     />
+    </>
   );
 }

@@ -75,6 +75,16 @@ export function createBillingSubscriptionRepository(database: Database) {
         .then(([subscription]) => subscription);
     },
 
+    // Local-only cancel for a subscription that never reached the provider (checkout abandoned
+    // before the preapproval was created) — there is nothing to call cancelSubscription on.
+    cancelWithoutProvider(subscriptionId: string, reason?: { reasonCode: string | null; reasonComment: string | null }) {
+      return database.update(billingSubscriptions)
+        .set({ status: "CANCELLED", cancelledAt: new Date(), cancellationReasonCode: reason?.reasonCode ?? null, cancellationReasonComment: reason?.reasonComment ?? null, updatedAt: new Date() })
+        .where(and(eq(billingSubscriptions.id, subscriptionId), inArray(billingSubscriptions.status, ["PENDING", "ACTIVE", "PAST_DUE", "PAUSED"])))
+        .returning()
+        .then(([subscription]) => subscription);
+    },
+
     markFailed(subscriptionId: string, reason?: { reasonCode: string | null; reasonComment: string | null }) {
       return database.update(billingSubscriptions)
         .set({ status: "CANCELLED", cancelledAt: new Date(), cancellationReasonCode: reason?.reasonCode ?? null, cancellationReasonComment: reason?.reasonComment ?? null, updatedAt: new Date() })

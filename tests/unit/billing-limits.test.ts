@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { computeRemaining, isLimitReached, resolveLimit, UNLIMITED, type LimitConfig } from "@know-finanzas/billing";
 
 const config: LimitConfig = {
+  freeAiCreditsPerPeriod: 15,
+  freeWhatsAppPerPeriod: 0,
   trialAiCreditsTotal: 50,
   trialWhatsAppTotal: 3,
   proAiCreditsPerPeriod: 300,
@@ -17,6 +19,11 @@ describe("plan limits", () => {
   it("resolves the pro per-period allowance for ai credits and whatsapp", () => {
     expect(resolveLimit("PRO", "ai.credits", config)).toBe(300);
     expect(resolveLimit("PRO", "whatsapp.allowance", config)).toBe(20);
+  });
+
+  it("resolves the FREE monthly allowance for ai credits and zero whatsapp", () => {
+    expect(resolveLimit("FREE", "ai.credits", config)).toBe(15);
+    expect(resolveLimit("FREE", "whatsapp.allowance", config)).toBe(0);
   });
 
   it("resolves a zero limit for EXPIRED_READ_ONLY", () => {

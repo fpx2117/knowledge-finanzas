@@ -1,0 +1,121 @@
+/**
+ * Deterministic parser for write-intent messages (spec §11 Action Cards). Recognises
+ * "creá / registrá / anotá un gasto|ingreso …" and "gasté N en …" and pulls out the amount
+ * and a merchant/description — with **no LLM**. KAI then shows a `KAI_CONFIRMATION` the user
+ * approves before anything is written.
+ */
+export type KaiWriteIntent = {
+  kind: "CREATE_EXPENSE" | "CREATE_INCOME";
+  /** Decimal string, or null when no amount could be read (KAI opens the form instead). */
+  amount: string | null;
+  /** "USD" when the message named dollars; null → the account's own currency. */
+  currencyHint: "USD" | null;
+  /** Non-empty description for the transaction (merchant name, or "Gasto" / "Ingreso"). */
+  description: string;
+  /** The merchant/counterparty fragment, when distinguishable from the description. */
+  merchant: string | null;
+};
+
+const CREATE_VERB = /\b(crea|cre[aá]s?|creame|registr\w+|anot\w+|agreg\w+|carg\w+|met[eé]|pon[eé]|añad\w+|sum[aá])\b/;
+const EXPENSE_NOUN = /\b(gasto|gastos|compra|compras|pago|pagos)\b/;
+const INCOME_NOUN = /\b(ingreso|ingresos|cobro|cobros|entrada|dep[oó]sito|deposito)\b/;
+const SPENT_VERB = /\b(gast[eé]|pagu[eé]|compr[eé]|abon[eé])\b/;
+const SPENT_COLLOQUIAL = /\bse me (fueron|fue|van|va)\b/;
+const EARNED_VERB = /\b(cobr[eé]|ingres[eé]|recib[ií]|me pagaron|me depositaron)\b/;
+
+const FILLER = new Set([
+  "el", "la", "los", "las", "un", "una", "unos", "unas", "de", "del", "en", "por", "para",
+  "mi", "mis", "a", "al", "que", "con", "y", "e", "the", "gasto", "ingreso", "pago", "compra",
+  "cobro", "hoy", "ayer", "ahora", "algo", "cosas", "cosa",
+]);
+
+/** Parses "$30.000", "30.000", "30000", "30 mil", "1,5 millones", "30k", "usd 50", "us$ 50". */
+export function parseAmount(text: string): { amount: string | null; currencyHint: "USD" | null } {
+  const currencyHint = /(\busd\b|u\$s|us\$|d[oó]lar\w*)/.test(text) ? ("USD" as const) : null;
+
+  // AR slang: "5 lucas" = 5.000, "2 palos" = 2.000.000, "30k" = 30.000.
+  const scaled = /(\d+(?:[.,]\d+)?)\s*(mil|millon\w*|lucas?|palos?|k|m)\b/.exec(text);
+  if (scaled) {
+    const base = Number(scaled[1].replace(",", "."));
+    const unit = scaled[2].toLowerCase();
+    const factor = unit === "m" || /^(millon|palo)/.test(unit) ? 1_000_000 : 1_000;
+    if (Number.isFinite(base)) return { amount: String(Math.round(base * factor)), currencyHint };
+  }
+
+  // Bare number, Argentine grouping: "." = thousands, "," = decimals.
+  const bare = /(?:\$|usd|u\$s|us\$)?\s*(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?|\d+(?:\.\d{1,2})?)/.exec(text);
+  if (bare) {
+    let raw = bare[1];
+    if (raw.includes(".") && raw.includes(",")) raw = raw.replace(/\./g, "").replace(",", ".");
+    else if (/\.\d{3}(\D|$)/.test(`${raw} `) || /\.\d{3}$/.test(raw)) raw = raw.replace(/\./g, "");
+    else raw = raw.replace(",", ".");
+    const value = Number(raw);
+    if (Number.isFinite(value) && value > 0) return { amount: String(value), currencyHint };
+  }
+
+  return { amount: null, currencyHint };
+}
+
+export function parseWriteIntent(normalized: string, raw: string): KaiWriteIntent | null {
+  const hasCreateVerb = CREATE_VERB.test(normalized);
+  const hasNumber = /\d/.test(normalized);
+  const isExpense =
+    (hasCreateVerb && EXPENSE_NOUN.test(normalized)) ||
+    (SPENT_VERB.test(normalized) && hasNumber) ||
+    (SPENT_COLLOQUIAL.test(normalized) && hasNumber) ||
+    /\b(un|una)?\s*(gasto|compra|pago) de\b/.test(normalized);
+  const isIncome =
+    (hasCreateVerb && INCOME_NOUN.test(normalized)) ||
+    (EARNED_VERB.test(normalized) && hasNumber) ||
+    /\b(un|una)?\s*(ingreso|cobro) de\b/.test(normalized);
+
+  if (!isExpense && !isIncome) return null;
+  const kind = isIncome && !isExpense ? "CREATE_INCOME" : "CREATE_EXPENSE";
+
+  // Parse the amount from the raw text — `normalized` has stripped the "." and "," that
+  // Argentine number formatting relies on ("$30.000").
+  const { amount, currencyHint } = parseAmount(raw.toLowerCase());
+
+  // Merchant/description: drop verbs, nouns and the amount, then take the tail after "en"/"de".
+  let rest = normalized
+    .replace(CREATE_VERB, " ")
+    .replace(EXPENSE_NOUN, " ")
+    .replace(INCOME_NOUN, " ")
+    .replace(SPENT_VERB, " ")
+    .replace(SPENT_COLLOQUIAL, " ")
+    .replace(EARNED_VERB, " ")
+    .replace(/quiero|necesito|por favor|porfa|dale|que|anota|registra/g, " ")
+    // normalized has no "." / "," so amounts are space-separated digit groups ("30 000").
+    .replace(/\b\d[\d]*\b/g, " ")
+    .replace(/\b(mil|millon\w*|lucas?|palos?|k|usd|u\$s|us\$|d[oó]lar\w*|pesos?|mangos?)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  rest = rest.replace(/[$]/g, " ").replace(/\s+/g, " ").trim();
+  const enMatch = /(?:\ben\b|\bde\b|\bpara\b|\bpor\b|\ba\b)\s+(.+)$/.exec(rest);
+  if (enMatch) rest = enMatch[1];
+
+  const words = rest.split(" ").filter((w) => w && !FILLER.has(w) && /[a-z0-9]/.test(w));
+  const merchantFromNormalized = words.slice(0, 3).join(" ").trim();
+
+  // Recover original casing from the raw message for a nicer label.
+  let merchant: string | null = null;
+  if (merchantFromNormalized) {
+    const rawWords = raw.split(/\s+/);
+    const first = merchantFromNormalized.split(" ")[0];
+    const matched = rawWords.find((w) => stripAccents(w.toLowerCase()).replace(/[^a-z0-9]/g, "") === first);
+    merchant = matched
+      ? rawWords
+          .slice(rawWords.indexOf(matched), rawWords.indexOf(matched) + merchantFromNormalized.split(" ").length)
+          .join(" ")
+          .replace(/[.,;:]+$/, "")
+      : merchantFromNormalized;
+  }
+
+  const description = merchant || (kind === "CREATE_INCOME" ? "Ingreso" : "Gasto");
+  return { kind, amount, currencyHint, description, merchant };
+}
+
+function stripAccents(value: string): string {
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}

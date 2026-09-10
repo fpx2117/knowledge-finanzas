@@ -17,7 +17,7 @@ async function newUser(page: Page, baseURL: string, tag: string) {
 async function createAccount(page: Page, name: string, currency: string) {
   await page.goto("/accounts/new");
   await page.getByLabel("Nombre de la cuenta").fill(name);
-  await page.getByLabel("Tipo").selectOption("BANK");
+  await page.getByLabel("Tipo").selectOption(currency === "ARS" ? "BANK" : "SAVINGS");
   await page.getByLabel("Moneda").selectOption(currency);
   await page.getByLabel("Saldo inicial").fill("500000");
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");

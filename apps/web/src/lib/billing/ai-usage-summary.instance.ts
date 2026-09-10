@@ -6,6 +6,7 @@ import { env } from "@know-finanzas/config";
 // product-access-gate.instance.ts: importing it always pulls in the real db client and env
 // validation, so nothing that needs to stay test-safe should import from here.
 export const getAIUsageSummary = createGetAIUsageSummary(createAICreditRepository(db), {
+  freeCreditsPerPeriod: env.FREE_AI_CREDITS_PER_PERIOD,
   trialCreditsTotal: env.TRIAL_AI_CREDITS_TOTAL,
   proCreditsPerPeriod: env.PRO_AI_CREDITS_PER_PERIOD,
 });

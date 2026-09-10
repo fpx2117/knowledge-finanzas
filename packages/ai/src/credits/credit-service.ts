@@ -24,6 +24,9 @@ export type AICreditGrantResult = { created: boolean; entry: { id: string } | un
 export type AICreditRepositoryPort = {
   grantTrialCredits(input: { userId: string; amount: number; expiresAt: Date | null }): Promise<AICreditGrantResult>;
   grantPlanCredits(input: { userId: string; amount: number; referenceId: string; periodKey?: string | null; expiresAt: Date | null }): Promise<AICreditGrantResult>;
+  // FREE tier: write off the unused remainder of any lapsed monthly allowance (idempotent).
+  // Optional so existing test fakes that predate the FREE tier keep satisfying the port.
+  expireLapsedFreeCredits?(userId: string, now: Date): Promise<{ expired: number }>;
   getAvailableBalances(userId: string): Promise<PoolBalances>;
   findByOperationId(operationId: string, userId: string): Promise<AICreditReservationRecord | undefined>;
   reserve(input: { userId: string; capability: string; pool: AICreditPool; credits: number; operationId: string; expiresAt: Date }): Promise<

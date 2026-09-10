@@ -13,7 +13,16 @@ const initial: TransferActionState | null = null;
 
 type AccountOption = { id: string; name: string; currencyCode: string };
 
-export function TransferForm({ accounts, timezone }: { accounts: AccountOption[]; timezone: string }) {
+export function TransferForm({
+  accounts,
+  timezone,
+  cancel,
+}: {
+  accounts: AccountOption[];
+  timezone: string;
+  /** Overrides the default "Cancelar" link (e.g. a DialogClose button when shown in a modal). */
+  cancel?: React.ReactNode;
+}) {
   const [state, action, pending] = useActionState(createTransferAction, initial);
   const errors = state?.ok === false ? state.error.fieldErrors ?? {} : {};
   // One idempotency key per form instance (spec 14 §38).
@@ -102,7 +111,7 @@ export function TransferForm({ accounts, timezone }: { accounts: AccountOption[]
       </p>
 
       <div className="flex items-center justify-end gap-3 pt-2">
-        <Button variant="outline" render={<Link href="/transactions">Cancelar</Link>} />
+        {cancel ?? <Button variant="outline" render={<Link href="/transactions">Cancelar</Link>} />}
         <Button type="submit" disabled={pending || noPair || noSameCurrencyPair}>
           {pending ? "Transfiriendo…" : "Transferir"}
         </Button>

@@ -29,18 +29,19 @@ describe("ProductAccessGate", () => {
     await expect(gate.assertCanWrite("user-1")).resolves.toBeUndefined();
   });
 
-  it("blocks writes with PRODUCT_ACCESS_READ_ONLY once trial and subscription are both ineffective", async () => {
+  it("drops to FREE (writes still allowed) once trial and subscription are both ineffective", async () => {
     const now = new Date("2026-06-20T00:00:00Z");
     const gate = createProductAccessGate({ users: fakeUsers(new Date("2026-06-01T00:00:00Z")), subscriptions: fakeSubscriptions(null), graceDays: 0, now: () => now });
 
-    await expect(gate.getAccessState("user-1")).resolves.toBe("EXPIRED_READ_ONLY");
-    await expect(gate.assertCanWrite("user-1")).rejects.toMatchObject({ code: "PRODUCT_ACCESS_READ_ONLY" });
+    await expect(gate.getAccessState("user-1")).resolves.toBe("FREE");
+    await expect(gate.assertCanWrite("user-1")).resolves.toBeUndefined();
   });
 
-  it("treats a missing user access row the same as no active trial", async () => {
+  it("treats a missing user access row as a FREE user (writes allowed)", async () => {
     const gate = createProductAccessGate({ users: { findAccessInputById: async () => undefined }, subscriptions: fakeSubscriptions(null), graceDays: 0 });
 
-    await expect(gate.assertCanWrite("unknown-user")).rejects.toMatchObject({ code: "PRODUCT_ACCESS_READ_ONLY" });
+    await expect(gate.getAccessState("unknown-user")).resolves.toBe("FREE");
+    await expect(gate.assertCanWrite("unknown-user")).resolves.toBeUndefined();
   });
 
   it("honors the configured grace period for PAST_DUE subscriptions", async () => {
@@ -50,7 +51,7 @@ describe("ProductAccessGate", () => {
     const outsideGrace = createProductAccessGate({ users: fakeUsers(null), subscriptions: fakeSubscriptions({ status: "PAST_DUE", currentPeriodEnd }), graceDays: 1, now: () => now });
 
     await expect(withinGrace.getAccessState("user-1")).resolves.toBe("PRO");
-    await expect(outsideGrace.getAccessState("user-1")).resolves.toBe("EXPIRED_READ_ONLY");
+    await expect(outsideGrace.getAccessState("user-1")).resolves.toBe("FREE");
   });
 
   it("resolves PRO and allows writes for a user with an active promotional grant and no subscription", async () => {
@@ -65,6 +66,6 @@ describe("ProductAccessGate", () => {
     const now = new Date("2026-06-01T00:00:00Z");
     const gate = createProductAccessGate({ users: fakeUsers(null), subscriptions: fakeSubscriptions(null), graceDays: 0, now: () => now });
 
-    await expect(gate.getAccessState("user-1")).resolves.toBe("EXPIRED_READ_ONLY");
+    await expect(gate.getAccessState("user-1")).resolves.toBe("FREE");
   });
 });

@@ -13,6 +13,7 @@ export function buildChatCompletionRequest<T>(model: string, input: GenerateStru
     response_format: { type: "json_schema", json_schema: buildJsonSchema(input.schema, input.schemaName) },
     temperature: input.temperature,
     max_tokens: input.maxOutputTokens,
+    usage: { include: true },
   };
 }
 
@@ -20,7 +21,12 @@ export type MappedChatCompletion = {
   raw: string;
   model: string;
   generationId: string | null;
-  usage: { inputTokens: number | null; outputTokens: number | null };
+  usage: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cachedInputTokens: number | null;
+    costUsd: number | null;
+  };
 };
 
 export function mapChatCompletionResponse(response: OpenRouterChatCompletionResponse): MappedChatCompletion {
@@ -34,6 +40,8 @@ export function mapChatCompletionResponse(response: OpenRouterChatCompletionResp
     usage: {
       inputTokens: response.usage?.prompt_tokens ?? null,
       outputTokens: response.usage?.completion_tokens ?? null,
+      cachedInputTokens: response.usage?.prompt_tokens_details?.cached_tokens ?? null,
+      costUsd: typeof response.usage?.cost === "number" ? response.usage.cost : null,
     },
   };
 }

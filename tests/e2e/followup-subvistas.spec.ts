@@ -15,7 +15,7 @@ async function newUser(page: Page, baseURL: string, tag: string) {
 async function createAccount(page: Page, name: string, currency: string, balance = "500000") {
   await page.goto("/accounts/new");
   await page.getByLabel("Nombre de la cuenta").fill(name);
-  await page.getByLabel("Tipo").selectOption("BANK");
+  await page.getByLabel("Tipo").selectOption(currency === "ARS" ? "BANK" : "SAVINGS");
   await page.getByLabel("Moneda").selectOption(currency);
   await page.getByLabel("Saldo inicial").fill(balance);
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");
@@ -63,28 +63,26 @@ test("§13 Patrimonio breaks down by currency and never fuses a total", async ({
   await expect(page.getByText("Patrimonio neto")).toHaveCount(2);
 });
 
-test("§10/§11 Transacciones Gastos e Ingresos son filtros semánticos con su propio resumen", async ({ browser, baseURL }) => {
+test("Gastos e Ingresos ya no son pestañas propias: /transactions/expenses redirige a Movimientos con el chip de gastos", async ({ browser, baseURL }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await newUser(page, baseURL!, "typed");
   await createAccount(page, "Galicia", "ARS");
   await movement(page, "INCOME", "Galicia", "800000", "Sueldo");
-  await movement(page, "EXPENSE", "Galicia", "12000", "Super");
   await movement(page, "EXPENSE", "Galicia", "34000", "Nafta");
 
   await page.goto("/transactions/expenses");
-  await expect(page.getByRole("heading", { level: 1, name: "Gastos" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Secciones de transacciones" }).getByRole("link", { name: "Gastos" })).toHaveAttribute("aria-current", "page");
-  const expSummary = page.getByRole("region", { name: "Resumen del período" });
-  await expect(expSummary.getByText("Gastado en el período")).toBeVisible();
-  await expect(expSummary.getByText("2", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/transactions\?type=EXPENSE$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Transacciones" })).toBeVisible();
+  // The "Gastos" chip is pre-selected, so only the expense is listed.
+  await expect(page.getByRole("button", { name: "Gastos" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Nafta")).toBeVisible();
   await expect(page.getByText("Sueldo")).toHaveCount(0);
-  await page.getByRole("button", { name: "Registrar gasto" }).click();
-  await expect(page.getByRole("dialog").getByRole("tab", { name: "Gasto" })).toHaveAttribute("aria-selected", "true");
+
+  // Switching the chip back to "Todos" reveals the income again — no page reload needed.
+  await page.getByRole("button", { name: "Todos" }).click();
+  await expect(page.getByText("Sueldo")).toBeVisible();
 
   await page.goto("/transactions/income");
-  await expect(page.getByRole("heading", { level: 1, name: "Ingresos" })).toBeVisible();
-  await expect(page.getByText("Sueldo")).toBeVisible();
-  await expect(page.getByText("Nafta")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/transactions\?type=INCOME$/);
 });

@@ -5,18 +5,13 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-// ADR-IMPL-001: canonical English paths (spec 14 §8). Importaciones moved to /settings/imports
-// (module 11) and Duplicados folded into Pendientes as an anchored section (#duplicados) — see
-// apps/web/src/app/(app)/transactions/pending/page.tsx.
+// ADR-IMPL-001 + consolidación 2026-09: Transacciones pasó de 8 pestañas a 2. Gastos, Ingresos y
+// Transferencias son chips dentro de Movimientos. Recurrentes y Duplicados son secciones dentro
+// de Pendientes (#recurrentes / #duplicados). Programados vive en Obligaciones. Rutas viejas
+// redirigen. Crear una transferencia se hace desde el botón "Transferir" del header (modal).
 const TABS = [
   { label: "Movimientos", href: "/transactions" },
-  { label: "Gastos", href: "/transactions/expenses" },
-  { label: "Ingresos", href: "/transactions/income" },
-  { label: "Transferencias", href: "/transactions/transfers" },
-  { label: "Recurrentes", href: "/transactions/recurring" },
-  { label: "Programados", href: "/transactions/scheduled" },
   { label: "Pendientes", href: "/transactions/pending" },
-  { label: "Duplicados", href: "/transactions/pending#duplicados" },
 ];
 
 export function TransactionsSubnav() {

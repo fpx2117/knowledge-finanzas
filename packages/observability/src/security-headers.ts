@@ -9,6 +9,9 @@ export function buildSecurityHeaders(input: { isHttps: boolean; dev?: boolean })
   // exactly those two directives when `dev` is set; production keeps the strict policy.
   const scriptSrc = input.dev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'";
   const connectSrc = input.dev ? "connect-src 'self' ws: wss:" : "connect-src 'self'";
+  // Same-origin framing is allowed in dev so responsive layouts can be checked in a sized iframe /
+  // device preview. Production forbids all framing (clickjacking).
+  const frameAncestors = input.dev ? "frame-ancestors 'self'" : "frame-ancestors 'none'";
   const headers: Record<string, string> = {
     "Content-Security-Policy": [
       "default-src 'self'",
@@ -17,14 +20,14 @@ export function buildSecurityHeaders(input: { isHttps: boolean; dev?: boolean })
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       connectSrc,
-      "frame-ancestors 'none'",
+      frameAncestors,
       "base-uri 'self'",
       "form-action 'self'",
     ].join("; "),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
-    "X-Frame-Options": "DENY",
+    "X-Frame-Options": input.dev ? "SAMEORIGIN" : "DENY",
   };
 
   // HSTS only over an actual HTTPS connection ("when stable" — never advertise it over plain HTTP,

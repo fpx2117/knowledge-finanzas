@@ -9,7 +9,7 @@ const subscriptions = createBillingSubscriptionRepository(db);
 
 export type AssistantAccess =
   | { enabled: false; reason: "DISABLED" | "ACCESS_REQUIRED" }
-  | { enabled: true; credits: { available: number; total: number; kind: "TRIAL" | "PRO" } };
+  | { enabled: true; credits: { available: number; total: number; kind: "FREE" | "TRIAL" | "PRO" } };
 
 /** What the floating assistant needs to decide whether to offer itself and show a credit meter. */
 export async function getAssistantAccess(userId: string): Promise<AssistantAccess> {
@@ -38,7 +38,7 @@ export async function getAssistantAccess(userId: string): Promise<AssistantAcces
     credits: {
       available: summary.available,
       total: summary.total,
-      kind: summary.state === "TRIAL" ? "TRIAL" : "PRO",
+      kind: summary.state === "TRIAL" ? "TRIAL" : summary.state === "FREE" ? "FREE" : "PRO",
     },
   };
 }

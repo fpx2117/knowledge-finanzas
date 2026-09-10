@@ -1,0 +1,100 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+
+import { z } from "zod";
+
+import {
+  accountRepository,
+  categoryMapRepository,
+  categoryRepository,
+  classificationRuleRepository,
+  merchantRepository,
+  merchantUserDefaultRepository,
+  transactionRepository,
+} from "@know-finanzas/db";
+
+import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
+import { requireCurrentUser } from "@/lib/auth/require-current-user";
+import { getTodayInTimezone, resolveOccurredAtISO } from "@/lib/date";
+import { createTransactionService } from "@/features/transactions/services/transaction-service";
+import {
+  createExpenseTransactionSchema,
+  createIncomeTransactionSchema,
+} from "@/features/transactions/schemas/transaction-schemas";
+
+const service = createTransactionService({
+  accounts: accountRepository,
+  categories: categoryRepository,
+  transactions: transactionRepository,
+  merchants: merchantRepository,
+  categoryMap: categoryMapRepository,
+  merchantDefaults: merchantUserDefaultRepository,
+  classificationRules: classificationRuleRepository,
+});
+
+const inputSchema = z.object({
+  type: z.enum(["EXPENSE", "INCOME"]),
+  amount: z.string().trim().min(1),
+  description: z.string().trim().min(1).max(240),
+  merchant: z.string().trim().max(160).optional(),
+  currencyHint: z.literal("USD").optional(),
+});
+
+export type KaiCreateResult =
+  | { ok: true; transactionId: string; type: "EXPENSE" | "INCOME"; amount: string; currencyCode: string }
+  | { ok: false; error: { code: string; message: string } };
+
+const ACCOUNT_PRIORITY: Record<string, number> = { BANK: 0, DIGITAL_WALLET: 1, CASH: 2, SAVINGS: 3 };
+
+/**
+ * Creates a transaction from a KAI confirmation card. KAI only reaches here after the user
+ * tapped "Confirmar" on a card that already showed exactly what would be written; the toast
+ * offers an immediate undo. The account is picked automatically (see below) — "Editar" opens
+ * the full Quick Add form for anything more specific.
+ */
+export async function kaiCreateTransactionAction(input: z.input<typeof inputSchema>): Promise<KaiCreateResult> {
+  const user = await requireCurrentUser();
+  const parsed = inputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar los datos del movimiento." } };
+  }
+  const { type, amount, description, merchant, currencyHint } = parsed.data;
+
+  const accounts = await accountRepository.listForUser(user.id);
+  if (accounts.length === 0) {
+    return { ok: false, error: { code: "NO_ACCOUNT", message: "Primero necesitás crear una cuenta." } };
+  }
+  const wantCurrency = currencyHint ?? user.baseCurrency;
+  const preferred = accounts.filter((a) => a.currencyCode === wantCurrency);
+  const pool = preferred.length > 0 ? preferred : accounts;
+  const account = [...pool].sort(
+    (a, b) => (ACCOUNT_PRIORITY[a.type] ?? 9) - (ACCOUNT_PRIORITY[b.type] ?? 9),
+  )[0];
+
+  const occurredAt = resolveOccurredAtISO(getTodayInTimezone(user.timezone), user.timezone);
+  const raw = {
+    accountId: account.id,
+    amount,
+    description,
+    occurredAt,
+    commandId: randomUUID(),
+    ...(type === "EXPENSE" && merchant ? { merchant } : {}),
+  };
+
+  try {
+    // No duplicate gate here: the confirmation card the user just approved already shows
+    // exactly what will be written, and the toast offers an immediate undo. The Quick Add
+    // fuzzy-duplicate heuristic is tuned for a user-picked account and fires on coincidental
+    // same-amount/same-day matches when KAI picks the account itself.
+    const created =
+      type === "INCOME"
+        ? await service.createIncomeTransaction(user.id, createIncomeTransactionSchema.parse(raw), user.timezone)
+        : await service.createExpenseTransaction(user.id, createExpenseTransactionSchema.parse(raw), user.timezone);
+    const row = created as { id: string; amount: string; currencyCode: string };
+    return { ok: true, transactionId: row.id, type, amount: row.amount, currencyCode: row.currencyCode };
+  } catch (error) {
+    const mapped = mapErrorToUi(error);
+    return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
+  }
+}

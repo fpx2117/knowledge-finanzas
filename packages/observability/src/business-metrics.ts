@@ -25,6 +25,9 @@ export type UsageCostInputs = {
   // notification_deliveries (WHATSAPP channel, SENT/DELIVERED status) respectively.
   aiCreditsConsumed: number;
   whatsappMessagesSent: number;
+  // Optional: real AI cost in USD from ai_generation_events (sum of provider-reported cost). When
+  // provided, it — not `aiCreditsConsumed × assumedAiCostPerCredit` — drives totalVariableCosts.
+  actualAiCostTotal?: string | null;
 };
 
 export type TrialEconomicsInputs = {
@@ -39,6 +42,25 @@ export type TrialEconomicsInputs = {
   trialWhatsappMessagesSent: number;
 };
 
+export type FreeEconomicsInputs = {
+  // Distinct users currently on the permanent FREE tier (no paid subscription / active promotion /
+  // active trial).
+  freeUserCount: number;
+  freeToTrialCount: number;
+  freeToProCount: number;
+  // AI credits consumed against FREE monthly grants — from ai_credit_entries CONSUMPTION rows in
+  // the PLAN_ALLOWANCE pool attributable to grants whose reference_id starts with "free:".
+  freeAiCreditsConsumed: number;
+};
+
+export type FreeEconomics = {
+  freeUserCount: number;
+  freeToTrialCount: number;
+  freeToProCount: number;
+  freeToTrialRate: string | null;
+  freeAiCostAssumed: string;
+};
+
 export type RevenueBreakdown = {
   currencyCode: string;
   proSubscriberCount: number;
@@ -50,9 +72,13 @@ export type RevenueBreakdown = {
 
 export type CostBreakdown = {
   aiCostAssumed: string;
+  // Real AI cost from ai_generation_events (sum of the provider's reported USD), when available —
+  // same assumed/actual distinction the gateway fee already uses. Null when there is no real feed.
+  actualAiCostTotal: string | null;
   whatsappCostAssumed: string;
   infrastructureAllocation: string;
   otherCosts: string;
+  // Uses the real AI cost when `actualAiCostTotal` is present, otherwise the assumed figure.
   totalVariableCosts: string;
 };
 
@@ -76,6 +102,7 @@ export type UnitEconomicsSnapshot = {
   costs: CostBreakdown;
   contribution: ContributionBreakdown;
   trial: TrialEconomics;
+  free?: FreeEconomics;
 };
 
 function toDecimal(value: string): Decimal {
@@ -107,13 +134,18 @@ export function calculateRevenue(config: PricingConfig, input: RevenueInputs): R
 // billing feed exists in this codebase to compute an "actual" figure from.
 export function calculateCosts(config: PricingConfig, input: UsageCostInputs, proSubscriberCount: number): CostBreakdown {
   const aiCostAssumed = toDecimal(config.assumedAiCostPerCredit).times(input.aiCreditsConsumed);
+  const actualAiCost = input.actualAiCostTotal !== undefined && input.actualAiCostTotal !== null
+    ? toDecimal(input.actualAiCostTotal)
+    : null;
   const whatsappCostAssumed = toDecimal(config.assumedWhatsappCostPerMessage).times(input.whatsappMessagesSent);
   const infrastructureAllocation = toDecimal(config.infrastructureAllocationPerProUser).times(proSubscriberCount);
   const otherCosts = toDecimal(config.otherCostPerProUser).times(proSubscriberCount);
-  const totalVariableCosts = aiCostAssumed.plus(whatsappCostAssumed).plus(infrastructureAllocation).plus(otherCosts);
+  const aiCostForTotal = actualAiCost ?? aiCostAssumed;
+  const totalVariableCosts = aiCostForTotal.plus(whatsappCostAssumed).plus(infrastructureAllocation).plus(otherCosts);
 
   return {
     aiCostAssumed: roundMoney(aiCostAssumed),
+    actualAiCostTotal: actualAiCost ? roundMoney(actualAiCost) : null,
     whatsappCostAssumed: roundMoney(whatsappCostAssumed),
     infrastructureAllocation: roundMoney(infrastructureAllocation),
     otherCosts: roundMoney(otherCosts),
@@ -151,10 +183,30 @@ export function calculateTrialEconomics(config: PricingConfig, input: TrialEcono
   };
 }
 
+// FREE tier: imputed AI cost (real consumed credits × the assumed per-credit cost) plus the
+// FREE→TRIAL and FREE→PRO funnel counts. FREE costs are NOT folded into `calculateCosts` — those
+// are Pro-subscriber-keyed — this is a separate, explicitly-labeled figure (Domain Rule: costs and
+// revenue concepts stay distinct).
+export function calculateFreeEconomics(config: PricingConfig, input: FreeEconomicsInputs): FreeEconomics {
+  const freeAiCostAssumed = toDecimal(config.assumedAiCostPerCredit).times(input.freeAiCreditsConsumed);
+  const freeToTrialRate = input.freeUserCount > 0
+    ? new Decimal(input.freeToTrialCount).dividedBy(input.freeUserCount).toFixed(4)
+    : null;
+
+  return {
+    freeUserCount: input.freeUserCount,
+    freeToTrialCount: input.freeToTrialCount,
+    freeToProCount: input.freeToProCount,
+    freeToTrialRate,
+    freeAiCostAssumed: roundMoney(freeAiCostAssumed),
+  };
+}
+
 export function buildUnitEconomicsSnapshot(config: PricingConfig, input: {
   revenue: RevenueInputs;
   usage: UsageCostInputs;
   trial: TrialEconomicsInputs;
+  free?: FreeEconomicsInputs;
 }): UnitEconomicsSnapshot {
   const revenue = calculateRevenue(config, input.revenue);
   const costs = calculateCosts(config, input.usage, input.revenue.proSubscriberCount);
@@ -167,5 +219,6 @@ export function buildUnitEconomicsSnapshot(config: PricingConfig, input: {
     costs,
     contribution,
     trial,
+    ...(input.free ? { free: calculateFreeEconomics(config, input.free) } : {}),
   };
 }

@@ -14,7 +14,7 @@ async function newUser(page: Page, baseURL: string, tag: string) {
 async function createAccount(page: Page, name: string, currency: string) {
   await page.goto("/accounts/new");
   await page.getByLabel("Nombre de la cuenta").fill(name);
-  await page.getByLabel("Tipo").selectOption("BANK");
+  await page.getByLabel("Tipo").selectOption(currency === "ARS" ? "BANK" : "SAVINGS");
   await page.getByLabel("Moneda").selectOption(currency);
   await page.getByLabel("Saldo inicial").fill("500000");
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");
@@ -59,16 +59,17 @@ test("the period summary is 3 KPIs in one currency, and splits per currency with
 
   await page.goto("/transactions");
   const summary = page.getByRole("region", { name: "Resumen del período" });
-  await expect(summary.getByText("Ingresos del período")).toBeVisible();
-  await expect(summary.getByText("Gastos del período")).toBeVisible();
-  await expect(summary.getByText("Resultado del período")).toBeVisible();
+  await expect(summary.getByText("Total de ingresos")).toBeVisible();
+  await expect(summary.getByText("Total de gastos")).toBeVisible();
+  await expect(summary.getByText("Balance")).toBeVisible();
 
   // Add a USD expense in the same period → the summary must split, never show one merged number.
   await expense(page, "Wise", "20", "Compra USD");
   await page.goto("/transactions");
   await expect(summary.getByText("ARS · este período")).toBeVisible();
   await expect(summary.getByText("USD · este período")).toBeVisible();
-  await expect(summary.getByText("Ingresos del período")).toHaveCount(0);
+  // Per-currency blocks repeat the labels, so there must be one "Total de ingresos" per currency.
+  await expect(summary.getByText("Total de ingresos")).toHaveCount(2);
 
   await context.close();
 });

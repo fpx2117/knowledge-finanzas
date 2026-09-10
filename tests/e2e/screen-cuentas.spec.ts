@@ -14,7 +14,7 @@ async function newUser(page: Page, baseURL: string, tag: string) {
 async function createAccount(page: Page, name: string, currency: string, opening: string) {
   await page.goto("/accounts/new");
   await page.getByLabel("Nombre de la cuenta").fill(name);
-  await page.getByLabel("Tipo").selectOption("BANK");
+  await page.getByLabel("Tipo").selectOption(currency === "ARS" ? "BANK" : "SAVINGS");
   await page.getByLabel("Moneda").selectOption(currency);
   await page.getByLabel("Saldo inicial").fill(opening);
   await page.getByLabel("Fecha de apertura").fill("2026-01-01");
@@ -29,17 +29,17 @@ test("one currency shows a single balance; two currencies show balances per curr
 
   await createAccount(page, "Galicia", "ARS", "100000");
   await page.goto("/accounts");
-  const summary = page.getByRole("region", { name: "Resumen de cuentas" });
-  await expect(summary.getByText("Saldo en cuentas")).toBeVisible();
-  await expect(summary.getByText(/cuenta activa/)).toBeVisible();
+  // Per-currency totals live in the KPI row and nowhere else on the screen.
+  const kpis = page.getByRole("region", { name: "Indicadores de cuentas" });
+  await expect(kpis.getByText("Total en ARS")).toBeVisible();
+  await expect(kpis.getByText(/cuenta activa/)).toBeVisible();
+  await expect(kpis.getByText("Total en USD")).toHaveCount(0);
 
   await createAccount(page, "Wise", "USD", "500");
   await page.goto("/accounts");
-  // Now multi-currency: the single total is gone, per-currency breakdown appears.
-  await expect(summary.getByText("Saldos por moneda")).toBeVisible();
-  await expect(summary.getByText("Saldo en cuentas")).toHaveCount(0);
-  await expect(summary.getByText("ARS").first()).toBeVisible();
-  await expect(summary.getByText("USD").first()).toBeVisible();
+  // Now multi-currency: a total PER currency, never a merged one.
+  await expect(kpis.getByText("Total en ARS")).toBeVisible();
+  await expect(kpis.getByText("Total en USD")).toBeVisible();
 
   await context.close();
 });
@@ -65,12 +65,13 @@ test("archived accounts are hidden until 'Ver archivadas', and the header uses t
     await expect(page.getByText(/Ver archivadas/)).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 15000 });
 
-  // Hidden by default.
-  const table = page.locator("table");
-  await expect(table).not.toContainText("Vieja");
+  // The screen has a single account listing — archived accounts fold in behind a toggle,
+  // not a second table.
+  const listing = page.getByRole("region", { name: "Listado de cuentas" });
+  await expect(listing).not.toContainText("Vieja");
   // Toggle reveals it.
-  await page.getByRole("button", { name: /Ver archivadas/ }).click();
-  await expect(table).toContainText("Vieja");
+  await listing.getByRole("button", { name: /Ver archivadas/ }).click();
+  await expect(listing).toContainText("Vieja");
 
   await context.close();
 });

@@ -6,6 +6,8 @@ export type LimitValue = number | typeof UNLIMITED;
 export type LimitKey = "ai.credits" | "whatsapp.allowance";
 
 export type LimitConfig = {
+  freeAiCreditsPerPeriod: number;
+  freeWhatsAppPerPeriod: number;
   trialAiCreditsTotal: number;
   trialWhatsAppTotal: number;
   proAiCreditsPerPeriod: number;
@@ -18,7 +20,11 @@ export type LimitConfig = {
 export function resolveLimit(state: ProductAccessState, key: LimitKey, config: LimitConfig): LimitValue {
   if (state === "EXPIRED_READ_ONLY" || state === "NO_ACCESS") return 0;
 
-  if (key === "ai.credits") return state === "TRIAL" ? config.trialAiCreditsTotal : config.proAiCreditsPerPeriod;
+  if (key === "ai.credits") {
+    if (state === "FREE") return config.freeAiCreditsPerPeriod;
+    return state === "TRIAL" ? config.trialAiCreditsTotal : config.proAiCreditsPerPeriod;
+  }
+  if (state === "FREE") return config.freeWhatsAppPerPeriod;
   return state === "TRIAL" ? config.trialWhatsAppTotal : config.proWhatsAppPerPeriod;
 }
 

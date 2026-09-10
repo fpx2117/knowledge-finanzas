@@ -138,7 +138,13 @@ export const accounts = pgTable("accounts", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
   name: text("name").notNull(),
   type: accountTypeEnum("type").notNull(),
+  // Institution registry slug ("galicia", "mercado-pago", …) — labels the account and drives its
+  // brand logo. Free-text, validated against the code registry, nullable for cash/unknown.
+  institution: text("institution"),
   currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+  // The user's "main" account — pre-selected in Quick Add and highlighted in the sidebar. At most
+  // one per user (enforced by the partial unique index below).
+  isPrimary: boolean("is_primary").notNull().default(false),
   openingBalance: numeric("opening_balance", { precision: 20, scale: 6 }).notNull().default("0"),
   openingDate: date("opening_date").notNull(),
   status: accountStatusEnum("status").notNull().default("ACTIVE"),
@@ -147,6 +153,7 @@ export const accounts = pgTable("accounts", {
 }, (table) => [
   index("accounts_user_idx").on(table.userId),
   index("accounts_user_status_idx").on(table.userId, table.status),
+  uniqueIndex("accounts_one_primary_per_user_idx").on(table.userId).where(sql`${table.isPrimary}`),
   check("accounts_currency_code_length_check", sql`char_length(${table.currencyCode}) = 3`),
 ]);
 
@@ -194,6 +201,8 @@ export const merchants = pgTable("merchants", {
   merchantGroupId: uuid("merchant_group_id").references((): AnyPgColumn => merchants.id, { onDelete: "set null" }),
   defaultTaxonomyNodeId: uuid("default_taxonomy_node_id").references(() => categoryTaxonomy.id, { onDelete: "set null" }),
   homeCountry: varchar("home_country", { length: 2 }),
+  // Home domain (e.g. "netflix.com") — used to fetch a brand logo from logo.dev.
+  domain: text("domain"),
   active: boolean("active").notNull().default(true),
   ...timestamps,
 }, (table) => [
@@ -1166,6 +1175,67 @@ export const aiCreditReservations = pgTable("ai_credit_reservations", {
   index("ai_credit_reservations_user_status_idx").on(table.userId, table.status),
   index("ai_credit_reservations_status_expires_idx").on(table.status, table.expiresAt),
   check("ai_credit_reservations_credits_positive_check", sql`${table.credits} > 0`),
+]);
+
+// One row per real provider generation call (docs/08 — AI cost telemetry). Records the *actual*
+// provider cost + token usage so per-user AI spend and app-wide AI cost can be computed from real
+// data, distinct from the product-credit count and the assumed per-credit cost planning figure.
+// `status`/`model_role` are plain text (like user_onboarding.status) — no enum churn.
+export const aiGenerationEvents = pgTable("ai_generation_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  capability: text("capability").notNull(),
+  modelRole: text("model_role").notNull(),
+  resolvedModel: text("resolved_model"),
+  provider: text("provider").notNull().default("openrouter"),
+  // Provider-side id (e.g. OpenRouter generation id) for cross-referencing their dashboard.
+  generationId: text("generation_id"),
+  // Ties back to ai_credit_reservations.operation_id / the capability operationId.
+  operationId: text("operation_id"),
+  status: text("status").notNull(),
+  errorCode: text("error_code"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  cachedInputTokens: integer("cached_input_tokens"),
+  // Real USD the provider charged for this call. Null when the provider didn't report it.
+  costUsd: numeric("cost_usd", { precision: 16, scale: 10 }),
+  // Product credits debited for this call (from the reservation) — for comparing real cost vs the
+  // credit price.
+  creditsCharged: integer("credits_charged"),
+  latencyMs: integer("latency_ms").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("ai_generation_events_user_created_idx").on(table.userId, table.createdAt),
+  index("ai_generation_events_capability_created_idx").on(table.capability, table.createdAt),
+  index("ai_generation_events_created_idx").on(table.createdAt),
+  index("ai_generation_events_operation_idx").on(table.operationId),
+]);
+
+// Every KAI interaction (spec §24 "Principio de auditoría"). One row per user question so we can
+// measure KAI_LOCAL_RESOLUTION_RATE (spec §25) and see which intents are missing. `resolutionSource`
+// and `responseType` are plain TEXT (validated in @know-finanzas/kai), same rationale as the other
+// evolving categorical columns in this file — avoids pgEnum ADD VALUE ordering pitfalls.
+export const kaiInteractions = pgTable("kai_interactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Intent id (e.g. GET_MONTH_EXPENSES), or "STATIC" / "UNRESOLVED".
+  intentId: text("intent_id").notNull(),
+  // STATIC | DATABASE | CALCULATOR | RULE_ENGINE | TEMPLATE | CACHE | LLM
+  resolutionSource: text("resolution_source").notNull(),
+  // KAI points this interaction consumed (spec §19 / monetización): 1 for a deterministic
+  // answer, 5+ for an LLM fallback. FREE has a monthly allowance; TRIAL/PRO are unlimited.
+  weight: integer("weight").notNull().default(1),
+  llmUsed: boolean("llm_used").notNull().default(false),
+  // Real USD cost of the LLM fallback for this interaction (0 for deterministic answers).
+  aiCostUsd: numeric("ai_cost_usd", { precision: 16, scale: 10 }).notNull().default("0"),
+  latencyMs: integer("latency_ms").notNull(),
+  responseType: text("response_type").notNull(),
+  screenContext: text("screen_context"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("kai_interactions_user_created_idx").on(table.userId, table.createdAt),
+  index("kai_interactions_created_idx").on(table.createdAt),
+  index("kai_interactions_source_created_idx").on(table.resolutionSource, table.createdAt),
 ]);
 
 export const reminders = pgTable("reminders", {

@@ -23,8 +23,8 @@ const subscriptionExpiredProperties = z.object({}).strict();
 const userReactivatedProperties = z.object({}).strict();
 
 const productAccessChangedProperties = z.object({
-  from: z.enum(["NO_ACCESS", "TRIAL", "PRO", "EXPIRED_READ_ONLY"]),
-  to: z.enum(["NO_ACCESS", "TRIAL", "PRO", "EXPIRED_READ_ONLY"]),
+  from: z.enum(["NO_ACCESS", "FREE", "TRIAL", "PRO", "EXPIRED_READ_ONLY"]),
+  to: z.enum(["NO_ACCESS", "FREE", "TRIAL", "PRO", "EXPIRED_READ_ONLY"]),
   source: z.enum(["PAID_SUBSCRIPTION", "PROMOTION", "TRIAL", "NONE"]),
   reason: z.string().max(64),
 }).strict();
@@ -49,7 +49,7 @@ export const billingEvents: AnalyticsEventDefinition[] = [
   { name: "subscription_cancelled", schema: subscriptionCancelledProperties, critical: true, version: 1 },
   { name: "subscription_expired", schema: subscriptionExpiredProperties, critical: true, version: 1 },
   { name: "user_reactivated", schema: userReactivatedProperties, critical: true, version: 1 },
-  { name: "product_access_changed", schema: productAccessChangedProperties, critical: false, version: 1 },
+  { name: "product_access_changed", schema: productAccessChangedProperties, critical: false, version: 2 },
   { name: "promotion_redeemed", schema: promotionRedeemedProperties, critical: true, version: 1 },
   { name: "discount_applied", schema: discountAppliedProperties, critical: true, version: 1 },
 ];

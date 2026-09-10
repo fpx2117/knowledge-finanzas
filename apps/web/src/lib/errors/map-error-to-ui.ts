@@ -27,6 +27,7 @@ const messages: Record<ApplicationErrorCode, string> = {
   RECURRING_SERIES_NOT_FOUND: "No encontramos este gasto recurrente.",
   CURRENCY_MISMATCH: "Las monedas seleccionadas no coinciden.",
   INVALID_AMOUNT: "Ingresá un monto mayor a cero.",
+  INSUFFICIENT_BALANCE: "El gasto no puede ser mayor al saldo disponible de la cuenta.",
   INTERNAL_ERROR: "No pudimos completar la operación. Intentá nuevamente.",
   TRANSFER_ACCOUNT_NOT_FOUND: "No encontramos una de las cuentas seleccionadas.",
   TRANSFER_ACCOUNT_ARCHIVED: "Una de las cuentas está archivada.",

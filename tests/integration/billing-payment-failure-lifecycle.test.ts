@@ -52,7 +52,7 @@ describe("payment failure -> PAST_DUE -> grace -> EXPIRED lifecycle (real reposi
     await expect(subscriptions.findById(local.id)).resolves.toMatchObject({ status: "ACTIVE" });
   });
 
-  it("expires a PAST_DUE subscription once the grace window elapses and financial data remains fully readable", async () => {
+  it("expires a PAST_DUE subscription once the grace window elapses, dropping the user to the FREE tier with all data intact", async () => {
     const { local, periodEnd, subscriptions } = await seedUserPlanAndActiveSubscription();
     const handlePaymentFailure = createHandlePaymentFailure({ subscriptions });
     await handlePaymentFailure(local.id);
@@ -66,7 +66,9 @@ describe("payment failure -> PAST_DUE -> grace -> EXPIRED lifecycle (real reposi
     expect(result).toEqual({ expired: 1, results: [{ subscriptionId: local.id, userId: userA, expired: true }] });
     const expired = await subscriptions.findById(local.id);
     expect(expired).toMatchObject({ status: "EXPIRED" });
-    expect(resolveProductAccess({ now: afterGrace, trialEndsAt: null, subscription: expired!, graceDays })).toBe("EXPIRED_READ_ONLY");
+    // A lapsed subscription with no trial/promotion now resolves to the permanent FREE tier
+    // (not EXPIRED_READ_ONLY) — core personal finance stays fully usable.
+    expect(resolveProductAccess({ now: afterGrace, trialEndsAt: null, subscription: expired!, graceDays })).toBe("FREE");
 
     // Financial data (docs/10-6.subscription-cancellation-refunds.md domain rule: cancellation/
     // access loss never deletes or archives financial history) must still be fully readable.

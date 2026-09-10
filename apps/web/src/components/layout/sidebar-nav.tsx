@@ -5,7 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRightIcon } from "lucide-react";
 
+import { StarIcon } from "lucide-react";
+
 import { cn } from "@/lib/utils";
+import { InstitutionLogo } from "@/design-system/institutions/institution-logo";
+import { resolveAccountInstitution } from "@/design-system/institutions/institutions";
+import { FinanceIcon } from "@/design-system/icons/finance-icon";
 import {
   NAV_ITEMS,
   SECONDARY_NAV_ITEMS,
@@ -13,6 +18,7 @@ import {
   isNavItemActive,
   type NavBadgeCounts,
   type NavItem,
+  type SidebarAccountLink,
 } from "./nav-items";
 
 // Spec 13 §6.14 — a badge shows 1–99, then "99+". Never rendered at 0 (§6.13: only when actionable).
@@ -43,18 +49,58 @@ function itemBadge(item: NavItem, badges: NavBadgeCounts) {
   return <Badge text={text} label={label} />;
 }
 
+function AccountChild({
+  account,
+  active,
+  onNavigate,
+}: {
+  account: SidebarAccountLink;
+  active: boolean;
+  onNavigate?: () => void;
+}) {
+  const institution = resolveAccountInstitution(account);
+  return (
+    <li>
+      <Link
+        href={`/accounts/${account.id}`}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex h-9 items-center gap-2 rounded-md px-2 text-small transition-colors",
+          active ? "bg-brand-subtle font-medium text-brand" : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        {institution ? (
+          <InstitutionLogo institution={institution.id} size="sm" className="!size-6 shrink-0" />
+        ) : (
+          <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-md bg-brand-subtle text-brand">
+            <FinanceIcon name="wallet" size="sm" className="!size-3.5 text-current" />
+          </span>
+        )}
+        <span className="flex-1 truncate">{account.name}</span>
+        {account.isPrimary ? (
+          <StarIcon aria-label="Cuenta principal" className="size-3.5 shrink-0 fill-[var(--brand)] text-[var(--brand)]" />
+        ) : null}
+      </Link>
+    </li>
+  );
+}
+
 function NavGroup({
   item,
   pathname,
   badges,
+  accountLinks,
   onNavigate,
 }: {
   item: NavItem;
   pathname: string;
   badges: NavBadgeCounts;
+  accountLinks?: SidebarAccountLink[];
   onNavigate?: () => void;
 }) {
   const sectionActive = isNavItemActive(pathname, item.href);
+  const isAccounts = item.href === "/accounts" && (accountLinks?.length ?? 0) > 0;
   // §6.7 — a deep link into a subview forces its ancestor open; §6.8/§6.9 — the user can then
   // toggle it, and several sections may stay open at once (no forced accordion).
   const [open, setOpen] = useState(sectionActive);
@@ -105,24 +151,50 @@ function NavGroup({
           inert={!expanded || undefined}
           className="mb-1 ml-[1.55rem] mt-0.5 flex min-h-0 flex-col gap-0.5 border-l border-border pl-3"
         >
-          {item.children!.map((child) => {
-            const active = isNavChildActive(pathname, child.href);
-            return (
-              <li key={child.href}>
+          {isAccounts ? (
+            <>
+              <li>
                 <Link
-                  href={child.href}
+                  href="/accounts"
                   onClick={onNavigate}
-                  aria-current={active ? "page" : undefined}
+                  aria-current={pathname === "/accounts" ? "page" : undefined}
                   className={cn(
                     "flex h-8 items-center rounded-md px-2.5 text-small transition-colors",
-                    active ? "bg-brand-subtle font-medium text-brand" : "text-muted-foreground hover:text-foreground",
+                    pathname === "/accounts" ? "bg-brand-subtle font-medium text-brand" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {child.label}
+                  Todas las cuentas
                 </Link>
               </li>
-            );
-          })}
+              {accountLinks!.map((account) => (
+                <AccountChild
+                  key={account.id}
+                  account={account}
+                  active={pathname === `/accounts/${account.id}`}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </>
+          ) : (
+            (item.children ?? []).map((child) => {
+              const active = isNavChildActive(pathname, child.href);
+              return (
+                <li key={child.href}>
+                  <Link
+                    href={child.href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex h-8 items-center rounded-md px-2.5 text-small transition-colors",
+                      active ? "bg-brand-subtle font-medium text-brand" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {child.label}
+                  </Link>
+                </li>
+              );
+            })
+          )}
         </ul>
       </div>
     </li>
@@ -167,19 +239,31 @@ function FlatItem({
 
 export function SidebarNav({
   badges = {},
+  accountLinks = [],
   onNavigate,
 }: {
   badges?: NavBadgeCounts;
+  accountLinks?: SidebarAccountLink[];
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Navegación principal" className="flex flex-1 flex-col overflow-y-auto px-3">
+    <nav
+      aria-label="Navegación principal"
+      className="flex flex-1 flex-col overflow-y-auto overscroll-contain px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       <ul className="flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) =>
-          item.children?.length ? (
-            <NavGroup key={item.href} item={item} pathname={pathname} badges={badges} onNavigate={onNavigate} />
+          item.children?.length || (item.href === "/accounts" && accountLinks.length > 0) ? (
+            <NavGroup
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              badges={badges}
+              accountLinks={item.href === "/accounts" ? accountLinks : undefined}
+              onNavigate={onNavigate}
+            />
           ) : (
             <FlatItem key={item.href} item={item} pathname={pathname} badges={badges} onNavigate={onNavigate} />
           ),

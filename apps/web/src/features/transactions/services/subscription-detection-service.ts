@@ -58,11 +58,14 @@ type Dependencies = {
     dismissedMerchantIds(userId: string): Promise<string[]>;
   };
   categories: { listForUser(userId: string, options?: { includeArchived?: boolean }): Promise<Array<{ id: string; name: string }>> };
+  /** Optional — merchants whose category makes them known-recurring (detected from 2 charges). */
+  merchants?: { subscriptionLikeMerchantIds(): Promise<string[]> };
   now?: () => Date;
 };
 
 export type SubscriptionView = {
   id: string;
+  merchantId: string;
   label: string;
   frequency: "MONTHLY" | "YEARLY" | SubscriptionRow["frequency"];
   currencyCode: string;
@@ -88,6 +91,7 @@ function toView(row: SubscriptionRow, categoryName: string | null): Subscription
       : null;
   return {
     id: row.id,
+    merchantId: row.merchantId,
     label: row.label,
     frequency: row.frequency,
     currencyCode: row.currencyCode,
@@ -101,13 +105,14 @@ function toView(row: SubscriptionRow, categoryName: string | null): Subscription
   };
 }
 
-export function createSubscriptionDetectionService({ transactions, subscriptions, categories, now = () => new Date() }: Dependencies) {
+export function createSubscriptionDetectionService({ transactions, subscriptions, categories, merchants, now = () => new Date() }: Dependencies) {
   return {
     async refreshForUser(userId: string): Promise<{ found: number }> {
       const since = new Date(now().getTime() - LOOKBACK_DAYS * 86_400_000);
-      const [rows, dismissed] = await Promise.all([
+      const [rows, dismissed, subscriptionLike] = await Promise.all([
         transactions.listExpensesSinceForUser(userId, since),
         subscriptions.dismissedMerchantIds(userId),
+        merchants?.subscriptionLikeMerchantIds() ?? Promise.resolve([]),
       ]);
       const dismissedSet = new Set(dismissed);
 
@@ -121,8 +126,10 @@ export function createSubscriptionDetectionService({ transactions, subscriptions
         categoryId: r.categoryId,
       }));
 
-      const candidates = detectSubscriptions(txns, { now: now().toISOString().slice(0, 10) })
-        .filter((c) => !dismissedSet.has(c.merchantId));
+      const candidates = detectSubscriptions(txns, {
+        now: now().toISOString().slice(0, 10),
+        lowThresholdMerchantIds: new Set(subscriptionLike),
+      }).filter((c) => !dismissedSet.has(c.merchantId));
 
       for (const c of candidates) {
         await subscriptions.upsert({

@@ -68,6 +68,20 @@
 
   --info: var(--brand);
   --info-soft: var(--brand-subtle);
+
+  /* KAI assistant visual states (spec §5). Accent + soft fill per state; the
+     geometry/identity never change, only the accent. Never inline these in a
+     component. `analytical` is the one state with no existing primitive — a cooler
+     indigo, distinct from the warmer brand blue. */
+  --kai-neutral: var(--brand);
+  --kai-neutral-soft: var(--brand-subtle);
+  --kai-analytical: #5b52c9;
+  --kai-analytical-soft: #eeecfb;
+  --kai-alert: var(--warning);
+  --kai-alert-soft: var(--warning-soft);
+  --kai-positive: var(--success);
+  --kai-positive-soft: var(--success-soft);
+
   --financial-positive: var(--success);
   --financial-positive-soft: var(--success-soft);
   --financial-negative: var(--negative);
@@ -135,14 +149,21 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Typography polish — balanced headings, no single-word orphans in body copy. */
-h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
-p { text-wrap: pretty; }
+/* Typography polish — balanced headings, no single-word orphans in body copy. In @layer base so
+   a `text-wrap`/`text-*` utility on a heading can still override it. */
+@layer base {
+  h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+}
 
 /* Match lucide's 2px hairline to Satoshi's optical weight (regular/medium text). */
 svg.lucide { stroke-width: 1.5px; }
 
-button, a { font: inherit; }
+/* Reset the UA button/anchor font to inherit — but inside @layer base so Tailwind text/font
+   utilities on a <button>/<a> still win (a bare rule here outranks all utilities). */
+@layer base {
+  button, a { font: inherit; }
+}
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
 
 
@@ -236,6 +257,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   --color-brand-hover: var(--brand-hover);
   --color-brand-subtle: var(--brand-subtle);
   --color-brand-border: var(--brand-border);
+  --color-kai-neutral: var(--kai-neutral);
+  --color-kai-neutral-soft: var(--kai-neutral-soft);
+  --color-kai-analytical: var(--kai-analytical);
+  --color-kai-analytical-soft: var(--kai-analytical-soft);
+  --color-kai-alert: var(--kai-alert);
+  --color-kai-alert-soft: var(--kai-alert-soft);
+  --color-kai-positive: var(--kai-positive);
+  --color-kai-positive-soft: var(--kai-positive-soft);
   --color-foreground-secondary: var(--foreground-secondary);
   --color-foreground-muted: var(--foreground-muted);
   --color-surface: var(--surface);
@@ -343,6 +372,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   --focus-ring: #8b9cff;
   --info: var(--brand);
   --info-soft: var(--brand-subtle);
+
+  /* KAI states over the dark ground. neutral/alert/positive follow their base
+     tokens (redefined below); analytical gets its own lightened indigo. */
+  --kai-neutral: var(--brand);
+  --kai-neutral-soft: var(--brand-subtle);
+  --kai-analytical: #a7a0f5;
+  --kai-analytical-soft: color-mix(in oklch, #7c6ff0 16%, transparent);
+  --kai-alert: var(--warning);
+  --kai-alert-soft: var(--warning-soft);
+  --kai-positive: var(--success);
+  --kai-positive-soft: var(--success-soft);
 
   /* Financial semantics — brighter text, translucent soft fills. */
   --success: #4ade80;

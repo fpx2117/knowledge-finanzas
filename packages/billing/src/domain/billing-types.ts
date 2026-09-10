@@ -6,11 +6,15 @@ export type BillingPeriodStatus = "PENDING" | "ACTIVE" | "CLOSED" | "FAILED";
 export type BillingPaymentStatus = "PENDING" | "APPROVED" | "REJECTED" | "REFUNDED" | "CANCELLED";
 export type BillingWebhookEventStatus = "RECEIVED" | "PROCESSING" | "PROCESSED" | "FAILED" | "IGNORED";
 
-// NO_ACCESS (TASK-064): a user who completed profile onboarding but hasn't chosen Trial/Pro/a
-// promo code yet — distinct from EXPIRED_READ_ONLY (a user who genuinely HAD trial/paid/
-// promotional access before and it lapsed). Never set directly; resolveProductAccess derives it
-// from `everHadAccess` (see ResolveProductAccessInput) being false.
-export type ProductAccessState = "NO_ACCESS" | "TRIAL" | "PRO" | "EXPIRED_READ_ONLY";
+// FREE: the permanent freemium tier — full core personal-finance read+write, a small monthly AI
+// allowance (see limits.ts `freeAiCreditsPerPeriod`), no email/WhatsApp, no AI scenarios. This is
+// what every authenticated user gets when no paid subscription / promotion / active trial applies
+// (resolveProductAccess returns it for source === "NONE").
+//
+// EXPIRED_READ_ONLY is now a rare hard-lock state (admin action / future dunning rule), no longer
+// the default post-trial landing. NO_ACCESS is legacy — kept for type/back-compat, no live emitter
+// (the onboarding gate that would set it is not wired in apps/web).
+export type ProductAccessState = "NO_ACCESS" | "FREE" | "TRIAL" | "PRO" | "EXPIRED_READ_ONLY";
 
 // Which mechanism produced the resolved PRO/TRIAL state — priority is
 // PAID_SUBSCRIPTION > PROMOTION > TRIAL > NONE (docs/10.3-promotion-codes-pro-access.md).

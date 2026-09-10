@@ -10,15 +10,48 @@ export function createAccountRepository(database: Database) {
       userId: string;
       name: string;
       type: "CASH" | "BANK" | "DIGITAL_WALLET" | "SAVINGS";
+      institution?: string | null;
       currencyCode: string;
+      isPrimary?: boolean;
       openingBalance: string;
       openingDate: string;
     }) {
-      return database.insert(accounts).values({
-        ...input,
-        status: "ACTIVE",
-        archivedAt: null,
-      }).returning().then(([account]) => account);
+      return database.transaction(async (tx) => {
+        // First account for the user is primary by default; an explicit flag also wins.
+        const hasPrimary = await tx
+          .select({ id: accounts.id })
+          .from(accounts)
+          .where(and(eq(accounts.userId, input.userId), eq(accounts.isPrimary, true)))
+          .limit(1);
+        const makePrimary = input.isPrimary === true || hasPrimary.length === 0;
+        if (makePrimary && hasPrimary.length > 0) {
+          await tx.update(accounts).set({ isPrimary: false }).where(eq(accounts.userId, input.userId));
+        }
+        const [account] = await tx
+          .insert(accounts)
+          .values({ ...input, isPrimary: makePrimary, status: "ACTIVE", archivedAt: null })
+          .returning();
+        return account;
+      });
+    },
+
+    /** Make one account the user's primary; clears the flag on every other account. */
+    async setPrimaryForUser(accountId: string, userId: string) {
+      return database.transaction(async (tx) => {
+        const [target] = await tx
+          .select({ id: accounts.id })
+          .from(accounts)
+          .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId), eq(accounts.status, "ACTIVE")))
+          .limit(1);
+        if (!target) return undefined;
+        await tx.update(accounts).set({ isPrimary: false, updatedAt: new Date() }).where(eq(accounts.userId, userId));
+        const [account] = await tx
+          .update(accounts)
+          .set({ isPrimary: true, updatedAt: new Date() })
+          .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+          .returning();
+        return account;
+      });
     },
 
     findByIdForUser(accountId: string, userId: string) {

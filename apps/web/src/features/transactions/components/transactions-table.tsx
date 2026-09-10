@@ -1,22 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRightIcon, SearchIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { StatusChip } from "@/components/shared/status-chip";
 import { EmptyState } from "@/components/shared/empty-state";
-import { TypeBadge } from "@/components/financial/type-badge";
-import { MoneyAmount } from "@/components/financial/money-amount";
+import { TransactionListItem, type TxnKind } from "@/components/financial/transaction-list-item";
+import { MerchantLogo } from "@/components/financial/merchant-logo";
 import { formatShortDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export type TransactionRow = {
   id: string;
   occurredAt: string;
   description: string;
   merchant: string | null;
+  merchantDomain?: string | null;
   categoryName: string | null;
   accountName: string;
   type: string;
@@ -25,125 +25,214 @@ export type TransactionRow = {
   status: "POSTED" | "VOIDED";
 };
 
-const HEAD = "text-caption font-semibold uppercase tracking-wider text-muted-foreground";
+function toKind(type: string): TxnKind {
+  if (type === "INCOME" || type === "REFUND") return "income";
+  if (type === "EXPENSE" || type === "LIABILITY_PAYMENT") return "expense";
+  if (type === "TRANSFER" || type === "TRANSFER_IN" || type === "TRANSFER_OUT") return "transfer";
+  return "adjustment";
+}
 
+const CHIPS = [
+  { id: "ALL", label: "Todos" },
+  { id: "income", label: "Ingresos" },
+  { id: "expense", label: "Gastos" },
+  { id: "transfer", label: "Transferencias" },
+] as const;
+
+type ChipId = (typeof CHIPS)[number]["id"];
+
+const PAGE = 25;
+
+/** YYYY-MM-DD for an instant in the given IANA timezone. */
+function ymdInTz(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}
+
+/** Coarse date bucket for a movement — matches the reference's "Hoy / Ayer / Esta semana …". */
+function bucket(iso: string, todayYmd: string, timeZone: string): { key: string; label: string; order: number } {
+  const monthYear = new Intl.DateTimeFormat("es-AR", { timeZone, month: "long", year: "numeric" });
+  const d = new Date(iso);
+  const rowYmd = ymdInTz(d, timeZone);
+  const dayMs = (s: string) => Date.parse(`${s}T00:00:00Z`);
+  const days = Math.round((dayMs(todayYmd) - dayMs(rowYmd)) / 86_400_000);
+  if (days <= 0) return { key: "hoy", label: "Hoy", order: 0 };
+  if (days === 1) return { key: "ayer", label: "Ayer", order: 1 };
+  if (days < 7) return { key: "semana", label: "Esta semana", order: 2 };
+  if (rowYmd.slice(0, 7) === todayYmd.slice(0, 7)) return { key: "mes", label: "Este mes", order: 3 };
+  const key = rowYmd.slice(0, 7);
+  const label = monthYear.format(d).replace(/^\w/, (c) => c.toUpperCase());
+  return { key, label, order: 4 + Math.round(days / 30) };
+}
+
+/**
+ * The movements list — reference `transaccion UI -DESKTOP .png`: a card with a search box and
+ * quick chips, then rows grouped by date bucket ("Hoy", "Ayer", "Esta semana", months).
+ */
 export function TransactionsTable({
   rows,
-  page,
-  prevHref,
-  nextHref,
+  timezone,
+  defaultChip = "ALL",
 }: {
   rows: TransactionRow[];
-  page: number;
-  prevHref?: string;
-  nextHref?: string;
+  timezone?: string;
+  defaultChip?: ChipId;
 }) {
+  const tz = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const dowDate = useMemo(
+    () => new Intl.DateTimeFormat("es-AR", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }),
+    [tz],
+  );
   const [query, setQuery] = useState("");
-  const filtered = rows.filter((row) => {
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return (
-      row.description.toLowerCase().includes(q) ||
-      (row.merchant ?? "").toLowerCase().includes(q) ||
-      (row.categoryName ?? "").toLowerCase().includes(q)
-    );
-  });
+  const [chip, setChip] = useState<ChipId>(defaultChip);
+  const [limit, setLimit] = useState(PAGE);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (chip !== "ALL" && toKind(row.type) !== chip) return false;
+      if (!q) return true;
+      return (
+        row.description.toLowerCase().includes(q) ||
+        (row.merchant ?? "").toLowerCase().includes(q) ||
+        (row.categoryName ?? "").toLowerCase().includes(q) ||
+        row.accountName.toLowerCase().includes(q)
+      );
+    });
+  }, [rows, query, chip]);
+
+  const visible = filtered.slice(0, limit);
+
+  // The kind chips only help when the list actually mixes kinds (income / expense / transfer).
+  const showChips = useMemo(() => {
+    const kinds = new Set<TxnKind>();
+    for (const row of rows) {
+      kinds.add(toKind(row.type));
+      if (kinds.size > 1) return true;
+    }
+    return false;
+  }, [rows]);
+
+  const groups = useMemo(() => {
+    const todayYmd = ymdInTz(new Date(), tz);
+    const map = new Map<string, { label: string; order: number; newest: string; rows: TransactionRow[] }>();
+    for (const row of visible) {
+      const b = bucket(row.occurredAt, todayYmd, tz);
+      const g = map.get(b.key);
+      if (g) {
+        g.rows.push(row);
+        if (row.occurredAt > g.newest) g.newest = row.occurredAt;
+      } else {
+        map.set(b.key, { label: b.label, order: b.order, newest: row.occurredAt, rows: [row] });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.order - b.order);
+  }, [visible, tz]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="relative">
-        <SearchIcon aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar por descripción, comercio o categoría"
-          aria-label="Buscar movimiento"
-          className="h-10 pl-9"
-        />
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-md)]">
+      <div className="flex flex-col gap-3 border-b border-border p-4 sm:p-5">
+        <div className="relative">
+          <SearchIcon aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setLimit(PAGE);
+            }}
+            placeholder="Buscar un movimiento…"
+            aria-label="Buscar movimiento"
+            className="h-10 pl-9"
+          />
+        </div>
+        <div className={cn("flex-wrap gap-2", showChips ? "flex" : "hidden")}>
+          {CHIPS.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => {
+                setChip(c.id);
+                setLimit(PAGE);
+              }}
+              aria-pressed={chip === c.id}
+              className={cn(
+                "rounded-full border px-3 py-1 text-caption font-semibold transition-colors",
+                chip === c.id
+                  ? "border-brand bg-brand text-white"
+                  : "border-border bg-card text-muted-foreground hover:border-brand/40 hover:text-foreground",
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          title={rows.length === 0 ? "Todavía no hay movimientos" : "Ningún movimiento coincide"}
-          description={
-            rows.length === 0
-              ? "Registrá tu primer ingreso o gasto para empezar a ver tu actividad."
-              : "Probá con otra búsqueda o cambiá los filtros."
-          }
-        />
+      {visible.length === 0 ? (
+        <div className="p-5">
+          <EmptyState
+            icon={<SearchIcon />}
+            title={rows.length === 0 ? "Tu historia empieza acá." : "No encontramos movimientos."}
+            description={
+              rows.length === 0
+                ? "Registrá tus ingresos, gastos y transferencias para tener una visión clara de tu dinero."
+                : "Probá con otra búsqueda, período o tipo de movimiento."
+            }
+          />
+        </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className={HEAD}>Fecha</TableHead>
-                <TableHead className={HEAD}>Descripción</TableHead>
-                <TableHead className={`hidden md:table-cell ${HEAD}`}>Categoría</TableHead>
-                <TableHead className={`hidden lg:table-cell ${HEAD}`}>Cuenta</TableHead>
-                <TableHead className={`hidden sm:table-cell ${HEAD}`}>Tipo</TableHead>
-                <TableHead className={`text-right ${HEAD}`}>Monto</TableHead>
-                <TableHead className="w-8" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((row) => {
-                const kindNegative = row.type === "EXPENSE" || row.type === "LIABILITY_PAYMENT";
-                return (
-                  <TableRow key={row.id} className="h-[52px] hover:bg-brand-subtle/60">
-                    <TableCell className="whitespace-nowrap text-small text-muted-foreground">{formatShortDate(row.occurredAt)}</TableCell>
-                    <TableCell>
-                      <Link href={`/transactions/${row.id}`} className="text-small font-medium text-foreground hover:text-brand hover:underline">
-                        {row.description}
+        <div className="flex flex-col">
+          {groups.map((group) => (
+            <section key={group.label} aria-label={group.label}>
+              <div className="flex items-baseline justify-between gap-3 bg-surface-secondary/60 px-4 py-2 sm:px-5">
+                <span className="text-caption font-bold text-foreground">{group.label}</span>
+                <span className="text-caption text-muted-foreground">
+                  {dowDate.format(new Date(group.newest)).replace(/^\w/, (c) => c.toUpperCase())}
+                </span>
+              </div>
+              <ul className="flex flex-col px-4 sm:px-5">
+                {group.rows.map((row) => {
+                  const kind = toKind(row.type);
+                  const isTransfer = kind === "transfer";
+                  const href = isTransfer
+                    ? `/transactions/transfers/${row.id.replace(/^transfer-/, "")}`
+                    : `/transactions/${row.id}`;
+                  return (
+                    <li key={row.id} className="border-b border-border-subtle last:border-0">
+                      <Link href={href} className="block rounded-lg transition-colors hover:bg-brand-subtle/40">
+                        <TransactionListItem
+                          concept={row.merchant ?? row.description}
+                          meta={isTransfer ? row.accountName : `${row.categoryName ?? "Sin categoría"} · ${row.accountName}`}
+                          amount={row.amount}
+                          currency={row.currencyCode}
+                          kind={kind}
+                          leading={row.merchant ? <MerchantLogo name={row.merchant} domain={row.merchantDomain} /> : undefined}
+                          date={`${formatShortDate(row.occurredAt)} · ${row.currencyCode}${row.status === "VOIDED" ? " · anulado" : ""}`}
+                        />
                       </Link>
-                      {row.merchant ? <span className="block text-caption text-muted-foreground">{row.merchant}</span> : null}
-                    </TableCell>
-                    <TableCell className="hidden text-small text-muted-foreground md:table-cell">{row.categoryName ?? "—"}</TableCell>
-                    <TableCell className="hidden text-small text-muted-foreground lg:table-cell">{row.accountName}</TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <div className="flex items-center gap-2">
-                        <TypeBadge type={row.type} />
-                        {row.status === "VOIDED" ? <StatusChip tone="neutral">Anulado</StatusChip> : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <MoneyAmount
-                        amount={kindNegative && !row.amount.startsWith("-") ? `-${row.amount}` : row.amount}
-                        currency={row.currencyCode}
-                        variant="compact"
-                        tone={kindNegative ? "negative" : row.type === "INCOME" || row.type === "REFUND" ? "positive" : "neutral"}
-                        className="text-small font-medium"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/transactions/${row.id}`} aria-label={`Ver ${row.description}`} className="text-muted-foreground hover:text-foreground">
-                        <ChevronRightIcon className="size-4" />
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
         </div>
       )}
 
-      {(prevHref || nextHref) && (
-        <div className="flex items-center justify-between">
-          <span className="text-caption text-muted-foreground">Página {page}</span>
-          <div className="flex gap-2">
-            {prevHref ? (
-              <Link href={prevHref} className="rounded-md border border-border px-3 py-1.5 text-small font-medium text-foreground hover:bg-secondary">
-                Anterior
-              </Link>
-            ) : null}
-            {nextHref ? (
-              <Link href={nextHref} className="rounded-md border border-border px-3 py-1.5 text-small font-medium text-foreground hover:bg-secondary">
-                Siguiente
-              </Link>
-            ) : null}
-          </div>
+      {filtered.length > limit ? (
+        <div className="border-t border-border-subtle bg-surface-secondary px-5 py-3 text-center">
+          <button
+            type="button"
+            onClick={() => setLimit((n) => n + PAGE)}
+            className="text-caption font-semibold text-brand hover:underline"
+          >
+            Mostrar más ({filtered.length - limit} restantes)
+          </button>
         </div>
-      )}
+      ) : filtered.length > PAGE ? (
+        <div className="border-t border-border-subtle bg-surface-secondary px-5 py-2.5 text-center text-caption text-muted-foreground">
+          {filtered.length} movimientos
+        </div>
+      ) : null}
     </div>
   );
 }

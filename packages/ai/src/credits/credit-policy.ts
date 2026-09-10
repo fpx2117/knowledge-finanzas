@@ -1,6 +1,6 @@
 // Mirrors packages/billing's ProductAccessState by shape, not by import — packages/ai stays
 // dependency-free of packages/billing (same bounded-context boundary as packages/db).
-export type AIProductAccessState = "NO_ACCESS" | "TRIAL" | "PRO" | "EXPIRED_READ_ONLY";
+export type AIProductAccessState = "NO_ACCESS" | "FREE" | "TRIAL" | "PRO" | "EXPIRED_READ_ONLY";
 
 export type AICreditPool = "TRIAL_ALLOWANCE" | "PLAN_ALLOWANCE" | "PURCHASED";
 
@@ -9,6 +9,10 @@ export type AICreditPool = "TRIAL_ALLOWANCE" | "PLAN_ALLOWANCE" | "PURCHASED";
 // provider for either.
 export function resolvePoolOrder(access: AIProductAccessState): readonly AICreditPool[] {
   switch (access) {
+    // FREE reuses the PLAN_ALLOWANCE pool: a small monthly grant keyed by calendar month
+    // (referenceId "free:YYYY-MM"), no purchased top-ups.
+    case "FREE":
+      return ["PLAN_ALLOWANCE"];
     case "TRIAL":
       return ["TRIAL_ALLOWANCE"];
     case "PRO":

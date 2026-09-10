@@ -1,13 +1,15 @@
 import { cn } from "@/lib/utils";
 import { FinanceIcon } from "@/design-system/icons/finance-icon";
+import { BrandLogoImg } from "@/components/shared/brand-logo-img";
+import { brandLogoUrl } from "@/lib/brand-logo";
 import { getInstitution, type InstitutionTone } from "./institutions";
 
 export type InstitutionLogoSize = "sm" | "md" | "lg";
 
-const SIZE: Record<InstitutionLogoSize, { box: string; text: string; radius: string }> = {
-  sm: { box: "size-7", text: "text-[10px]", radius: "rounded-md" },
-  md: { box: "size-9", text: "text-xs", radius: "rounded-lg" },
-  lg: { box: "size-11", text: "text-sm", radius: "rounded-lg" },
+const SIZE: Record<InstitutionLogoSize, { box: string; text: string; radius: string; px: number }> = {
+  sm: { box: "size-7", text: "text-[10px]", radius: "rounded-md", px: 28 },
+  md: { box: "size-9", text: "text-xs", radius: "rounded-lg", px: 36 },
+  lg: { box: "size-11", text: "text-sm", radius: "rounded-lg", px: 44 },
 };
 
 // Identity tints — a stable way to tell institutions apart in a list. These are
@@ -23,10 +25,10 @@ const TONE: Record<InstitutionTone, string> = {
 
 /**
  * Brand-level identity for a financial institution — kept separate from the
- * concept-level `FinanceIcon`. Renders the official logo when one has been added
- * to `public/brand/institutions/<id>.svg` (and `hasLogo` is set in the
- * registry); otherwise a monogram chip. An unknown id falls back to a generic
- * bank glyph. Never invents or recreates a brand mark.
+ * concept-level `FinanceIcon`. Prefers, in order: a bundled official SVG
+ * (`public/brand/institutions/<id>.svg` + `hasLogo`), a logo.dev mark for the
+ * institution's domain (when `NEXT_PUBLIC_LOGO_DEV_TOKEN` is set), then a monogram
+ * chip. An unknown id falls back to a generic bank glyph.
  *
  *   <InstitutionLogo institution="galicia" size="md" />
  */
@@ -53,25 +55,7 @@ export function InstitutionLogo({
     );
   }
 
-  if (entry.hasLogo) {
-    return (
-      // next/image adds no value for a tiny static brand SVG (SVGs aren't optimised).
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={`/brand/institutions/${entry.id}.svg`}
-        alt=""
-        aria-hidden="true"
-        className={cn(
-          "shrink-0 bg-card object-contain p-1 outline outline-1 -outline-offset-1 outline-border",
-          dims.box,
-          dims.radius,
-          className,
-        )}
-      />
-    );
-  }
-
-  return (
+  const monogram = (
     <span
       aria-hidden="true"
       className={cn(
@@ -86,4 +70,26 @@ export function InstitutionLogo({
       {entry.monogram}
     </span>
   );
+
+  const imageClass = cn(
+    "p-1 outline outline-1 -outline-offset-1 outline-border",
+    dims.box,
+    dims.radius,
+    className,
+  );
+
+  if (entry.hasLogo) {
+    return (
+      // next/image adds no value for a tiny static brand SVG (SVGs aren't optimised).
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={`/brand/institutions/${entry.id}.svg`} alt="" aria-hidden="true" className={cn("bg-card object-contain", imageClass)} />
+    );
+  }
+
+  const logoDevUrl = brandLogoUrl(entry.domain, { size: dims.px });
+  if (logoDevUrl) {
+    return <BrandLogoImg src={logoDevUrl} fallback={monogram} className={imageClass} />;
+  }
+
+  return monogram;
 }

@@ -117,7 +117,7 @@ export function createObligationReadModel(database = db) {
           accountId: row.accountId,
           categoryId: row.categoryId ?? null,
           installmentNumber: null,
-          href: "/transactions/scheduled",
+          href: "/obligations",
         });
       }
 

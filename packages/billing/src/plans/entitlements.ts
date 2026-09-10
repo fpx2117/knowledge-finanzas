@@ -64,10 +64,22 @@ const READ_ONLY_CAPABILITIES: ReadonlySet<CapabilityKey> = new Set([
   "billing.manage",
 ]);
 
+// Premium capabilities a FREE user does NOT get — everything else in CAPABILITY_KEYS is granted
+// (full core personal finance + a metered AI assistant allowance, see limits.ts). Keeping the
+// *exclusion* list small means new core capabilities are FREE by default.
+const FREE_EXCLUDED_CAPABILITIES: ReadonlySet<CapabilityKey> = new Set<CapabilityKey>([
+  "ai.scenarios",
+  "ai.actionPreparation",
+  "notifications.email",
+  "notifications.whatsapp",
+]);
+
 // Every capability not in READ_ONLY_CAPABILITIES is a write/premium capability, blocked once
 // access is EXPIRED_READ_ONLY. TRIAL and PRO share the same entitlement surface — the trial
 // demonstrates the full product (docs/10.1 §9-11); only numeric allowances differ (see limits.ts).
+// FREE gets the full core product minus FREE_EXCLUDED_CAPABILITIES.
 export const ENTITLEMENT_MATRIX: Record<ProductAccessState, Record<CapabilityKey, boolean>> = {
+  FREE: Object.fromEntries(CAPABILITY_KEYS.map((key) => [key, !FREE_EXCLUDED_CAPABILITIES.has(key)])) as Record<CapabilityKey, boolean>,
   TRIAL: Object.fromEntries(CAPABILITY_KEYS.map((key) => [key, true])) as Record<CapabilityKey, boolean>,
   PRO: Object.fromEntries(CAPABILITY_KEYS.map((key) => [key, true])) as Record<CapabilityKey, boolean>,
   EXPIRED_READ_ONLY: Object.fromEntries(CAPABILITY_KEYS.map((key) => [key, READ_ONLY_CAPABILITIES.has(key)])) as Record<CapabilityKey, boolean>,

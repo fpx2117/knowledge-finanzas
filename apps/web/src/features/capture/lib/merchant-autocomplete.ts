@@ -2,12 +2,15 @@ export type MerchantAutocompleteSuggestion = {
   id: string;
   name: string;
   categoryId: string | null;
+  /** logo.dev domain for the brand mark, if known. */
+  domain: string | null;
 };
 
 export function mapMerchantAutocompleteSuggestions(
   merchants: Array<{
     merchantId: string;
     canonicalName: string;
+    domain?: string | null;
     defaultTaxonomyNodeId: string | null;
   }>,
   categoryMappings: Array<{
@@ -43,6 +46,7 @@ export function mapMerchantAutocompleteSuggestions(
       id: merchant.merchantId,
       name: merchant.canonicalName,
       categoryId: passesGate ? category.categoryId : null,
+      domain: merchant.domain ?? null,
     };
   });
 }

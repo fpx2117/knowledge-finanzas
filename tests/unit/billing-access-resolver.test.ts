@@ -41,9 +41,9 @@ describe("product access resolver", () => {
     expect(resolveProductAccess({ now, trialEndsAt: trialActive, subscription, graceDays: 0 })).toBe("TRIAL");
   });
 
-  it("falls back to EXPIRED_READ_ONLY while PENDING once the trial has expired", () => {
+  it("falls back to FREE while PENDING once the trial has expired", () => {
     const subscription = { status: "PENDING" as const, currentPeriodEnd: null };
-    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 0 })).toBe("EXPIRED_READ_ONLY");
+    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 0 })).toBe("FREE");
   });
 
   it("keeps PRO for PAST_DUE within the configured grace window", () => {
@@ -51,9 +51,9 @@ describe("product access resolver", () => {
     expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 5 })).toBe("PRO");
   });
 
-  it("drops PAST_DUE to EXPIRED_READ_ONLY once the grace window has elapsed and the trial is over", () => {
+  it("drops PAST_DUE to FREE once the grace window has elapsed and the trial is over", () => {
     const subscription = { status: "PAST_DUE" as const, currentPeriodEnd: new Date(now.getTime() - 10 * day) };
-    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 5 })).toBe("EXPIRED_READ_ONLY");
+    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 5 })).toBe("FREE");
   });
 
   it("falls back to TRIAL when PAST_DUE is outside grace but the trial is still active", () => {
@@ -61,30 +61,30 @@ describe("product access resolver", () => {
     expect(resolveProductAccess({ now, trialEndsAt: trialActive, subscription, graceDays: 5 })).toBe("TRIAL");
   });
 
-  it("never grants a grace period to an expiring trial", () => {
+  it("never grants a grace period to an expiring trial — it lands in FREE", () => {
     const trialEndsAt = new Date(now.getTime() - 1);
-    expect(resolveProductAccess({ now, trialEndsAt, subscription: null, graceDays: 30 })).toBe("EXPIRED_READ_ONLY");
+    expect(resolveProductAccess({ now, trialEndsAt, subscription: null, graceDays: 30 })).toBe("FREE");
   });
 
-  it("treats PAUSED, CANCELLED and EXPIRED subscriptions as never effective", () => {
+  it("treats PAUSED, CANCELLED and EXPIRED subscriptions as never effective — the user is FREE", () => {
     for (const status of ["PAUSED", "CANCELLED", "EXPIRED"] as const) {
       const subscription = { status, currentPeriodEnd: new Date(now.getTime() + day) };
-      expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 30 })).toBe("EXPIRED_READ_ONLY");
+      expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 30 })).toBe("FREE");
     }
   });
 
-  it("returns EXPIRED_READ_ONLY with no subscription and no active trial", () => {
-    expect(resolveProductAccess({ now, trialEndsAt: null, subscription: null, graceDays: 0 })).toBe("EXPIRED_READ_ONLY");
+  it("returns FREE with no subscription and no active trial", () => {
+    expect(resolveProductAccess({ now, trialEndsAt: null, subscription: null, graceDays: 0 })).toBe("FREE");
   });
 
-  it("returns NO_ACCESS instead of EXPIRED_READ_ONLY when everHadAccess is explicitly false (TASK-064)", () => {
-    expect(resolveProductAccess({ now, trialEndsAt: null, subscription: null, graceDays: 0, everHadAccess: false })).toBe("NO_ACCESS");
+  it("returns EXPIRED_READ_ONLY only when the user is explicitly hard-locked", () => {
+    expect(resolveProductAccess({ now, trialEndsAt: null, subscription: null, graceDays: 0, hardLocked: true })).toBe("EXPIRED_READ_ONLY");
   });
 
-  it("still resolves PRO/TRIAL over everHadAccess=false — the flag only affects the NONE fallback", () => {
+  it("still resolves PRO/TRIAL over hardLocked — the flag only affects the NONE fallback", () => {
     const subscription = { status: "ACTIVE" as const, currentPeriodEnd: new Date("2026-07-01T00:00:00Z") };
-    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 0, everHadAccess: false })).toBe("PRO");
-    expect(resolveProductAccess({ now, trialEndsAt: trialActive, subscription: null, graceDays: 0, everHadAccess: false })).toBe("TRIAL");
+    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription, graceDays: 0, hardLocked: true })).toBe("PRO");
+    expect(resolveProductAccess({ now, trialEndsAt: trialActive, subscription: null, graceDays: 0, hardLocked: true })).toBe("TRIAL");
   });
 
   it("exposes isEffectivePaidSubscription as the underlying paid-access check", () => {
@@ -92,8 +92,8 @@ describe("product access resolver", () => {
     expect(isEffectivePaidSubscription({ status: "ACTIVE", currentPeriodEnd: null }, now, 0)).toBe(true);
   });
 
-  it("callers who never pass activePromotion see identical behavior to before TASK-053", () => {
-    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription: null, graceDays: 0 })).toBe("EXPIRED_READ_ONLY");
+  it("callers who never pass activePromotion still resolve source NONE (→ FREE)", () => {
+    expect(resolveProductAccess({ now, trialEndsAt: trialExpired, subscription: null, graceDays: 0 })).toBe("FREE");
     expect(resolveProductAccessSource({ now, trialEndsAt: trialExpired, subscription: null, graceDays: 0 })).toBe("NONE");
   });
 
@@ -122,7 +122,8 @@ describe("product access resolver", () => {
 });
 
 describe("entitlement boundary", () => {
-  it("treats TRIAL and PRO as entitled, and EXPIRED_READ_ONLY/NO_ACCESS as not", () => {
+  it("treats FREE, TRIAL and PRO as entitled, and EXPIRED_READ_ONLY/NO_ACCESS as not", () => {
+    expect(hasEntitlement("FREE")).toBe(true);
     expect(hasEntitlement("TRIAL")).toBe(true);
     expect(hasEntitlement("PRO")).toBe(true);
     expect(hasEntitlement("EXPIRED_READ_ONLY")).toBe(false);
@@ -137,8 +138,8 @@ describe("entitlement boundary", () => {
     expect(service.resolveAccess(trialInput)).toBe("TRIAL");
     expect(service.hasEntitlement(trialInput)).toBe(true);
 
-    const expiredInput = { trialEndsAt: new Date("2026-01-01T00:00:00Z"), subscription: null };
-    expect(service.resolveAccess(expiredInput)).toBe("EXPIRED_READ_ONLY");
-    expect(service.hasEntitlement(expiredInput)).toBe(false);
+    const lapsedInput = { trialEndsAt: new Date("2026-01-01T00:00:00Z"), subscription: null };
+    expect(service.resolveAccess(lapsedInput)).toBe("FREE");
+    expect(service.hasEntitlement(lapsedInput)).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import {
+  accountRepository,
   createNotificationRepository,
   createUserRepository,
   insightRepository,
@@ -19,12 +20,13 @@ export default async function AppLayout({ children }: Readonly<{ children: React
   // Redirects to /login itself when there's no session (or the cookie is stale).
   const user = await requireCurrentUser();
 
-  const [profile, unreadCount, pendingCount, insightsUnseen] = await Promise.all([
+  const [profile, unreadCount, pendingCount, insightsUnseen, accounts] = await Promise.all([
     users.findById(user.id).catch(() => undefined),
     notifications.countUnreadForUser(user.id).catch(() => 0),
     // Sidebar badges (spec 13 §6.13) — cheap COUNT(*) queries, resolved once per navigation.
     transactionRepository.countUncategorizedForUser(user.id).catch(() => 0),
     insightRepository.countActiveForUser(user.id).catch(() => 0),
+    accountRepository.listForUser(user.id).catch(() => []),
   ]);
 
   return (
@@ -32,6 +34,12 @@ export default async function AppLayout({ children }: Readonly<{ children: React
       user={{ name: user.name, email: user.email, image: profile?.image ?? null }}
       unreadCount={unreadCount}
       navBadges={{ "transactions-pending": pendingCount, "insights-unseen": insightsUnseen }}
+      accountLinks={accounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        institution: a.institution ?? null,
+        isPrimary: a.isPrimary,
+      }))}
     >
       {children}
     </AppShell>

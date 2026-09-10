@@ -18,7 +18,14 @@ export type GenerateStructuredResult<T> = {
   data: T;
   raw: string;
   model: string;
-  usage: { inputTokens: number | null; outputTokens: number | null };
+  usage: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    // Optional so lightweight test doubles stay terse; the real provider always populates them.
+    cachedInputTokens?: number | null;
+    // Real USD the provider charged for this call (null when not reported).
+    costUsd?: number | null;
+  };
   generationId: string | null;
 };
 

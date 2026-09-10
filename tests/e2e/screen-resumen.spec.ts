@@ -29,11 +29,14 @@ test("the header is 'Resumen' with a dated subtitle and a Registrar CTA that ope
   await expect(page.getByRole("heading", { level: 1, name: "Resumen" })).toBeVisible();
   await expect(page.getByText(/Tu situación financiera al /)).toBeVisible();
 
-  // §6.2 density — exactly 3 primary KPI cards.
-  await expect(page.getByRole("region", { name: "Indicadores principales" }).getByRole("heading", { level: 3 })).toHaveCount(0);
-  await expect(page.locator('[aria-label="Indicadores principales"] >> text=Saldo total')).toBeVisible();
-  await expect(page.getByText("Dinero disponible")).toBeVisible();
-  await expect(page.getByText("Resultado del período")).toBeVisible();
+  // Hero "Patrimonio disponible" panel + the 4-card KPI row (reference mock).
+  await expect(page.getByRole("region", { name: "Patrimonio disponible" })).toBeVisible();
+  const kpis = page.getByRole("region", { name: "Indicadores principales" });
+  await expect(kpis.getByRole("heading", { level: 3 })).toHaveCount(0);
+  await expect(kpis.getByText("Disponible", { exact: true })).toBeVisible();
+  await expect(kpis.getByText("Resultado del mes")).toBeVisible();
+  await expect(kpis.getByText("Gastos del mes")).toBeVisible();
+  await expect(kpis.getByText("Próximos pagos")).toBeVisible();
 
   // §7.2 — Registrar opens the Quick Add flow (not a navigation).
   await page.getByRole("button", { name: "Registrar", exact: true }).first().click();
@@ -59,9 +62,8 @@ test("the Metas section shows active goals and the Para vos section is present (
 
   // No goals yet → the §15.4 empty state.
   await page.goto("/app");
-  const metas = page.getByRole("region", { name: "Metas y observaciones" });
+  const metas = page.getByRole("region", { name: "Presupuesto y metas" });
   await expect(metas.getByText("Sin metas")).toBeVisible();
-  await expect(metas.getByText("Para vos")).toBeVisible();
 
   // Create a goal → it shows on the dashboard with its progress.
   await page.goto("/goals/new");

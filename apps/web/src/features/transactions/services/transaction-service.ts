@@ -1,4 +1,4 @@
-import { getCurrencyMetadata, Money, todayInTimezone } from "@know-finanzas/finance";
+import { calculateAssetAccountBalance, getCurrencyMetadata, Money, todayInTimezone } from "@know-finanzas/finance";
 import { ApplicationError } from "@know-finanzas/shared";
 
 import { allowAllProductAccessGate, type ProductAccessGate } from "@/lib/billing/product-access-gate";
@@ -23,15 +23,30 @@ const PAYMENT_METHOD_BY_ACCOUNT: Record<AccountType, PaymentMethod> = {
   SAVINGS: "DEBIT",
 };
 const AUTO_CATEGORY_MIN_CONFIDENCE = 0.8;
-// Progressive trust (#13, spec §44). First couple of times a merchant→category pattern is
-// seen the system only suggests it (the user confirms); after that it auto-applies (with an
-// undo affordance); once well-established it is applied silently.
-const PROGRESSIVE_TRUST_ASK_MAX = 2;
+// Progressive trust (#13, spec §44). A hand-curated merchant→category default (or a personal
+// override) applies from the first movement with an undo affordance, then silently once the
+// pattern is well-established for this user.
 const PROGRESSIVE_TRUST_SILENT_MIN = 10;
 type AutomationLevel = "ask" | "auto_undo" | "silent";
 
+type AccountBalanceInputs = {
+  account: { openingBalance: string };
+  incomeTotal: string;
+  expenseTotal: string;
+  refundTotal?: string;
+  adjustmentInTotal?: string;
+  adjustmentOutTotal?: string;
+  transferInTotal?: string;
+  transferOutTotal?: string;
+  liabilityPaymentTotal?: string;
+};
+
 type Dependencies = {
-  accounts: { findByIdForUser(id: string, userId: string): Promise<Account | undefined> };
+  accounts: {
+    findByIdForUser(id: string, userId: string): Promise<Account | undefined>;
+    /** Ledger totals for computing available balance — used to block an over-budget expense. */
+    getBalanceInputsForUser?(userId: string, accountId?: string): Promise<AccountBalanceInputs[]>;
+  };
   categories: { findByIdForUser(id: string, userId: string): Promise<Category | undefined> };
   transactions: {
     create(input: Record<string, unknown>): Promise<{ id: string; currencyCode: string } | unknown>;
@@ -146,6 +161,30 @@ export function createTransactionService({
       throw new ApplicationError("INVALID_AMOUNT", { field: "amount", cause: error });
     }
 
+    // No podés gastar más de lo que hay en la cuenta — vale para todo tipo de cuenta de activo
+    // (banco, ahorro, billetera, efectivo). El saldo resultante no puede quedar en negativo.
+    if (type === "EXPENSE" && accounts.getBalanceInputsForUser) {
+      const [balanceInputs] = await accounts.getBalanceInputsForUser(userId, input.accountId);
+      if (balanceInputs) {
+        const available = calculateAssetAccountBalance({
+          currency: account.currencyCode,
+          openingBalance: balanceInputs.account.openingBalance,
+          incomeTotal: balanceInputs.incomeTotal ?? "0",
+          expenseTotal: balanceInputs.expenseTotal ?? "0",
+          refundTotal: balanceInputs.refundTotal ?? "0",
+          adjustmentInTotal: balanceInputs.adjustmentInTotal ?? "0",
+          adjustmentOutTotal: balanceInputs.adjustmentOutTotal ?? "0",
+          transferInTotal: balanceInputs.transferInTotal ?? "0",
+          transferOutTotal: balanceInputs.transferOutTotal ?? "0",
+          liabilityPaymentTotal: balanceInputs.liabilityPaymentTotal ?? "0",
+        });
+        const afterExpense = available.subtract(Money.fromString(amount, account.currencyCode));
+        if (afterExpense.compareTo(Money.zero(account.currencyCode)) < 0) {
+          throw new ApplicationError("INSUFFICIENT_BALANCE", { field: "amount" });
+        }
+      }
+    }
+
     let categoryId: string | null = null;
     if (input.categoryId) {
       const category = await categories.findByIdForUser(input.categoryId, userId);
@@ -218,8 +257,6 @@ export function createTransactionService({
     }
 
     let automationLevel: AutomationLevel | null = null;
-    let suggestedCategoryId: string | null = null;
-    let suggestedTaxonomyNodeId: string | null = null;
     let inheritedCategorySource: "personal_default" | "merchant_default" | null = null;
     let priorSimilarCount: number | null = null;
     if (!categoryId && merchantTaxonomyNodeId && categoryMap) {
@@ -242,22 +279,13 @@ export function createTransactionService({
                   .catch(() => 0)
               : null;
           const effectiveCount = priorSimilarCount ?? Number.POSITIVE_INFINITY;
-          automationLevel =
-            !isPersonal && effectiveCount <= PROGRESSIVE_TRUST_ASK_MAX
-              ? "ask"
-              : effectiveCount >= PROGRESSIVE_TRUST_SILENT_MIN
-                ? "silent"
-                : "auto_undo";
+          // A hand-curated merchant→category default (or a personal override) is high-signal, so
+          // it is applied from the first movement — with an undo affordance until it is
+          // well-established, then silently. (Model/heuristic guesses still go through review.)
+          automationLevel = effectiveCount >= PROGRESSIVE_TRUST_SILENT_MIN ? "silent" : "auto_undo";
           inheritedCategorySource = isPersonal ? "personal_default" : "merchant_default";
-
-          if (automationLevel === "ask") {
-            // Not established enough to write silently — surface it for the user to confirm.
-            suggestedCategoryId = mapped.userCategoryId;
-            suggestedTaxonomyNodeId = merchantTaxonomyNodeId;
-          } else {
-            categoryId = mapped.userCategoryId;
-            categoryInheritedFromMerchant = true;
-          }
+          categoryId = mapped.userCategoryId;
+          categoryInheritedFromMerchant = true;
         }
       }
     }
@@ -290,9 +318,7 @@ export function createTransactionService({
           ? "user_rule"
           : categoryInheritedFromMerchant
             ? "merchant_default"
-            : suggestedCategoryId
-              ? "suggested"
-              : "none",
+            : "none",
       reviewedByUser: userPickedCategory,
       ...(merchantId ? { merchantName: merchantCanonicalName ?? merchantRaw, merchantMatch } : {}),
       ...(matchedRule
@@ -307,9 +333,6 @@ export function createTransactionService({
       ...(categorySource ? { categorySource } : {}),
       ...(priorSimilarCount !== null ? { priorSimilarCount } : {}),
       ...(!matchedRule && automationLevel ? { automationLevel } : {}),
-      ...(suggestedCategoryId
-        ? { suggestion: { categoryId: suggestedCategoryId, taxonomyNodeId: suggestedTaxonomyNodeId } }
-        : {}),
     };
 
     const created = await transactions.create({

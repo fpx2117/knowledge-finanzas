@@ -2,10 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import { signUpCompleteOnboardingAndStartTrial } from "./support/onboarding-flow";
 
-// /transactions/transfers — la lista de transferencias (spec 03 §12). Antes daba 404: la ruta
-// tenía /new y /[id] pero no un índice, y el nav apuntaba ahí.
+// Consolidación 2026-09: las transferencias ya no son una pestaña/lista aparte. Se crean desde el
+// botón "Transferir" del header de Transacciones (modal con fondo blureado) y aparecen en la
+// lista de Movimientos bajo el chip "Transferencias".
 
-test("the transfers list renders, is linked from the subnav, and shows registered transfers", async ({ browser, baseURL }) => {
+test("crear una transferencia desde el modal del header y verla en Movimientos", async ({ browser, baseURL }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   await signUpCompleteOnboardingAndStartTrial(page, baseURL!, {
@@ -24,26 +25,26 @@ test("the transfers list renders, is linked from the subnav, and shows registere
     await expect(page).toHaveURL(/\/accounts$/);
   }
 
-  // Empty state first.
+  // La ruta vieja redirige a Movimientos.
   await page.goto("/transactions/transfers");
-  await expect(page.getByRole("heading", { level: 1, name: "Transferencias" })).toBeVisible();
-  await expect(page.getByText("Todavía no registraste transferencias")).toBeVisible();
+  await expect(page).toHaveURL(/\/transactions\?type=TRANSFER$/);
 
-  // Reachable from the subnav.
+  // Abrir el modal "Transferir" desde el header y registrar una.
   await page.goto("/transactions");
-  await page.getByRole("navigation", { name: "Secciones de transacciones" }).getByRole("link", { name: "Transferencias" }).click();
-  await expect(page).toHaveURL(/\/transactions\/transfers$/);
-
-  // Register one → it shows in the list.
-  await page.goto("/transactions/transfers/new");
-  await page.locator("#fromAccountId").selectOption({ label: "Origen · ARS" });
-  await page.locator("#toAccountId").selectOption({ label: "Destino · ARS" });
-  await page.locator("#amount").fill("25000");
   await page.getByRole("button", { name: "Transferir" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Transferí entre tus cuentas")).toBeVisible();
+  await dialog.locator("#fromAccountId").selectOption({ label: "Origen · ARS" });
+  await dialog.locator("#toAccountId").selectOption({ label: "Destino · ARS" });
+  await dialog.locator("#amount").fill("25000");
+  await dialog.getByRole("button", { name: "Transferir" }).click();
   await expect(page).toHaveURL(/\/transactions$/);
 
-  await page.goto("/transactions/transfers");
-  const row = page.getByRole("row", { name: /Origen.*Destino/ });
-  await expect(row).toBeVisible();
-  await expect(row.getByText("Registrada")).toBeVisible();
+  // Aparece en la lista, y el chip "Transferencias" la aísla.
+  await expect(page.getByText("Origen → Destino")).toBeVisible();
+  await page.getByRole("button", { name: "Transferencias" }).click();
+  await expect(page.getByText("Origen → Destino")).toBeVisible();
+  await expect(page.getByText("Sin categoría")).toHaveCount(0);
+
+  await context.close();
 });

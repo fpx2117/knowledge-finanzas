@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, like, lt, lte, sql } from "drizzle-orm";
 
 import type { Database } from "../client";
 import { aiCreditEntries, aiCreditReservations, type AICreditEntry, type AICreditReservation } from "../schema";
@@ -99,6 +99,51 @@ export function createAICreditRepository(database: Database) {
         .where(and(eq(aiCreditEntries.userId, input.userId), eq(aiCreditEntries.type, "PLAN_GRANT"), eq(aiCreditEntries.referenceId, input.referenceId)))
         .limit(1).then((rows) => rows[0]);
       return { created: false, entry: existing };
+    },
+
+    // FREE tier housekeeping: write a single EXPIRATION debit for whatever is left of the FREE
+    // monthly allowances that have passed their `expiresAt`, so an unused month never rolls over
+    // into the next. Idempotent: it only ever expires the delta not already expired (tracked by
+    // EXPIRATION rows tagged `free-exp:`), and never more than the current PLAN_ALLOWANCE balance.
+    // Only meaningful for FREE users (PRO/purchased credits are never `reference_id LIKE 'free:%'`).
+    async expireLapsedFreeCredits(userId: string, now: Date): Promise<{ expired: number }> {
+      return database.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`);
+
+        const [{ expiredGrants }] = await tx
+          .select({ expiredGrants: sql<string>`coalesce(sum(${aiCreditEntries.amount}), 0)` })
+          .from(aiCreditEntries)
+          .where(and(
+            eq(aiCreditEntries.userId, userId),
+            eq(aiCreditEntries.type, "PLAN_GRANT"),
+            like(aiCreditEntries.referenceId, "free:%"),
+            isNotNull(aiCreditEntries.expiresAt),
+            lte(aiCreditEntries.expiresAt, now),
+          ));
+
+        const [{ alreadyExpired }] = await tx
+          .select({ alreadyExpired: sql<string>`coalesce(sum(${aiCreditEntries.amount}), 0)` })
+          .from(aiCreditEntries)
+          .where(and(
+            eq(aiCreditEntries.userId, userId),
+            eq(aiCreditEntries.type, "EXPIRATION"),
+            like(aiCreditEntries.referenceId, "free-exp:%"),
+          ));
+
+        const ledger = await ledgerBalanceByPool(tx, userId);
+        const outstanding = Number(expiredGrants) - Number(alreadyExpired);
+        const toExpire = Math.max(0, Math.min(outstanding, ledger.PLAN_ALLOWANCE));
+        if (toExpire <= 0) return { expired: 0 };
+
+        await tx.insert(aiCreditEntries).values({
+          userId,
+          type: "EXPIRATION",
+          pool: "PLAN_ALLOWANCE",
+          amount: toExpire,
+          referenceId: `free-exp:${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`,
+        });
+        return { expired: toExpire };
+      });
     },
 
     async getAvailableBalances(userId: string): Promise<PoolBalances> {

@@ -23,7 +23,7 @@ export function InsightCard({
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-2 overflow-hidden rounded-xl border border-brand-border bg-brand-subtle p-5",
+        "relative flex flex-col gap-2 overflow-hidden rounded-lg border border-brand-border bg-brand-subtle p-4",
         className,
       )}
     >

@@ -1,5 +1,7 @@
-import { RebuildingNotice } from "@/features/shell/components/rebuilding-notice";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <RebuildingNotice title="Transacciones / Programados" description="Movimientos y reglas recurrentes a futuro." />;
+// Consolidación 2026-09: los movimientos a futuro se gestionan en Obligaciones, que ya unifica
+// deuda + suscripción + programado en una sola vista temporal.
+export default function ScheduledPage() {
+  redirect("/obligations");
 }

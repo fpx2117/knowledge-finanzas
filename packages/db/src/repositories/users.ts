@@ -1,4 +1,4 @@
-import { and, eq, ilike, isNull } from "drizzle-orm";
+import { and, asc, eq, gt, ilike, isNull } from "drizzle-orm";
 
 import type { Database } from "../client";
 import { users } from "../schema";
@@ -7,6 +7,19 @@ export function createUserRepository(database: Database) {
   return {
     findById(userId: string) {
       return database.select().from(users).where(eq(users.id, userId)).limit(1).then(([user]) => user);
+    },
+
+    // Keyset-paginated projection for the notification sweep cron (a system process, not a
+    // user-facing query). Ordered by id so a caller can page with `afterId` until fewer than
+    // `limit` rows come back.
+    listForNotificationSweep(input: { limit: number; afterId?: string | null }) {
+      const where = input.afterId ? gt(users.id, input.afterId) : undefined;
+      return database
+        .select({ id: users.id, timezone: users.timezone, trialEndsAt: users.trialEndsAt })
+        .from(users)
+        .where(where)
+        .orderBy(asc(users.id))
+        .limit(input.limit);
     },
 
     // Prefix match only (never a broad substring/contains search) — Security Requirement:

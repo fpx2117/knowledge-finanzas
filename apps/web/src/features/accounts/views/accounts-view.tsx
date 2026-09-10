@@ -1,26 +1,42 @@
 import Link from "next/link";
-import { LayersIcon, PiggyBankIcon, WalletIcon } from "lucide-react";
+import {
+  ArrowLeftRightIcon,
+  ClockIcon,
+  LandmarkIcon,
+  LayersIcon,
+  LightbulbIcon,
+  PlusIcon,
+  ScaleIcon,
+  WalletIcon,
+} from "lucide-react";
 
-import { accountRepository, createActivityQueries, createDebtSummaryQueries, db } from "@know-finanzas/db";
-import { Money } from "@know-finanzas/finance";
+import { accountRepository, createActivityQueries, db } from "@know-finanzas/db";
+import { Money, convertAmount, isConvertiblePair } from "@know-finanzas/finance";
 import { formatDateInTimezone } from "@/lib/date";
+import { cn } from "@/lib/utils";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
 import { SectionCard } from "@/components/shared/section-card";
-import { StatCard } from "@/components/shared/stat-card";
-import { InsightCard } from "@/components/shared/insight-card";
+import { KpiCard } from "@/features/dashboard/components/kpi-card";
+import { AccountsCard, type AccountCardRow } from "@/features/accounts/components/accounts-card";
+import { TransferDialog } from "@/features/transfers/components/transfer-dialog";
 import { DonutChart, type DonutSegment } from "@/components/charts/donut-chart";
-import { MoneyAmount } from "@/components/financial/money-amount";
+import type { TxnKind } from "@/components/financial/transaction-list-item";
+import { CurrencyFlag } from "@/components/financial/currency-flag";
 import { Button } from "@/components/ui/button";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { createAccountService } from "@/features/accounts/services/account-service";
-import { AccountsExplorer } from "@/features/accounts/components/accounts-explorer";
+import { getBlueQuote } from "@/features/fx/services/fx-service";
 
 const service = createAccountService({ accounts: accountRepository });
-const debtQueries = createDebtSummaryQueries(db);
 const activityQueries = createActivityQueries(db);
 
-const DONUT_COLORS = ["var(--chart-1)", "var(--chart-5)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
+// Distribución por moneda — el modelo usa sólo tonos de azul.
+const CURRENCY_COLORS = ["var(--brand)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
+
+const QUICK_TILE =
+  "flex flex-col items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-3 text-center text-caption font-semibold text-foreground-secondary transition-colors hover:border-brand/40 hover:bg-brand-subtle/50 hover:text-brand";
 
 export type AccountType = "CASH" | "BANK" | "DIGITAL_WALLET" | "SAVINGS";
 
@@ -31,39 +47,77 @@ const TYPE_LABEL: Record<AccountType, string> = {
   SAVINGS: "Ahorro",
 };
 
-// WP-ROUTES-SUBVIEWS (spec 14 §7/§8): /accounts/{banks,wallets,cash,savings} are the same view
-// as /accounts, scoped server-side to one account type — one body, parametrized, so the four
-// subviews can never drift from the main page's logic (stats, donut, explorer all reuse this).
-export async function AccountsView({ type }: { type?: AccountType }) {
-  const user = await requireCurrentUser();
-  // spec 02 §12.2 — the fixed header copy for the module.
-  const title = type ? TYPE_LABEL[type] : "Cuentas";
-  const description = "Administrá dónde está tu dinero y revisá qué movimientos explican cada saldo.";
-  const breadcrumb = type ? [{ label: "Cuentas", href: "/accounts" }, { label: TYPE_LABEL[type] }] : undefined;
+const KIND_LABEL: Record<string, string> = {
+  income: "Ingreso",
+  expense: "Gasto",
+  transfer: "Transferencia",
+  adjustment: "Ajuste",
+};
 
-  const [allAccounts, debtRows, recentActivity] = await Promise.all([
+/** Friendly movement date: "Hoy · 18:42", "Ayer", or "6 sep". */
+function friendlyMoment(occurredAt: Date | string, timeZone: string, withTime = false): string {
+  const date = new Date(occurredAt);
+  const ymd = formatDateInTimezone(date, timeZone);
+  const today = formatDateInTimezone(new Date(), timeZone);
+  const yesterday = formatDateInTimezone(new Date(Date.now() - 86_400_000), timeZone);
+  if (ymd === today) {
+    return withTime
+      ? `Hoy · ${new Intl.DateTimeFormat("es-AR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(date)}`
+      : "Hoy";
+  }
+  if (ymd === yesterday) return "Ayer";
+  return new Intl.DateTimeFormat("es-AR", { timeZone, day: "numeric", month: "short" }).format(date);
+}
+
+function txnKind(type: string): TxnKind {
+  if (type === "INCOME") return "income";
+  if (type === "EXPENSE") return "expense";
+  if (type === "TRANSFER" || type === "TRANSFER_IN" || type === "TRANSFER_OUT") return "transfer";
+  return "adjustment";
+}
+
+// Consolidación 2026-09: una sola vista de Cuentas. El corte por tipo (antes /accounts/{banks,…})
+// se hace client-side en la card "Tus cuentas".
+export async function AccountsView() {
+  const user = await requireCurrentUser();
+  const description = "Administrá dónde está tu dinero y revisá qué movimientos explican cada saldo.";
+
+  const [allAccounts, recentActivity, blueQuote] = await Promise.all([
     service.listAccounts(user.id, { includeArchived: true }),
-    debtQueries.listDebtInputsForUser(user.id),
     activityQueries.listRecentActivity(user.id, { limit: 300 }).catch(() => []),
+    getBlueQuote().catch(() => null),
   ]);
 
-  // spec 02 §13.3 — "Último movimiento" por cuenta. `listRecentActivity` viene ordenada por
-  // fecha desc, así que la primera aparición de cada cuenta es su último movimiento.
-  const lastActivityByAccount = new Map<string, string>();
-  for (const row of recentActivity as Array<{ accountId?: string; occurredAt?: Date | string }>) {
-    if (row.accountId && !lastActivityByAccount.has(row.accountId) && row.occurredAt) {
-      lastActivityByAccount.set(row.accountId, formatDateInTimezone(new Date(row.occurredAt), user.timezone));
-    }
+  type ActivityRow = {
+    id: string;
+    accountId: string | null;
+    accountName: string | null;
+    currencyCode: string;
+    type: string;
+    amount: string | number;
+    description: string | null;
+    merchant: string | null;
+    categoryName: string | null;
+    occurredAt: Date | string | null;
+  };
+  const activity = recentActivity as ActivityRow[];
+
+  // "Último movimiento" por cuenta — la lista viene ordenada por fecha desc.
+  const lastByAccount = new Map<string, { label: string; date: string }>();
+  for (const row of activity) {
+    if (!row.accountId || lastByAccount.has(row.accountId) || !row.occurredAt) continue;
+    const concept = row.merchant ?? row.description ?? KIND_LABEL[txnKind(row.type)] ?? "Movimiento";
+    lastByAccount.set(row.accountId, {
+      label: concept,
+      date: friendlyMoment(row.occurredAt, user.timezone),
+    });
   }
 
-  const accounts = (type ? allAccounts.filter((a) => a.type === type) : allAccounts).map((a) => ({
-    ...a,
-    lastActivityAt: lastActivityByAccount.get(a.id) ?? null,
-  }));
-
+  const accounts = allAccounts;
   const active = accounts.filter((a) => a.status === "ACTIVE");
+  const archivedCount = accounts.length - active.length;
 
-  // Totals by currency.
+  // Totales por moneda.
   const totalsByCurrency = new Map<string, Money>();
   for (const account of active) {
     const current = totalsByCurrency.get(account.currencyCode) ?? Money.zero(account.currencyCode);
@@ -74,134 +128,231 @@ export async function AccountsView({ type }: { type?: AccountType }) {
     .sort((a, b) => Number(b.total) - Number(a.total));
   const primaryCurrency = currencyTotals[0]?.currencyCode ?? user.baseCurrency;
   const primaryTotal = currencyTotals.find((c) => c.currencyCode === primaryCurrency)?.total ?? "0";
+  const secondary = currencyTotals.find((c) => c.currencyCode !== primaryCurrency) ?? null;
 
-  // Debt remaining in the primary currency — shown regardless of the account-type subview,
-  // since obligations aren't scoped to one account type the way accounts are.
-  const debtRemaining = debtRows
-    .filter(
-      (row) =>
-        row.debt.currencyCode === primaryCurrency &&
-        row.installment.status !== "PAID" &&
-        row.installment.status !== "CANCELLED" &&
-        row.debt.status !== "CANCELLED",
-    )
-    .reduce(
-      (sum, row) =>
-        sum.add(
-          Money.fromString(row.installment.totalAmount, primaryCurrency).subtract(
-            Money.fromString(row.allocatedAmount, primaryCurrency),
-          ),
-        ),
-      Money.zero(primaryCurrency),
-    )
-    .toString();
+  // Filas para "Tus cuentas" — el único listado de cuentas de la pantalla.
+  const toRow = (account: (typeof accounts)[number]): AccountCardRow => {
+    const last = lastByAccount.get(account.id) ?? null;
+    let approxInPrimary: string | null = null;
+    if (
+      account.currencyCode !== primaryCurrency &&
+      blueQuote &&
+      isConvertiblePair(account.currencyCode, primaryCurrency, blueQuote.fx)
+    ) {
+      const converted = convertAmount(account.balance, account.currencyCode, primaryCurrency, blueQuote.fx);
+      approxInPrimary = new Intl.NumberFormat("es-AR", {
+        style: "currency",
+        currency: primaryCurrency,
+        maximumFractionDigits: 0,
+      }).format(Number(converted));
+    }
+    return {
+      id: account.id,
+      name: account.name,
+      type: account.type as AccountCardRow["type"],
+      institution: account.institution ?? null,
+      currencyCode: account.currencyCode,
+      balance: account.balance,
+      lastMovement: last ? `${last.label} · ${last.date}` : null,
+      approxInPrimary,
+    };
+  };
+  const accountRows = active.map(toRow);
+  const archivedRows = accounts.filter((a) => a.status !== "ACTIVE").map(toRow);
 
-  // Donut: distribution of the primary-currency balance across accounts (within this subview).
-  const primaryAccounts = active
-    .filter((a) => a.currencyCode === primaryCurrency && Number(a.balance) > 0)
-    .sort((a, b) => Number(b.balance) - Number(a.balance));
-  const primarySum = primaryAccounts.reduce((s, a) => s + Number(a.balance), 0);
-  const topAccounts = primaryAccounts.slice(0, 5);
-  const otherAccounts = primaryAccounts.slice(5).reduce((s, a) => s + Number(a.balance), 0);
-  const donutSegments: DonutSegment[] = [
-    ...topAccounts.map((account, i) => ({ label: account.name, value: Number(account.balance), color: DONUT_COLORS[i] })),
-    ...(otherAccounts > 0 ? [{ label: "Otras", value: otherAccounts, color: "var(--muted-foreground)" }] : []),
-  ];
-
-  const accountsPerCurrency = new Map<string, number>();
-  for (const account of active) {
-    accountsPerCurrency.set(account.currencyCode, (accountsPerCurrency.get(account.currencyCode) ?? 0) + 1);
-  }
-  const currencyList = currencyTotals.map((entry) => ({
-    ...entry,
-    count: accountsPerCurrency.get(entry.currencyCode) ?? 0,
+  // Distribución por moneda — todo convertido a la moneda principal.
+  const currencyDist = currencyTotals
+    .map((entry, i) => {
+      const inPrimary =
+        entry.currencyCode === primaryCurrency
+          ? Number(entry.total)
+          : blueQuote && isConvertiblePair(entry.currencyCode, primaryCurrency, blueQuote.fx)
+            ? Number(convertAmount(entry.total, entry.currencyCode, primaryCurrency, blueQuote.fx))
+            : Number(entry.total);
+      return { currencyCode: entry.currencyCode, native: entry.total, inPrimary, color: CURRENCY_COLORS[i % CURRENCY_COLORS.length] };
+    })
+    .filter((entry) => entry.inPrimary > 0);
+  const distTotal = currencyDist.reduce((s, e) => s + e.inPrimary, 0);
+  const money0 = (currency: string) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 0 });
+  // Sólo la proporción — los montos por moneda ya están en los KPI, no se repiten acá.
+  const donutSegments: DonutSegment[] = currencyDist.map((entry) => ({
+    label: entry.currencyCode,
+    value: entry.inPrimary,
+    color: entry.color,
   }));
 
-  const multiCurrency = currencyTotals.length > 1;
+  // Tipos de cuenta.
+  const typeCounts = new Map<AccountType, number>();
+  for (const account of active) typeCounts.set(account.type as AccountType, (typeCounts.get(account.type as AccountType) ?? 0) + 1);
+  const typeBars = (["BANK", "DIGITAL_WALLET", "SAVINGS", "CASH"] as AccountType[])
+    .map((t) => ({ label: TYPE_LABEL[t], count: typeCounts.get(t) ?? 0 }))
+    .filter((bar) => bar.count > 0);
+
+  // Último movimiento (KPI).
+  const lastMovement = activity[0] ?? null;
+  const lastMovementConcept = lastMovement
+    ? lastMovement.merchant ?? lastMovement.description ?? KIND_LABEL[txnKind(lastMovement.type)]
+    : null;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
-        breadcrumb={breadcrumb}
-        title={title}
+        title="Cuentas"
         description={description}
-        actions={<Button render={<Link href="/accounts/new">Nueva cuenta</Link>} />}
+        actions={
+          <Button render={
+            <Link href="/accounts/new">
+              <PlusIcon className="size-4" /> Registrar cuenta
+            </Link>
+          } />
+        }
       />
 
-      {/* spec 02 §12.3 — sólo mostrar métricas representables. Una moneda: un total. Varias: nunca
-          un número único (sumaría monedas distintas — §10.3 / RF-03), sino saldos por moneda. */}
-      <section aria-label="Resumen de cuentas" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {multiCurrency ? (
-          <StatCard label="Saldos por moneda" icon={LayersIcon}>
-            <ul className="mt-1 flex flex-col gap-1">
-              {currencyTotals.map((entry) => (
-                <li key={entry.currencyCode} className="flex items-baseline justify-between gap-3">
-                  <span className="text-small font-medium text-muted-foreground">{entry.currencyCode}</span>
-                  <MoneyAmount amount={entry.total} currency={entry.currencyCode} className="text-body-lg font-medium text-foreground" />
-                </li>
-              ))}
-            </ul>
-          </StatCard>
-        ) : (
-          <StatCard
-            label="Saldo en cuentas"
-            icon={WalletIcon}
-            value={primaryTotal}
-            currency={primaryCurrency}
-            hint={`${active.length} ${active.length === 1 ? "cuenta activa" : "cuentas activas"}`}
-          />
-        )}
-        <StatCard
-          label="Deuda pendiente"
-          icon={PiggyBankIcon}
-          tone={Number(debtRemaining) > 0 ? "warning" : "neutral"}
-          value={debtRemaining}
-          currency={primaryCurrency}
-          hint="Saldo pendiente de tus obligaciones · lo gestionás en Obligaciones"
+      {accounts.length === 0 ? (
+        <EmptyState
+          size="section"
+          icon={<WalletIcon />}
+          title="Todo empieza con una cuenta."
+          description="Agregá dónde guardás tu dinero y su saldo inicial. No necesitás ingresar claves ni datos bancarios."
+          action={<Button render={<Link href="/accounts/new">Agregar mi primera cuenta</Link>} />}
         />
-      </section>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.7fr_1fr]">
-        <AccountsExplorer accounts={accounts} defaultType={type ?? "ALL"} />
-
-        <div className="flex flex-col gap-4">
-          <SectionCard title="Distribución por cuenta" eyebrow={primaryCurrency}>
-            {donutSegments.length > 0 ? (
-              <DonutChart
-                segments={donutSegments}
-                centerLabel="Total"
-                centerValue={new Intl.NumberFormat("es-AR", { style: "currency", currency: primaryCurrency, maximumFractionDigits: 0 }).format(primarySum)}
-              />
-            ) : (
-              <p className="py-6 text-center text-small text-muted-foreground">Sin saldos positivos para distribuir.</p>
+      ) : (
+        <>
+          {/* KPI row — modelo CUENTA - UI desktop.png. Los saldos por moneda viven acá y en
+              ningún otro lado de la pantalla (spec 02 §12.3: una moneda = un total; varias =
+              un total POR moneda, nunca sumados). */}
+          <section
+            aria-label="Indicadores de cuentas"
+            className={cn(
+              "grid grid-cols-2 gap-3 sm:gap-4",
+              secondary ? "xl:grid-cols-4" : "sm:grid-cols-3 xl:grid-cols-3",
             )}
-          </SectionCard>
+          >
+            <KpiCard
+              label={`Total en ${primaryCurrency}`}
+              icon={WalletIcon}
+              tone="positive"
+              value={primaryTotal}
+              currency={primaryCurrency}
+              hint={`${active.length} ${active.length === 1 ? "cuenta activa" : "cuentas activas"}`}
+            />
+            {secondary ? (
+              <KpiCard
+                label={`Total en ${secondary.currencyCode}`}
+                iconNode={<CurrencyFlag code={secondary.currencyCode} />}
+                tone="brand"
+                value={secondary.total}
+                currency={secondary.currencyCode}
+                hint={
+                  blueQuote && isConvertiblePair(secondary.currencyCode, primaryCurrency, blueQuote.fx)
+                    ? `≈ ${money0(primaryCurrency).format(Number(convertAmount(secondary.total, secondary.currencyCode, primaryCurrency, blueQuote.fx)))}`
+                    : undefined
+                }
+              />
+            ) : null}
+            <KpiCard
+              label="Cuentas activas"
+              icon={LandmarkIcon}
+              tone="brand"
+              display={String(active.length)}
+              hint={archivedCount > 0 ? `${archivedCount} archivada${archivedCount === 1 ? "" : "s"}` : "Ninguna archivada"}
+            />
+            <KpiCard
+              label="Último movimiento"
+              icon={ClockIcon}
+              tone="warning"
+              display={lastMovement && lastMovement.occurredAt ? friendlyMoment(lastMovement.occurredAt, user.timezone, true) : "—"}
+              hint={lastMovementConcept ?? "Sin movimientos aún"}
+            />
+          </section>
 
-          <SectionCard title="Monedas">
-            <ul className="flex flex-col divide-y divide-border">
-              {currencyList.map((entry) => (
-                <li key={entry.currencyCode} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <span className="text-small font-medium text-foreground">{entry.currencyCode}</span>
-                  <span className="flex items-center gap-3">
-                    <MoneyAmount amount={entry.total} currency={entry.currencyCode} variant="compact" className="text-small" />
-                    <span className="w-16 text-right text-caption text-muted-foreground">
-                      {entry.count} {entry.count === 1 ? "cuenta" : "cuentas"}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </SectionCard>
+          {/* Cuerpo — panel dominante + rail derecho */}
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="flex flex-col gap-4">
+              <AccountsCard accounts={accountRows} archived={archivedRows} />
 
-          <InsightCard title="Tu dinero">
-            <p>
-              {primaryAccounts.length > 0
-                ? `${topAccounts[0]?.name} concentra la mayor parte de tu saldo en ${primaryCurrency}.`
-                : "Cuando registres saldos vas a ver acá cómo se reparte tu dinero."}
-            </p>
-          </InsightCard>
-        </div>
-      </div>
+              {/* Tip de KnowFinanzas */}
+              <div className="flex items-start gap-3 rounded-xl border border-brand/15 bg-brand-subtle/50 px-4 py-3.5">
+                <span aria-hidden className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+                  <LightbulbIcon className="size-4" />
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-small font-bold text-foreground">Tip de KnowFinanzas</p>
+                  <p className="text-caption text-muted-foreground">
+                    Mantené tus saldos al día registrando cada movimiento — así tus análisis de gasto son fieles a la realidad.
+                  </p>
+                  <Link href="/transactions/new" className="mt-1 inline-flex w-fit items-center gap-1 text-caption font-semibold text-brand hover:underline">
+                    Registrar un movimiento →
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <aside className="flex flex-col gap-4">
+              <SectionCard title="Distribución por moneda" icon={LayersIcon} eyebrow={`≈ ${primaryCurrency}`}>
+                {donutSegments.length > 0 ? (
+                  <DonutChart
+                    segments={donutSegments}
+                    centerLabel={`Total ${primaryCurrency}`}
+                    centerValue={money0(primaryCurrency).format(distTotal)}
+                    className="sm:!flex-col sm:!items-stretch sm:!gap-4"
+                  />
+                ) : (
+                  <p className="py-6 text-center text-small text-muted-foreground">Sin saldos positivos para distribuir.</p>
+                )}
+              </SectionCard>
+
+              {typeBars.length > 1 ? (
+                <SectionCard title="Tipos de cuenta" icon={LandmarkIcon}>
+                  <ul className="flex flex-col gap-3">
+                    {typeBars.map((bar) => {
+                      const pct = active.length > 0 ? Math.round((bar.count / active.length) * 100) : 0;
+                      return (
+                        <li key={bar.label} className="flex flex-col gap-1.5">
+                          <div className="flex items-baseline justify-between text-caption">
+                            <span className="font-medium text-foreground">{bar.label}</span>
+                            <span className="tabular-nums text-muted-foreground">
+                              {bar.count} · {pct}%
+                            </span>
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-surface-secondary">
+                            <div className="h-full rounded-full bg-brand" style={{ width: `${Math.max(pct, 4)}%` }} />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </SectionCard>
+              ) : null}
+
+              <SectionCard title="Accesos rápidos" icon={ArrowLeftRightIcon}>
+                <div className="grid grid-cols-3 gap-2">
+                  <TransferDialog
+                    accounts={active.map((a) => ({ id: a.id, name: a.name, currencyCode: a.currencyCode }))}
+                    timezone={user.timezone}
+                    trigger={
+                      <button type="button" className={QUICK_TILE}>
+                        <ArrowLeftRightIcon className="size-4" />
+                        Transferir
+                      </button>
+                    }
+                  />
+                  {[
+                    { label: "Agregar saldo", href: "/transactions/new", icon: PlusIcon },
+                    { label: "Conciliar", href: "/transactions", icon: ScaleIcon },
+                  ].map((quick) => (
+                    <Link key={quick.label} href={quick.href} className={QUICK_TILE}>
+                      <quick.icon className="size-4" />
+                      {quick.label}
+                    </Link>
+                  ))}
+                </div>
+              </SectionCard>
+            </aside>
+          </div>
+        </>
+      )}
     </div>
   );
 }

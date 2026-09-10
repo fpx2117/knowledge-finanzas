@@ -1,10 +1,11 @@
 import { Sidebar } from "./sidebar";
 import { MobileNav } from "./mobile-nav";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { AppShellMain } from "./app-shell-main";
 import { SidebarStateProvider } from "./sidebar-state";
-import type { NavBadgeCounts } from "./nav-items";
+import type { NavBadgeCounts, SidebarAccountLink } from "./nav-items";
 import { QuickAddRoot } from "@/features/capture/components/quick-add-root";
-import { AssistantRoot } from "@/features/assistant/components/assistant-root";
+import { KaiRoot } from "@/features/kai/components/kai-root";
 import { CommandPaletteRoot } from "@/features/shell/components/command-palette-root";
 import { SessionSync } from "@/features/shell/components/session-sync";
 import { NotificationsProvider } from "@/features/notifications/components/notifications-provider";
@@ -15,11 +16,13 @@ export function AppShell({
   user,
   unreadCount = 0,
   navBadges,
+  accountLinks = [],
   children,
 }: {
   user: ShellUser;
   unreadCount?: number;
   navBadges?: NavBadgeCounts;
+  accountLinks?: SidebarAccountLink[];
   children: React.ReactNode;
 }) {
   return (
@@ -34,11 +37,12 @@ export function AppShell({
         >
           Saltar al contenido
         </a>
-        <Sidebar user={user} badges={navBadges} />
-        <MobileNav user={user} navBadges={navBadges} />
+        <Sidebar user={user} badges={navBadges} accountLinks={accountLinks} />
+        <MobileNav />
         <AppShellMain>{children}</AppShellMain>
+        <MobileBottomNav user={user} navBadges={navBadges} accountLinks={accountLinks} />
         <QuickAddRoot />
-        <AssistantRoot />
+        <KaiRoot />
         <CommandPaletteRoot />
         <SessionSync />
       </div>

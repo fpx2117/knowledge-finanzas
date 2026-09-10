@@ -1,0 +1,1 @@
+ALTER TABLE "kai_interactions" ADD COLUMN "weight" integer DEFAULT 1 NOT NULL;

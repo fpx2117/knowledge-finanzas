@@ -5,9 +5,12 @@ import { revalidatePath } from "next/cache";
 import { parseCaptureWithAI } from "@know-finanzas/ai";
 import {
   accountRepository,
+  budgetRepository,
   categoryMapRepository,
   categoryRepository,
   classificationRuleRepository,
+  createBudgetQueries,
+  db,
   merchantRepository,
   merchantUserDefaultRepository,
   normalizeMerchant,
@@ -20,6 +23,8 @@ import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { emitFinancialEvent } from "@/lib/events/emit-financial-event";
 import { createTransactionService } from "@/features/transactions/services/transaction-service";
+import { createBudgetService, type BudgetOverviewItem } from "@/features/budgets/services/budget-service";
+import { createAccountService } from "@/features/accounts/services/account-service";
 import {
   createExpenseTransactionSchema,
   createIncomeTransactionSchema,
@@ -51,6 +56,19 @@ const captureParser = createCaptureParserService({
   parseWithAI: (input) => parseCaptureWithAI(aiProvider, input),
 });
 
+const budgetService = createBudgetService({
+  budgets: budgetRepository,
+  categories: categoryRepository,
+  budgetQueries: createBudgetQueries(db),
+});
+
+const accountService = createAccountService({ accounts: accountRepository });
+
+export type QuickBudget = Pick<
+  BudgetOverviewItem,
+  "categoryId" | "categoryName" | "currencyCode" | "limit" | "spent" | "remaining" | "usagePercent" | "status"
+>;
+
 export type QuickTemplate = {
   id: string;
   label: string;
@@ -63,8 +81,10 @@ export type QuickTemplate = {
 };
 
 export type QuickAddContext = {
-  accounts: Array<{ id: string; name: string; currencyCode: string }>;
+  accounts: Array<{ id: string; name: string; currencyCode: string; balance: string; isPrimary: boolean }>;
   categories: Array<{ id: string; name: string; type: "INCOME" | "EXPENSE" }>;
+  /** Active budgets for the current month — lets Quick Add register a gasto straight onto one. */
+  budgets: QuickBudget[];
   templates: QuickTemplate[];
   timezone: string;
   hasTwoAccounts: boolean;
@@ -73,14 +93,28 @@ export type QuickAddContext = {
 
 export async function getQuickAddContextAction(): Promise<QuickAddContext> {
   const user = await requireCurrentUser();
-  const [accounts, categories, templates] = await Promise.all([
-    accountRepository.listForUser(user.id),
+  const [accounts, categories, templates, budgets] = await Promise.all([
+    accountService.listAccounts(user.id),
     categoryRepository.listForUser(user.id),
     quickTemplateRepository.listForUser(user.id),
+    budgetService.getBudgetOverview(user).catch(() => [] as BudgetOverviewItem[]),
   ]);
   return {
-    accounts: accounts.map((a) => ({ id: a.id, name: a.name, currencyCode: a.currencyCode })),
+    // Primary account first — Quick Add pre-selects accounts[0].
+    accounts: [...accounts]
+      .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.name.localeCompare(b.name, "es-AR"))
+      .map((a) => ({ id: a.id, name: a.name, currencyCode: a.currencyCode, balance: a.balance, isPrimary: a.isPrimary })),
     categories: categories.map((c) => ({ id: c.id, name: c.name, type: c.type })),
+    budgets: budgets.map((b) => ({
+      categoryId: b.categoryId,
+      categoryName: b.categoryName,
+      currencyCode: b.currencyCode,
+      limit: b.limit,
+      spent: b.spent,
+      remaining: b.remaining,
+      usagePercent: b.usagePercent,
+      status: b.status,
+    })),
     templates: templates.map((t) => ({
       id: t.id,
       label: t.label,
@@ -163,14 +197,14 @@ export async function parseQuickTextAction(text: string, operationId?: string): 
           .catch(() => undefined);
         if (mapped?.userCategoryId) {
           categoryId = mapped.userCategoryId;
-          // Progressive trust (#13): how established is this merchant→category pattern?
+          // A hand-curated merchant→category default is high-signal: prefill it from the first
+          // movement (with undo), silent once well-established for this user.
           const priorCount = personal
             ? PROGRESSIVE_TRUST_PREFILL_MIN
             : await transactionRepository
                 .countClassifiedForMerchantNode(user.id, match.merchantId, nodeId)
                 .catch(() => 0);
-          categoryAutomationLevel =
-            priorCount >= 10 ? "silent" : priorCount >= PROGRESSIVE_TRUST_PREFILL_MIN ? "auto_undo" : "ask";
+          categoryAutomationLevel = priorCount >= 10 ? "silent" : "auto_undo";
         }
       }
     }

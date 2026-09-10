@@ -6,6 +6,7 @@ import {
   type AssistantChatInput,
 } from "./prompt";
 import { assistantChatSchema, type AssistantChatReply } from "./schema";
+import type { ModelRole } from "../../models/roles";
 
 /**
  * One structured-output turn of the finance assistant chat. No tools, no loop: the caller
@@ -13,9 +14,13 @@ import { assistantChatSchema, type AssistantChatReply } from "./schema";
  * answers grounded on that. Every safety invariant (access, entitlement, credit reserve/commit,
  * rate limit, telemetry) runs in the caller's `executeAICapability` wrapper.
  */
-export async function assistantChat(provider: AIProvider, input: AssistantChatInput): Promise<AssistantChatReply> {
+export async function assistantChat(
+  provider: AIProvider,
+  input: AssistantChatInput,
+  options: { role?: ModelRole } = {},
+): Promise<AssistantChatReply> {
   const result = await provider.generateStructured({
-    role: "BALANCED",
+    role: options.role ?? "BALANCED",
     capability: "assistant.query.simple",
     promptVersion: ASSISTANT_CHAT_PROMPT_VERSION,
     system: ASSISTANT_CHAT_SYSTEM_PROMPT,

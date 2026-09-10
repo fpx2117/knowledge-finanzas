@@ -159,12 +159,29 @@ export const env = createEnv({
     MERCADOPAGO_PRO_MONTHLY_PLAN_ID: optionalSecret,
     BILLING_GRACE_PERIOD_DAYS: optionalNonNegativeInt.default(0),
     TRIAL_DURATION_DAYS: optionalPositiveInt.default(14),
+    // Permanent freemium tier: a small monthly AI allowance (reused PLAN_ALLOWANCE pool, granted
+    // per calendar month), no WhatsApp. See packages/billing plans/limits.ts.
+    // AI credits now cover only the capture-AI capabilities (categorize / parse / normalize).
+    // KAI has its own meter (KAI points, FREE_KAI_POINTS_PER_PERIOD) and does not draw from
+    // this pool.
+    FREE_AI_CREDITS_PER_PERIOD: optionalNonNegativeInt.default(15),
+    FREE_WHATSAPP_PER_PERIOD: optionalNonNegativeInt.default(0),
     TRIAL_AI_CREDITS_TOTAL: optionalNonNegativeInt.default(50),
     TRIAL_WHATSAPP_TOTAL: optionalNonNegativeInt.default(3),
     PRO_AI_CREDITS_PER_PERIOD: optionalNonNegativeInt.default(300),
     PRO_WHATSAPP_PER_PERIOD: optionalNonNegativeInt.default(20),
-    PRO_MONTHLY_PRICE: decimalAmount.default("7.99"),
-    PRO_MONTHLY_CURRENCY: currencyCode.default("USD"),
+    // KAI AI budget guard (spec §19): hard USD ceilings on the LLM fallback. The per-user
+    // daily cap is a runaway-cost circuit breaker on top of the credit pools; the global
+    // monthly cap protects the whole account. 0 / unset → no extra ceiling (credits still apply).
+    KAI_USER_DAILY_USD: z.coerce.number().nonnegative().optional().default(0),
+    KAI_GLOBAL_MONTHLY_USD: z.coerce.number().nonnegative().optional().default(0),
+    // Monthly KAI-points allowance for FREE (deterministic answer = 1 pt, LLM analysis = 5).
+    // TRIAL and PRO are unlimited. This is the visible upgrade lever.
+    FREE_KAI_POINTS_PER_PERIOD: optionalNonNegativeInt.default(150),
+    // Argentina-first: primary PRO plan is priced in ARS. A USD plan for international cards is a
+    // separate future catalog entry (see docs/pricing/00-freemium-and-pricing-analysis.md).
+    PRO_MONTHLY_PRICE: decimalAmount.default("8999"),
+    PRO_MONTHLY_CURRENCY: currencyCode.default("ARS"),
     NOTIFICATIONS_ENABLED: booleanEnv,
     REALTIME_NOTIFICATIONS_ENABLED: booleanEnv,
     EMAIL_NOTIFICATIONS_ENABLED: booleanEnv,
@@ -226,10 +243,15 @@ export const env = createEnv({
     MERCADOPAGO_PRO_MONTHLY_PLAN_ID: process.env.MERCADOPAGO_PRO_MONTHLY_PLAN_ID,
     BILLING_GRACE_PERIOD_DAYS: process.env.BILLING_GRACE_PERIOD_DAYS,
     TRIAL_DURATION_DAYS: process.env.TRIAL_DURATION_DAYS,
+    FREE_AI_CREDITS_PER_PERIOD: process.env.FREE_AI_CREDITS_PER_PERIOD,
+    FREE_WHATSAPP_PER_PERIOD: process.env.FREE_WHATSAPP_PER_PERIOD,
     TRIAL_AI_CREDITS_TOTAL: process.env.TRIAL_AI_CREDITS_TOTAL,
     TRIAL_WHATSAPP_TOTAL: process.env.TRIAL_WHATSAPP_TOTAL,
     PRO_AI_CREDITS_PER_PERIOD: process.env.PRO_AI_CREDITS_PER_PERIOD,
     PRO_WHATSAPP_PER_PERIOD: process.env.PRO_WHATSAPP_PER_PERIOD,
+    KAI_USER_DAILY_USD: process.env.KAI_USER_DAILY_USD,
+    KAI_GLOBAL_MONTHLY_USD: process.env.KAI_GLOBAL_MONTHLY_USD,
+    FREE_KAI_POINTS_PER_PERIOD: process.env.FREE_KAI_POINTS_PER_PERIOD,
     PRO_MONTHLY_PRICE: process.env.PRO_MONTHLY_PRICE,
     PRO_MONTHLY_CURRENCY: process.env.PRO_MONTHLY_CURRENCY,
     NOTIFICATIONS_ENABLED: process.env.NOTIFICATIONS_ENABLED,

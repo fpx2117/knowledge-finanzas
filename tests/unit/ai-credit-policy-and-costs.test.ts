@@ -10,6 +10,10 @@ describe("AI credit pool policy", () => {
     expect(resolvePoolOrder("PRO")).toEqual(["PLAN_ALLOWANCE", "PURCHASED"]);
   });
 
+  it("free access draws only from PLAN_ALLOWANCE (the monthly free grant), no purchased top-ups", () => {
+    expect(resolvePoolOrder("FREE")).toEqual(["PLAN_ALLOWANCE"]);
+  });
+
   it("expired read-only access has no usable pool", () => {
     expect(resolvePoolOrder("EXPIRED_READ_ONLY")).toEqual([]);
   });

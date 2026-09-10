@@ -16,6 +16,7 @@ export function createActivityQueries(database: Database) {
         amount: transactions.amount,
         description: transactions.description,
         merchant: transactions.merchant,
+        merchantId: transactions.merchantId,
         categoryId: transactions.categoryId,
         categoryName: categories.name,
         occurredAt: transactions.occurredAt,

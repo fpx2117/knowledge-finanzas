@@ -24,6 +24,8 @@ export function TransactionListItem({
   amount,
   currency,
   kind,
+  date,
+  leading,
   className,
 }: {
   concept: string;
@@ -31,27 +33,36 @@ export function TransactionListItem({
   amount: string;
   currency: string;
   kind: TxnKind;
+  /** KnowFinanzas.html tx-row shows a small date/currency line under the amount. */
+  date?: string;
+  /** Overrides the default kind glyph — e.g. a `<MerchantLogo>`. */
+  leading?: React.ReactNode;
   className?: string;
 }) {
   const m = KIND_META[kind];
   const Icon = m.icon;
   const tone = kind === "income" ? "positive" : kind === "expense" ? "negative" : "neutral";
   return (
-    <div className={cn("flex items-center gap-3 py-2.5", className)}>
-      <span aria-hidden="true" className={cn("flex size-9 shrink-0 items-center justify-center rounded-md", m.wrap)}>
-        <Icon className="size-4" />
-      </span>
+    <div className={cn("flex items-center gap-3 py-3", className)}>
+      {leading ?? (
+        <span aria-hidden="true" className={cn("flex size-[38px] shrink-0 items-center justify-center rounded-xl", m.wrap)}>
+          <Icon className="size-[18px]" />
+        </span>
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-small font-medium text-foreground">{concept}</span>
+        <span className="truncate text-small font-bold text-foreground">{concept}</span>
         {meta ? <span className="truncate text-caption text-muted-foreground">{meta}</span> : null}
       </div>
-      <MoneyAmount
-        amount={m.sign === "-" && !amount.startsWith("-") ? `-${amount}` : amount}
-        currency={currency}
-        variant="compact"
-        tone={tone}
-        className="shrink-0 text-small font-medium"
-      />
+      <div className="flex shrink-0 flex-col items-end">
+        <MoneyAmount
+          amount={m.sign === "-" && !amount.startsWith("-") ? `-${amount}` : amount}
+          currency={currency}
+          variant="compact"
+          tone={tone}
+          className="text-small font-bold"
+        />
+        {date ? <span className="mt-1 text-[10px] text-muted-foreground">{date}</span> : null}
+      </div>
     </div>
   );
 }

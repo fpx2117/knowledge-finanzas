@@ -13,8 +13,6 @@ Each file here targets a deleted module:
 | `admin-overview-metrics` | `features/admin/overview/services/get-commercial-overview-metrics` |
 | `admin-reconciliation-queue` | `features/admin/billing/services/get-reconciliation-queue` |
 | `admin-search-users` | `features/admin/users/services/search-admin-users` |
-| `billing-page-service` | `features/billing/services/billing-page-service` |
-| `billing-service` | `features/billing/services/billing-service` |
 | `evaluate-financial-alerts` | `features/notifications/services/evaluate-financial-alerts` |
 | `money-input-formatting` | `components/financial/money-input-format` |
 | `notification-related-route` | `features/notifications/lib/resolve-related-route` |

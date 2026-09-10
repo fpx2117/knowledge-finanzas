@@ -1,16 +1,7 @@
-import { requireCurrentUser } from "@/lib/auth/require-current-user";
-import { TypedTransactionsView } from "@/features/transactions/components/typed-transactions-view";
+import { redirect } from "next/navigation";
 
-// spec 03 §11 — Ingresos: filtro semántico sobre movimientos confirmados de entrada.
-export default async function IncomePage({ searchParams }: { searchParams: Promise<{ period?: string; page?: string }> }) {
-  const user = await requireCurrentUser();
-  return (
-    <TypedTransactionsView
-      userId={user.id}
-      timezone={user.timezone}
-      baseCurrency={user.baseCurrency}
-      kind="INCOME"
-      searchParams={await searchParams}
-    />
-  );
+// Consolidación 2026-09: "Ingresos" dejó de ser una pestaña propia — es un chip / filtro dentro
+// de Movimientos. Se mantiene la ruta como redirect para no romper enlaces existentes.
+export default function IncomePage() {
+  redirect("/transactions?type=INCOME");
 }

@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 export type FinancialEventType =
   | "account.created"
   | "account.archived"
+  | "account.updated"
   | "transaction.created"
   | "transaction.updated"
   | "transaction.voided"
@@ -39,6 +40,7 @@ export type FinancialEventType =
 const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
   "account.created": ["/accounts", "/app"],
   "account.archived": ["/accounts", "/app"],
+  "account.updated": ["/accounts", "/app"],
   // CM-01/CM-02/CM-03 (§9): a transaction touches its own list, the account it moved money in/out
   // of, the budget it may consume, the dashboard, and the calendar (transactions can be linked
   // from scheduled/obligation entries shown there).
@@ -66,7 +68,7 @@ const PATHS_BY_EVENT: Record<FinancialEventType, readonly string[]> = {
   "pending_item.resolved": ["/transactions/pending", "/transactions", "/accounts", "/budgets", "/app"],
   // CF-05: an import batch posts transactions and sends exceptions to Pendientes.
   "import.completed": ["/transactions", "/settings/imports", "/accounts", "/app"],
-  "recurring.changed": ["/transactions/recurring"],
+  "recurring.changed": ["/transactions/pending", "/transactions"],
   "subscription.changed": ["/obligations/subscriptions"],
   // Dismiss/resolve/feedback on an insight only affects the Insights surface.
   "insight.updated": ["/insights"],

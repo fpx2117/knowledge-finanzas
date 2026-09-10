@@ -1,5 +1,7 @@
-import { AccountsView } from "@/features/accounts/views/accounts-view";
+import { redirect } from "next/navigation";
 
-export default function SavingsAccountsPage() {
-  return <AccountsView type="SAVINGS" />;
+// Consolidación 2026-09: "savings" dejó de ser una subvista propia — el filtro por tipo vive dentro
+// de la card "Tus cuentas" en /accounts. Se mantiene la ruta como redirect.
+export default function Page() {
+  redirect("/accounts");
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
+import { SlidersHorizontalIcon } from "lucide-react";
 
 import { fieldControlClass } from "@/components/shared/form-field";
 
@@ -21,7 +22,6 @@ export function TransactionsFilters({ accounts }: { accounts: Option[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const type = searchParams.get("type") ?? "ALL";
   const account = searchParams.get("account") ?? "ALL";
   const sort = searchParams.get("sort") ?? "date_desc";
 
@@ -34,26 +34,20 @@ export function TransactionsFilters({ accounts }: { accounts: Option[] }) {
     window.location.assign(qs ? `${pathname}?${qs}` : pathname);
   }
 
-  return (
-    <div className="flex flex-wrap gap-3">
-      <label className="sr-only" htmlFor="tx-type">Filtrar por tipo</label>
-      <select
-        id="tx-type"
-        value={type}
-        onChange={(event) => go("type", event.target.value, "ALL")}
-        className={`${fieldControlClass} w-auto`}
-      >
-        <option value="ALL">Todos los tipos</option>
-        <option value="INCOME">Ingresos</option>
-        <option value="EXPENSE">Gastos</option>
-      </select>
+  const hasFilters = account !== "ALL" || sort !== "date_desc" || searchParams.has("category") || searchParams.has("type");
 
+  function clearAll() {
+    window.location.assign(pathname);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
       <label className="sr-only" htmlFor="tx-account">Filtrar por cuenta</label>
       <select
         id="tx-account"
         value={account}
         onChange={(event) => go("account", event.target.value, "ALL")}
-        className={`${fieldControlClass} w-auto`}
+        className={`${fieldControlClass} h-10 w-auto min-w-[8.5rem] flex-1 sm:max-w-[12rem] sm:flex-none`}
       >
         <option value="ALL">Todas las cuentas</option>
         {accounts.map((option) => (
@@ -68,7 +62,7 @@ export function TransactionsFilters({ accounts }: { accounts: Option[] }) {
         id="tx-sort"
         value={sort}
         onChange={(event) => go("sort", event.target.value, "date_desc")}
-        className={`${fieldControlClass} w-auto`}
+        className={`${fieldControlClass} h-10 w-auto min-w-[8.5rem] flex-1 sm:max-w-[12rem] sm:flex-none`}
       >
         {SORT_OPTIONS.map(([value, label]) => (
           <option key={value} value={value}>
@@ -76,6 +70,17 @@ export function TransactionsFilters({ accounts }: { accounts: Option[] }) {
           </option>
         ))}
       </select>
+
+      {hasFilters ? (
+        <button
+          type="button"
+          onClick={clearAll}
+          className="ml-auto inline-flex items-center gap-1.5 text-caption font-semibold text-brand hover:underline"
+        >
+          <SlidersHorizontalIcon className="size-3.5" />
+          Limpiar filtros
+        </button>
+      ) : null}
     </div>
   );
 }

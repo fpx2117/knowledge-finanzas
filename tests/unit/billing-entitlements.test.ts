@@ -24,6 +24,17 @@ describe("entitlement matrix", () => {
     for (const key of CAPABILITY_KEYS) expect(hasCapability("PRO", key)).toBe(true);
   });
 
+  it("grants FREE the full core product minus AI scenarios, action prep, email and WhatsApp", () => {
+    const freeBlocked = ["ai.scenarios", "ai.actionPreparation", "notifications.email", "notifications.whatsapp"] as const;
+    for (const key of freeBlocked) expect(hasCapability("FREE", key)).toBe(false);
+    for (const key of CAPABILITY_KEYS.filter((k) => !(freeBlocked as readonly string[]).includes(k))) {
+      expect(hasCapability("FREE", key)).toBe(true);
+    }
+    // The AI assistant is entitled for FREE — its usage is metered by the credit allowance, not gated here.
+    expect(hasCapability("FREE", "ai.assistant")).toBe(true);
+    expect(hasCapability("FREE", "notifications.realtime")).toBe(true);
+  });
+
   it("keeps read capabilities available in EXPIRED_READ_ONLY", () => {
     for (const key of READ_CAPABILITIES) expect(hasCapability("EXPIRED_READ_ONLY", key)).toBe(true);
   });

@@ -61,7 +61,7 @@ describe("OpenRouter provider (generateStructured)", () => {
       id: "gen-42",
       model: "openai/gpt-4o-mini",
       choices: [{ finish_reason: "stop", message: { role: "assistant", content: '{"categoryId":"cat-1","confidence":0.9}' } }],
-      usage: { prompt_tokens: 120, completion_tokens: 15, total_tokens: 135 },
+      usage: { prompt_tokens: 120, completion_tokens: 15, total_tokens: 135, cost: 0.00012, prompt_tokens_details: { cached_tokens: 40 } },
     }));
     const provider = createOpenRouterProvider({ apiKey: "k", baseUrl: "https://openrouter.test", fetchImpl, models });
 
@@ -78,12 +78,13 @@ describe("OpenRouter provider (generateStructured)", () => {
       data: { categoryId: "cat-1", confidence: 0.9 },
       raw: '{"categoryId":"cat-1","confidence":0.9}',
       model: "openai/gpt-4o-mini",
-      usage: { inputTokens: 120, outputTokens: 15 },
+      usage: { inputTokens: 120, outputTokens: 15, cachedInputTokens: 40, costUsd: 0.00012 },
       generationId: "gen-42",
     });
 
     const [, init] = fetchImpl.mock.calls[0];
     const body = JSON.parse(init.body as string);
+    expect(body.usage).toEqual({ include: true });
     expect(body.model).toBe("openai/gpt-4o-mini");
     expect(body.messages).toEqual([{ role: "user", content: "Categorize this expense" }]);
     expect(body.response_format.type).toBe("json_schema");

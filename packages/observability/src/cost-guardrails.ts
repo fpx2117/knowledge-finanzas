@@ -23,7 +23,8 @@ export function evaluateCostGuardrails(config: PricingConfig, input: {
   const proCount = input.revenue.proSubscriberCount;
 
   if (proCount > 0) {
-    const aiCostPerProUser = new Decimal(input.costs.aiCostAssumed).dividedBy(proCount);
+    // Prefer the real provider cost when available (same assumed/actual precedence as gateway fee).
+    const aiCostPerProUser = new Decimal(input.costs.actualAiCostTotal ?? input.costs.aiCostAssumed).dividedBy(proCount);
     if (aiCostPerProUser.greaterThan(config.guardrails.aiCostPerProUserMax)) {
       breaches.push({
         guardrail: "ai_cost_per_pro_user",

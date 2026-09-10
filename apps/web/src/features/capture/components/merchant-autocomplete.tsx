@@ -1,9 +1,10 @@
 "use client";
 
 import { useDeferredValue, useEffect, useId, useRef, useState } from "react";
-import { CheckIcon, StoreIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 
 import { fieldControlClass } from "@/components/shared/form-field";
+import { MerchantLogo } from "@/components/financial/merchant-logo";
 import { cn } from "@/lib/utils";
 import { searchMerchantSuggestionsAction } from "../actions/quick-actions";
 import type { MerchantAutocompleteSuggestion } from "../lib/merchant-autocomplete";
@@ -18,6 +19,7 @@ export function MerchantAutocomplete({
   categories,
   onChange,
   onSelect,
+  inputClassName,
 }: {
   id: string;
   name: string;
@@ -28,6 +30,8 @@ export function MerchantAutocomplete({
   categories: Array<{ id: string; name: string }>;
   onChange: (value: string) => void;
   onSelect: (suggestion: MerchantAutocompleteSuggestion) => void;
+  /** Extra classes on the text input (e.g. right padding for an adornment). */
+  inputClassName?: string;
 }) {
   const listId = useId();
   const deferredValue = useDeferredValue(value.trim());
@@ -124,7 +128,7 @@ export function MerchantAutocomplete({
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className={fieldControlClass}
+        className={cn(fieldControlClass, inputClassName)}
       />
 
       {open ? (
@@ -153,11 +157,11 @@ export function MerchantAutocomplete({
                       index === activeIndex ? "bg-secondary" : "hover:bg-secondary",
                     )}
                   >
-                    <StoreIcon className="size-4 shrink-0 text-muted-foreground" />
+                    <MerchantLogo name={suggestion.name} domain={suggestion.domain} className="size-7 shrink-0" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-foreground">{suggestion.name}</span>
                       {categoryName ? (
-                        <span className="block truncate text-caption text-muted-foreground">Categoría sugerida: {categoryName}</span>
+                        <span className="block truncate text-caption text-muted-foreground">{categoryName}</span>
                       ) : null}
                     </span>
                     {suggestion.name === value ? <CheckIcon className="size-4 text-brand" /> : null}

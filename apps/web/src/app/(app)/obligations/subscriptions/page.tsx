@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { ArrowLeftIcon, CreditCardIcon } from "lucide-react";
 
+import { merchantRepository } from "@know-finanzas/db";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { SectionCard } from "@/components/shared/section-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { subscriptionDetectionService } from "@/features/transactions/services/subscription-detection-service.instance";
-import { SubscriptionList, SubscriptionScanButton } from "@/features/transactions/components/subscription-list";
+import { NewSubscriptionButton, SubscriptionList, SubscriptionScanButton } from "@/features/transactions/components/subscription-list";
 
 export default async function SubscriptionsPage() {
   const user = await requireCurrentUser();
   const subscriptions = await subscriptionDetectionService.listSubscriptions(user.id);
+  const merchantIdentities = await merchantRepository.identitiesByIds(subscriptions.map((s) => s.merchantId));
   const active = subscriptions.filter((s) => s.status === "ACTIVE");
   const monthlyTotal = active.reduce(
     (sum, s) => sum + (s.frequency === "MONTHLY" ? Number(s.currentAmount) : s.frequency === "YEARLY" ? Number(s.currentAmount) / 12 : 0),
@@ -27,7 +30,12 @@ export default async function SubscriptionsPage() {
       <PageHeader
         title="Suscripciones"
         description="Cargos que se repiten todos los meses o todos los años. KNOWLEDGE también te avisa cuando alguno sube de precio."
-        actions={<SubscriptionScanButton hasAny={subscriptions.length > 0} />}
+        actions={
+          <>
+            <NewSubscriptionButton timezone={user.timezone} />
+            <SubscriptionScanButton hasAny={subscriptions.length > 0} />
+          </>
+        }
       />
 
       {active.length > 0 ? (
@@ -42,7 +50,13 @@ export default async function SubscriptionsPage() {
 
       <SectionCard title="Detectadas" eyebrow={`${subscriptions.length}`} contentClassName="gap-0">
         {subscriptions.length > 0 ? (
-          <SubscriptionList subscriptions={subscriptions} />
+          <SubscriptionList
+            subscriptions={subscriptions.map((s) => ({
+              ...s,
+              merchantName: merchantIdentities.get(s.merchantId)?.canonicalName ?? s.label,
+              merchantDomain: merchantIdentities.get(s.merchantId)?.domain ?? null,
+            }))}
+          />
         ) : (
           <EmptyState
             icon={<CreditCardIcon />}

@@ -80,7 +80,7 @@ test.describe("sidebar (spec §5–6, §18)", () => {
     await page.goto("/app");
 
     const nav = page.getByRole("navigation", { name: "Navegación principal" }).first();
-    const subLink = nav.getByRole("link", { name: "Recurrentes", exact: true });
+    const subLink = nav.getByRole("link", { name: "Pendientes", exact: true });
 
     // Collapsed by default (not on a /transactions route) → the child is hidden (0 height, inert).
     await expect(subLink).toBeHidden();

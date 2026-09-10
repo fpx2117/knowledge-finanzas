@@ -12,7 +12,9 @@ type AccountRecord = {
   userId: string;
   name: string;
   type: AccountType;
+  institution: string | null;
   currencyCode: string;
+  isPrimary: boolean;
   openingBalance: string;
   openingDate: string;
   status: AccountStatus;
@@ -39,6 +41,7 @@ type AccountRepository = {
   listForUser(userId: string, options?: { includeArchived?: boolean }): Promise<AccountRecord[]>;
   updateMetadataForUser(accountId: string, userId: string, input: { name: string }): Promise<AccountRecord | undefined>;
   archiveForUser(accountId: string, userId: string, archivedAt: Date): Promise<AccountRecord | undefined>;
+  setPrimaryForUser(accountId: string, userId: string): Promise<AccountRecord | undefined>;
   getBalanceInputsForUser(userId: string, accountId?: string): Promise<BalanceInput[]>;
 };
 
@@ -124,6 +127,16 @@ export function createAccountService({
       const archived = await accounts.archiveForUser(accountId, userId, new Date());
       if (!archived) throw new ApplicationError("ACCOUNT_NOT_FOUND");
       return archived;
+    },
+
+    async setPrimaryAccount(userId: string, accountId: string) {
+      await gate.assertCanWrite(userId);
+      const account = await accounts.findByIdForUser(accountId, userId);
+      if (!account) throw new ApplicationError("ACCOUNT_NOT_FOUND");
+      if (account.status === "ARCHIVED") throw new ApplicationError("ACCOUNT_ARCHIVED");
+      const updated = await accounts.setPrimaryForUser(accountId, userId);
+      if (!updated) throw new ApplicationError("ACCOUNT_NOT_FOUND");
+      return updated;
     },
   };
 }

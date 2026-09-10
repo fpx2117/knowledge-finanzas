@@ -18,9 +18,9 @@ test("empty state names the month and offers to create a budget (§9.2)", async 
 
   await page.goto("/budgets");
   await expect(page.getByRole("heading", { level: 1, name: "Presupuestos" })).toBeVisible();
-  await expect(page.getByText("Controlá cuánto querés gastar y cómo viene el mes.")).toBeVisible();
-  await expect(page.getByText(/Todavía no configuraste un presupuesto para/)).toBeVisible();
-  await expect(page.getByRole("link", { name: "Crear presupuesto" })).toBeVisible();
+  await expect(page.getByText(/Decidí cuánto querés gastar\./)).toBeVisible();
+  await expect(page.getByText("Gastá con más intención.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Crear un presupuesto" })).toBeVisible();
 
   await context.close();
 });

@@ -25,7 +25,9 @@ export async function createAccountAction(
     const input = createAccountSchema.parse({
       name: formData.get("name"),
       type: formData.get("type"),
+      institution: formData.get("institution") ?? undefined,
       currencyCode: formData.get("currencyCode"),
+      isPrimary: formData.get("isPrimary") ?? undefined,
       openingBalance: formData.get("openingBalance"),
       openingDate: formData.get("openingDate"),
     });

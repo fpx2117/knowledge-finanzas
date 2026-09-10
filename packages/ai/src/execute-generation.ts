@@ -63,6 +63,11 @@ export function createAIExecutor(dependencies: {
           latencyMs: now() - startedAt,
           inputTokens: result.usage.inputTokens,
           outputTokens: result.usage.outputTokens,
+          cachedInputTokens: result.usage.cachedInputTokens ?? null,
+          costUsd: result.usage.costUsd ?? null,
+          generationId: result.generationId,
+          operationId: null,
+          creditsCharged: null,
         });
         return result;
       } catch (error) {
@@ -80,6 +85,11 @@ export function createAIExecutor(dependencies: {
           latencyMs: now() - startedAt,
           inputTokens: null,
           outputTokens: null,
+          cachedInputTokens: null,
+          costUsd: null,
+          generationId: null,
+          operationId: null,
+          creditsCharged: null,
         });
         throw isAIError(error) ? error : new AIError("AI_PROVIDER_ERROR", { cause: error });
       }

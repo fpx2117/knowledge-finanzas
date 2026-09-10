@@ -6,6 +6,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export type UsageSnapshot = { used: number; limit: LimitValue; remaining: LimitValue } | null;
 
 export type ProductAccessSummary =
+  | { state: "FREE"; ai: UsageSnapshot; whatsapp: UsageSnapshot }
   | { state: "TRIAL"; trial: { daysRemaining: number }; ai: UsageSnapshot; whatsapp: UsageSnapshot }
   | { state: "PRO"; billing: { renewsAt: Date | null }; ai: UsageSnapshot; whatsapp: UsageSnapshot }
   | { state: "EXPIRED_READ_ONLY"; canReactivate: true; historicalDataAccessible: true };
@@ -35,6 +36,10 @@ export function buildProductAccessSummary(input: {
 
   if (input.state === "PRO") {
     return { state: "PRO", billing: { renewsAt: input.currentPeriodEnd }, ai, whatsapp };
+  }
+
+  if (input.state === "FREE") {
+    return { state: "FREE", ai, whatsapp };
   }
 
   return { state: "EXPIRED_READ_ONLY", canReactivate: true, historicalDataAccessible: true };

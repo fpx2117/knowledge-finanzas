@@ -1,8 +1,12 @@
 import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { Database } from "../client";
-import { merchantAliases, merchants } from "../schema";
+import { categoryTaxonomy, merchantAliases, merchants } from "../schema";
 import { normalizeMerchant } from "../merchants/normalize";
+
+// Taxonomy slugs whose merchants are treated as recurring subscriptions with a lower
+// detection threshold (2 charges instead of 3).
+const SUBSCRIPTION_TAXONOMY_SLUGS = ["cat-suscripciones", "cat-streaming"];
 
 export type MerchantAliasMatchType = "EXACT" | "PREFIX" | "CONTAINS" | "REGEX";
 export type MerchantAliasSource = "SEED" | "IMPORT" | "USER" | "MODEL";
@@ -20,6 +24,7 @@ export type MerchantSuggestion = {
   merchantId: string;
   canonicalName: string;
   defaultTaxonomyNodeId: string | null;
+  domain: string | null;
 };
 
 type MerchantSuggestionRow = MerchantSuggestion & { alias: string | null; userSpecific?: boolean };
@@ -66,10 +71,11 @@ export function rankMerchantSuggestions(
   return [...ranked.values()]
     .sort((a, b) => a.rank - b.rank || a.canonicalName.localeCompare(b.canonicalName, "es-AR"))
     .slice(0, Math.max(0, limit))
-    .map(({ merchantId, canonicalName, defaultTaxonomyNodeId }) => ({
+    .map(({ merchantId, canonicalName, defaultTaxonomyNodeId, domain }) => ({
       merchantId,
       canonicalName,
       defaultTaxonomyNodeId,
+      domain: domain ?? null,
     }));
 }
 
@@ -81,6 +87,69 @@ export function createMerchantRepository(database: Database) {
 
     findById(id: string) {
       return database.select().from(merchants).where(eq(merchants.id, id)).limit(1).then(([row]) => row);
+    },
+
+    /** Merchant ids whose default category is a subscription/streaming node — used to relax the
+     *  subscription detector's charge-count threshold for these known-recurring merchants. */
+    async subscriptionLikeMerchantIds(): Promise<string[]> {
+      const rows = await database
+        .select({ id: merchants.id })
+        .from(merchants)
+        .innerJoin(categoryTaxonomy, eq(categoryTaxonomy.id, merchants.defaultTaxonomyNodeId))
+        .where(and(eq(merchants.active, true), inArray(categoryTaxonomy.slug, SUBSCRIPTION_TAXONOMY_SLUGS)));
+      return rows.map((row) => row.id);
+    },
+
+    /** Resolve a free-text merchant name to a canonical merchant, creating a minimal one (slug +
+     *  canonical name + EXACT alias) when nothing matches. Used by manual subscription creation. */
+    async getOrCreateByName(rawName: string, userId?: string): Promise<{ id: string; canonicalName: string; domain: string | null } | null> {
+      const name = rawName.trim().slice(0, 120);
+      if (!name) return null;
+      const match = await database
+        .select({ id: merchants.id, canonicalName: merchants.canonicalName, domain: merchants.domain })
+        .from(merchantAliases)
+        .innerJoin(merchants, and(eq(merchants.id, merchantAliases.merchantId), eq(merchants.active, true)))
+        .where(
+          and(
+            eq(merchantAliases.pattern, normalizeMerchant(name)),
+            eq(merchantAliases.matchType, "EXACT"),
+            or(isNull(merchantAliases.addedByUserId), userId ? eq(merchantAliases.addedByUserId, userId) : sql`false`),
+          ),
+        )
+        .limit(1)
+        .then(([row]) => row);
+      if (match) return match;
+
+      const base =
+        name
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 48) || "merchant";
+      const slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+      const created = await database
+        .insert(merchants)
+        .values({ slug, canonicalName: name, active: true })
+        .returning({ id: merchants.id, canonicalName: merchants.canonicalName, domain: merchants.domain })
+        .then(([row]) => row);
+      await database
+        .insert(merchantAliases)
+        .values({ merchantId: created.id, pattern: normalizeMerchant(name), matchType: "EXACT", source: "USER", addedByUserId: userId ?? null })
+        .onConflictDoNothing();
+      return created;
+    },
+
+    /** Minimal identity (name + logo domain) for a set of merchant ids — for rendering lists. */
+    async identitiesByIds(ids: readonly string[]): Promise<Map<string, { canonicalName: string; domain: string | null }>> {
+      const unique = [...new Set(ids)].filter(Boolean);
+      if (unique.length === 0) return new Map();
+      const rows = await database
+        .select({ id: merchants.id, canonicalName: merchants.canonicalName, domain: merchants.domain })
+        .from(merchants)
+        .where(inArray(merchants.id, unique));
+      return new Map(rows.map((row) => [row.id, { canonicalName: row.canonicalName, domain: row.domain }]));
     },
 
     findActiveById(id: string) {
@@ -101,6 +170,7 @@ export function createMerchantRepository(database: Database) {
             merchantId: merchants.id,
             canonicalName: merchants.canonicalName,
             defaultTaxonomyNodeId: merchants.defaultTaxonomyNodeId,
+            domain: merchants.domain,
           })
           .from(merchants)
           .where(and(eq(merchants.active, true), ilike(merchants.canonicalName, `${normalized}%`)))
@@ -111,6 +181,7 @@ export function createMerchantRepository(database: Database) {
             merchantId: merchants.id,
             canonicalName: merchants.canonicalName,
             defaultTaxonomyNodeId: merchants.defaultTaxonomyNodeId,
+            domain: merchants.domain,
             alias: merchantAliases.pattern,
             userSpecific: sql<boolean>`${merchantAliases.addedByUserId} = ${userId}`,
           })

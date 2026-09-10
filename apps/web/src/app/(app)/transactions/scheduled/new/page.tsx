@@ -1,5 +1,6 @@
-import { RebuildingNotice } from "@/features/shell/components/rebuilding-notice";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <RebuildingNotice title="Programar un movimiento" description="Un ingreso o gasto a una fecha futura." />;
+// Consolidación 2026-09: programar un movimiento a futuro se hace desde Obligaciones.
+export default function ScheduleNewPage() {
+  redirect("/obligations/new");
 }

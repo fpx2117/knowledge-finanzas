@@ -1,38 +1,8 @@
-import { RepeatIcon } from "lucide-react";
+import { redirect } from "next/navigation";
 
-import { PageHeader } from "@/components/shared/page-header";
-import { SectionCard } from "@/components/shared/section-card";
-import { EmptyState } from "@/components/shared/empty-state";
-import { requireCurrentUser } from "@/lib/auth/require-current-user";
-import { recurringDetectionService } from "@/features/transactions/services/recurring-detection-service.instance";
-import { RecurringScanButton, RecurringSuggestionList } from "@/features/transactions/components/recurring-suggestions";
-import { TransactionsSubnav } from "@/features/transactions/components/transactions-subnav";
-
-export default async function RecurringExpensesPage() {
-  const user = await requireCurrentUser();
-  const suggestions = await recurringDetectionService.listSuggestions(user.id);
-
-  return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Gastos recurrentes"
-        description="KNOWLEDGE mira tus movimientos y detecta lo que se repite — mismo comercio, monto parecido, cada cierto tiempo. Confirmá los que reconozcas."
-        actions={<RecurringScanButton hasSuggestions={suggestions.length > 0} />}
-      />
-
-      <TransactionsSubnav />
-
-      <SectionCard title="Detectados" eyebrow={`${suggestions.length}`} contentClassName="gap-0">
-        {suggestions.length > 0 ? (
-          <RecurringSuggestionList suggestions={suggestions} />
-        ) : (
-          <EmptyState
-            icon={<RepeatIcon />}
-            title="Nada detectado por ahora"
-            description="Necesitamos al menos 3 movimientos parecidos y espaciados de forma regular. Cargá más movimientos o volvé a buscar más adelante."
-          />
-        )}
-      </SectionCard>
-    </div>
-  );
+// Consolidación 2026-09: "Recurrentes" dejó de ser una pestaña — los cargos detectados que se
+// repiten se revisan en Pendientes (sección #recurrentes), junto al resto de lo que necesita tu
+// decisión. Las suscripciones confirmadas viven en Obligaciones.
+export default function RecurringPage() {
+  redirect("/transactions/pending#recurrentes");
 }

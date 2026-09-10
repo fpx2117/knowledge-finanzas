@@ -30,12 +30,12 @@ export type ResolveProductAccessInput = {
   subscription: EffectiveSubscriptionSnapshot | null;
   graceDays: number;
   activePromotion?: { endsAt: Date } | null;
-  // Has this user EVER had a trial, a subscription (any status, not just effective), or a
-  // promotional grant (any status)? Distinguishes a brand-new user who hasn't chosen anything yet
-  // (NO_ACCESS) from one whose trial/paid/promotional access genuinely lapsed
-  // (EXPIRED_READ_ONLY). Defaults to `true` so every call site that predates TASK-064 keeps its
-  // exact prior EXPIRED_READ_ONLY-on-NONE behavior unchanged (purely additive).
+  // @deprecated Since the FREE tier: source === "NONE" now always resolves to "FREE", so this
+  // flag no longer changes the outcome. Kept for call-site/back-compat only.
   everHadAccess?: boolean;
+  // Hard lock (admin action / future dunning rule): forces EXPIRED_READ_ONLY instead of FREE when
+  // no paid/promotion/trial access applies. Defaults to false — a normal lapsed user lands in FREE.
+  hardLocked?: boolean;
 };
 
 // Priority: PAID_SUBSCRIPTION > PROMOTION > TRIAL > NONE (docs/10.3-promotion-codes-pro-access.md).
@@ -52,5 +52,7 @@ export function resolveProductAccess(input: ResolveProductAccessInput): ProductA
   const source = resolveProductAccessSource(input);
   if (source === "PAID_SUBSCRIPTION" || source === "PROMOTION") return "PRO";
   if (source === "TRIAL") return "TRIAL";
-  return (input.everHadAccess ?? true) ? "EXPIRED_READ_ONLY" : "NO_ACCESS";
+  // source === "NONE": every authenticated user gets the permanent FREE tier, unless explicitly
+  // hard-locked (admin / dunning). A lapsed trial now lands here, not in EXPIRED_READ_ONLY.
+  return input.hardLocked ? "EXPIRED_READ_ONLY" : "FREE";
 }
