@@ -16,3 +16,4 @@ backups/
 # build artifacts
 apps/web/tsconfig.tsbuildinfo
 *.tsbuildinfo
+packages/db/scripts/_*
