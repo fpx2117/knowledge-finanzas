@@ -46,6 +46,8 @@ export { KAI_INTENT_ALIASES, KAI_INTENT_KEYWORDS } from "./resolver/aliases";
 export { resolveStatic, KAI_SCREEN_HELP } from "./registry/static-registry";
 export { KAI_QUICK_ACTIONS } from "./registry/quick-actions";
 export type { KaiQuickAction } from "./registry/quick-actions";
+export { resolveFollowups } from "./registry/followups";
+export type { KaiFollowup } from "./registry/followups";
 
 // Handlers + ports
 export { KAI_HANDLERS } from "./handlers";

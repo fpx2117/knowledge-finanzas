@@ -65,13 +65,16 @@ describe("resolveKaiInteraction", () => {
 
   it("answers 'cuánto gasté este mes' deterministically from the DB", async () => {
     const input = baseInput({ message: "¿cuánto gasté este mes?" });
-    const { response, audit } = await resolveKaiInteraction(input);
+    const { response, audit, followups } = await resolveKaiInteraction(input);
     expect(audit.intentId).toBe("GET_MONTH_EXPENSES");
     expect(audit.resolutionSource).toBe("DATABASE");
     expect(audit.llmUsed).toBe(false);
     expect(response.type).toBe("KAI_METRIC");
     expect(response.body).toContain("850.000");
     expect(input.llmFallback).not.toHaveBeenCalled();
+    // Follow-up chips are offered after the answer.
+    expect(followups.length).toBeGreaterThan(0);
+    expect(followups.map((f) => f.label)).toContain("¿En qué gasté más?");
   });
 
   it("returns a donut chart for 'gastos por categoría'", async () => {

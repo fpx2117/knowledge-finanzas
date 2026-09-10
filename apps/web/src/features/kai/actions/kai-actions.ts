@@ -5,7 +5,12 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { kaiInteractionRepository } from "@know-finanzas/db";
-import { resolveKaiInteraction, resolveScreenContext, type KaiResponse } from "@know-finanzas/kai";
+import {
+  resolveKaiInteraction,
+  resolveScreenContext,
+  type KaiFollowup,
+  type KaiResponse,
+} from "@know-finanzas/kai";
 
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { KAI_HISTORY_LIMIT, MAX_KAI_MESSAGE_LENGTH } from "../lib/constants";
@@ -24,7 +29,7 @@ const inputSchema = z.object({
 });
 
 export type KaiActionResult =
-  | { ok: true; response: KaiResponse; access: KaiAccess | null }
+  | { ok: true; response: KaiResponse; followups: KaiFollowup[]; access: KaiAccess | null }
   | { ok: false; error: { code: string; message: string }; access: KaiAccess | null };
 
 export async function sendKaiMessageAction(input: {
@@ -65,7 +70,7 @@ export async function sendKaiMessageAction(input: {
   }
 
   try {
-    const { response, audit } = await resolveKaiInteraction({
+    const { response, audit, followups } = await resolveKaiInteraction({
       message,
       screenContext,
       quickActionIntentId,
@@ -78,9 +83,13 @@ export async function sendKaiMessageAction(input: {
       baseCurrency: user.baseCurrency,
     });
 
-    // Audit every interaction (spec §24) + consume KAI points — best-effort, never blocks.
-    void kaiInteractionRepository
-      .record({
+    // Audit every interaction (spec §24) + consume KAI points. Must be awaited *before*
+    // re-reading the balance, otherwise the returned `access` reflects the pre-insert count
+    // and the meter never moves. A failure here (e.g. migrations not applied) is logged, not
+    // swallowed silently — the answer still returns.
+    let recorded = true;
+    try {
+      await kaiInteractionRepository.record({
         userId: user.id,
         intentId: audit.intentId,
         resolutionSource: audit.resolutionSource,
@@ -90,10 +99,16 @@ export async function sendKaiMessageAction(input: {
         latencyMs: audit.latencyMs,
         responseType: audit.responseType,
         screenContext: audit.screenContext,
-      })
-      .catch(() => {});
+      });
+    } catch (error) {
+      recorded = false;
+      console.error("[kai] no se pudo registrar la interacción (¿migraciones sin aplicar? pnpm db:migrate)", error);
+    }
 
-    return { ok: true, response, access: await getKaiAccess(user.id, user.timezone, now).catch(() => access) };
+    const nextAccess = recorded
+      ? await getKaiAccess(user.id, user.timezone, now).catch(() => access)
+      : access;
+    return { ok: true, response, followups, access: nextAccess };
   } catch {
     return {
       ok: false,

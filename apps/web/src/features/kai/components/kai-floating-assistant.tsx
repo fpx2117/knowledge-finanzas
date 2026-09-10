@@ -6,7 +6,6 @@ import {
   BarChart3Icon,
   BookOpenIcon,
   CalendarClockIcon,
-  Loader2Icon,
   LightbulbIcon,
   MinusIcon,
   PaperclipIcon,
@@ -22,6 +21,7 @@ import {
   KAI_QUICK_ACTIONS,
   resolveScreenContext,
   type KaiAction,
+  type KaiFollowup,
   type KaiIntentId,
   type KaiResponse,
   type KaiVisualState,
@@ -76,6 +76,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   const [pending, setPending] = useState(false);
   const [access, setAccess] = useState<KaiAccess>(initialAccess);
   const [banner, setBanner] = useState<string | null>(null);
+  const [followups, setFollowups] = useState<KaiFollowup[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -124,6 +125,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setEntries((current) => [...current, { role: "user", text: payload.label }]);
       setDraft("");
       setBanner(null);
+      setFollowups([]);
       setPending(true);
 
       const history: Array<{ role: "user" | "assistant"; content: string }> = entries
@@ -134,16 +136,24 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         )
         .slice(-10);
 
+      // Even a deterministic answer resolves in a few ms — hold the "pensando" state a beat
+      // so KAI reads as if it's working, not glitching.
+      const startedAt = Date.now();
+      const MIN_THINK_MS = 650;
       const result = await sendKaiMessageAction({
         message: payload.message ?? "",
         history,
         pathname,
         quickActionIntentId: payload.quickActionIntentId,
       });
+      const wait = MIN_THINK_MS - (Date.now() - startedAt);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+
       setPending(false);
       if (result.access) setAccess(result.access);
       if (result.ok) {
         setEntries((current) => [...current, { role: "assistant", response: result.response }]);
+        setFollowups(result.followups ?? []);
       } else {
         setBanner(result.error.message);
       }
@@ -334,7 +344,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
                   {entry.text}
                 </div>
               ) : (
-                <div key={index} className="flex items-start gap-2">
+                <div key={index} className="kai-rise flex items-start gap-2">
                   <KaiAvatar state={entry.response.state} size={26} className="mt-0.5 shrink-0" />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <KaiResponseCard response={entry.response} onAction={onAction} />
@@ -369,9 +379,35 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
               ),
             )
           )}
+
           {pending ? (
-            <div className="flex items-center gap-2 self-start pl-8 text-caption text-muted-foreground">
-              <Loader2Icon className="size-3.5 animate-spin" /> Analizando tus datos…
+            <div className="flex items-center gap-2 self-start">
+              <KaiAvatar state="ANALYTICAL" size={26} processing className="mt-0.5 shrink-0" />
+              <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-secondary px-3 py-2.5">
+                <span className="kai-dot size-1.5 rounded-full bg-[var(--color-kai-analytical)]" style={{ animationDelay: "0ms" }} />
+                <span className="kai-dot size-1.5 rounded-full bg-[var(--color-kai-analytical)]" style={{ animationDelay: "150ms" }} />
+                <span className="kai-dot size-1.5 rounded-full bg-[var(--color-kai-analytical)]" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          ) : null}
+
+          {!pending && followups.length > 0 && entries.length > 0 && entries[entries.length - 1].role === "assistant" ? (
+            <div className="kai-rise flex flex-wrap gap-1.5 pl-8">
+              {followups.map((f, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  disabled={access.exhausted}
+                  onClick={() =>
+                    f.message
+                      ? submit({ message: f.message, label: f.label })
+                      : submit({ quickActionIntentId: f.intentId, label: f.label })
+                  }
+                  className="rounded-full border border-brand-border bg-brand-subtle/50 px-2.5 py-1 text-caption font-medium text-brand transition-colors hover:bg-brand-subtle disabled:opacity-50"
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           ) : null}
         </div>

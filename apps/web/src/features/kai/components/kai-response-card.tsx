@@ -68,8 +68,12 @@ export function KaiResponseCard({
                 <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground">{pct}%</span>
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
                   <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${Math.max(3, pct)}%`, background: CHART_COLORS[i % CHART_COLORS.length] }}
+                    className="kai-bar block h-full rounded-full"
+                    style={{
+                      width: `${Math.max(3, pct)}%`,
+                      background: CHART_COLORS[i % CHART_COLORS.length],
+                      animationDelay: `${i * 70}ms`,
+                    }}
                   />
                 </span>
               </div>

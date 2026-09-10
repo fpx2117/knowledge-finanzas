@@ -7,6 +7,7 @@ import type { KaiDataPorts } from "../handlers/ports";
 import { isConfident, resolveIntent } from "../resolver/intent-resolver";
 import { normalizeText, resolveDateRange } from "../resolver/normalize";
 import { resolveStatic } from "../registry/static-registry";
+import { resolveFollowups, type KaiFollowup } from "../registry/followups";
 
 export type KaiHistoryTurn = { role: "user" | "assistant"; content: string };
 
@@ -37,12 +38,18 @@ export type ResolveKaiInteractionInput = {
 export type ResolveKaiInteractionResult = {
   response: KaiResponse;
   audit: KaiInteractionAudit;
+  /** Clickable next questions offered after the answer (spec §16). */
+  followups: KaiFollowup[];
 };
+
+function finish(response: KaiResponse, audit: KaiInteractionAudit): ResolveKaiInteractionResult {
+  return { response, audit, followups: resolveFollowups(audit.intentId) };
+}
 
 /**
  * The KAI resolution pipeline (spec §2). Tries every deterministic layer before the LLM:
- * static → deterministic intent handler → (guarded) LLM fallback. Records where the
- * answer came from so we can track `KAI_LOCAL_RESOLUTION_RATE` (spec §25).
+ * intent handler → static → (guarded) LLM fallback. Records where the answer came from so we
+ * can track `KAI_LOCAL_RESOLUTION_RATE` (spec §25) and attaches follow-up questions.
  */
 export async function resolveKaiInteraction(
   input: ResolveKaiInteractionInput,
@@ -67,19 +74,16 @@ export async function resolveKaiInteraction(
         timezone: input.timezone,
         baseCurrency: input.baseCurrency,
       });
-      return {
-        response,
-        audit: {
-          intentId: resolved.id,
-          resolutionSource: source,
-          weight: KAI_POINT_WEIGHTS[source],
-          llmUsed: false,
-          aiCostUsd: 0,
-          latencyMs: elapsed(),
-          responseType: response.type,
-          screenContext: screen,
-        },
-      };
+      return finish(response, {
+        intentId: resolved.id,
+        resolutionSource: source,
+        weight: KAI_POINT_WEIGHTS[source],
+        llmUsed: false,
+        aiCostUsd: 0,
+        latencyMs: elapsed(),
+        responseType: response.type,
+        screenContext: screen,
+      });
     } catch {
       return runFallback(input, "handler-error", resolved.id, screen, elapsed);
     }
@@ -89,19 +93,16 @@ export async function resolveKaiInteraction(
   if (!input.quickActionIntentId) {
     const staticResponse = resolveStatic(input.message, input.screenContext);
     if (staticResponse) {
-      return {
-        response: staticResponse,
-        audit: {
-          intentId: "STATIC",
-          resolutionSource: "STATIC",
-          weight: KAI_POINT_WEIGHTS.STATIC,
-          llmUsed: false,
-          aiCostUsd: 0,
-          latencyMs: elapsed(),
-          responseType: staticResponse.type,
-          screenContext: screen,
-        },
-      };
+      return finish(staticResponse, {
+        intentId: "STATIC",
+        resolutionSource: "STATIC",
+        weight: KAI_POINT_WEIGHTS.STATIC,
+        llmUsed: false,
+        aiCostUsd: 0,
+        latencyMs: elapsed(),
+        responseType: staticResponse.type,
+        screenContext: screen,
+      });
     }
   }
 
@@ -120,8 +121,8 @@ async function runFallback(
   try {
     await input.budgetGuard();
   } catch (error) {
-    return {
-      response: {
+    return finish(
+      {
         type: "KAI_ERROR",
         state: "NEUTRAL",
         body:
@@ -129,7 +130,7 @@ async function runFallback(
             ? error.message
             : "Ahora mismo no puedo hacer un análisis más profundo. Probá con una pregunta más concreta sobre tus gastos, saldo o vencimientos.",
       },
-      audit: {
+      {
         intentId,
         resolutionSource: "LLM",
         weight: 0,
@@ -139,7 +140,7 @@ async function runFallback(
         responseType: "KAI_ERROR",
         screenContext: screen,
       },
-    };
+    );
   }
 
   try {
@@ -148,22 +149,19 @@ async function runFallback(
       history: input.history,
       reason,
     });
-    return {
-      response,
-      audit: {
-        intentId,
-        resolutionSource: "LLM",
-        weight: KAI_POINT_WEIGHTS.LLM,
-        llmUsed: true,
-        aiCostUsd,
-        latencyMs: elapsed(),
-        responseType: response.type,
-        screenContext: screen,
-      },
-    };
+    return finish(response, {
+      intentId,
+      resolutionSource: "LLM",
+      weight: KAI_POINT_WEIGHTS.LLM,
+      llmUsed: true,
+      aiCostUsd,
+      latencyMs: elapsed(),
+      responseType: response.type,
+      screenContext: screen,
+    });
   } catch (error) {
-    return {
-      response: {
+    return finish(
+      {
         type: "KAI_ERROR",
         state: "NEUTRAL",
         body:
@@ -171,7 +169,7 @@ async function runFallback(
             ? error.message
             : "Tuve un problema al procesar tu pregunta. Intentá de nuevo en un momento.",
       },
-      audit: {
+      {
         intentId,
         resolutionSource: "LLM",
         // The LLM call failed — don't charge KAI points for it.
@@ -182,6 +180,6 @@ async function runFallback(
         responseType: "KAI_ERROR",
         screenContext: screen,
       },
-    };
+    );
   }
 }
