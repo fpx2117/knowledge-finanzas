@@ -5,7 +5,7 @@
 # KnowFinanzas
 
 **Control financiero personal, pensado para Argentina.**
-Multi-moneda, dólar blue, presupuestos, metas, deudas en cuotas — y **KAI**, un asistente que responde con *tus* datos, al instante.
+Multi-moneda, dólar blue, presupuestos, metas, deudas en cuotas — y **KAI**, un asistente que conoce tus finanzas y te responde al instante.
 
 <p>
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white" />
@@ -30,31 +30,24 @@ KnowFinanzas es una aplicación web para llevar tus finanzas personales sin fric
 | 🌎 **Multi-moneda + dólar blue** | Cada monto vive en su moneda (nunca se suman entre sí). Conversión `≈ estimada` a compra/venta del blue en reportes, resumen y `/conversor`. |
 | 📊 **Presupuestos, metas y deudas** | Límite mensual por categoría, metas con ritmo requerido, deudas en cuotas con calendario y estado. |
 | 🔔 **Insights + notificaciones en vivo** | Motor de reglas (suba de gasto, presupuesto al límite, vencimientos) + badge y toasts por SSE. |
-| 🤖 **KAI** | Asistente contextual. La mayoría de las respuestas salen de SQL + cálculos, sin llamar a un LLM. |
-| 💳 **Freemium** | FREE / TRIAL / PRO con MercadoPago. Créditos de IA para la categorización; **puntos KAI** para el asistente. |
+| 🤖 **KAI** | Asistente contextual: conoce tu situación financiera y responde al instante con métricas, gráficos y tablas. |
+| 💳 **Planes** | FREE / TRIAL / PRO con MercadoPago. |
 
 ---
 
-## 🤖 KAI — asistente determinístico primero
+## 🤖 KAI — tu asistente financiero
 
-KAI es el producto; el LLM es una herramienta que usa **solo cuando hace falta**. Cada interacción atraviesa este pipeline y se registra su origen (`resolutionSource`) para medir cuánto se resuelve sin IA:
+KAI está disponible en cualquier pantalla (`J` para abrirlo). Entiende lo que le escribís en español rioplatense y responde con tu contexto financiero real:
 
-```
-Usuario  ─►  intent resolver (es-AR)  ─►  ┌─ estático  (ayuda, navegación, FAQ)
-                                          ├─ SQL       ("¿cuánto gasté este mes?")
-                                          ├─ cálculo   ("¿cuánto tengo disponible?")
-                                          ├─ acción    ("registrá $30.000 en YPF" → confirmación)
-                                          └─ LLM       (último recurso: "¿por qué no llego a fin de mes?")
-                                                       ▲ detrás de un budget guard en USD
-```
-
-- **Respuestas estructuradas**, no texto plano del modelo: métricas, **gráfico de barras** por categoría, **tablas** con fechas de vencimiento, tarjetas de confirmación.
-- **Puntos KAI** (medidor único): consulta con datos = 1 punto, análisis con IA = 5. FREE `150/mes`, TRIAL/PRO ilimitado.
+- **"¿Cuánto gasté este mes?"**, **"¿qué se me vence?"**, **"¿cómo viene mi presupuesto?"** → respuesta al instante.
+- **"Registrá un gasto de $30.000 en YPF"** → tarjeta de confirmación; un toque y queda cargado, con deshacer.
+- **Respuestas estructuradas**, no un muro de texto: métricas, **gráfico de barras** por categoría, **tablas** de vencimientos y suscripciones.
 - Después de cada respuesta, KAI ofrece **preguntas de seguimiento** clicables.
-- Animaciones de "pensando", aparición y armado del gráfico — aunque la respuesta sea instantánea.
+- Sabe en qué pantalla estás y ajusta lo que sugiere.
+- El plan FREE incluye una cantidad mensual de consultas a KAI; TRIAL y PRO son ilimitados.
 
 > [!NOTE]
-> KAI vive en el paquete puro `@know-finanzas/kai` (sin IO); `apps/web` lo cablea con los datos reales. Ver `packages/kai/`.
+> La lógica de KAI vive en el paquete puro `@know-finanzas/kai` (sin IO); `apps/web` lo cablea con los datos reales. Ver `packages/kai/`.
 
 ---
 
@@ -64,10 +57,10 @@ Usuario  ─►  intent resolver (es-AR)  ─►  ┌─ estático  (ayuda, nave
 apps/
   web/                 Next.js 15 (App Router) — la aplicación
 packages/
-  kai/                 motor del asistente: resolver, registry, handlers, orquestador (IO-free)
+  kai/                 lógica del asistente KAI (paquete puro, sin IO)
   finance/             cálculos financieros puros: Money, saldos, presupuestos, proyecciones, cuotas
   db/                  schema Drizzle + migraciones + repositorios + queries (Postgres)
-  ai/                  capa de IA: capabilities, créditos, proveedor OpenRouter, telemetría de costo
+  ai/                  integración con modelos de lenguaje (OpenRouter) y su telemetría
   billing/             planes, entitlements y límites (FREE / TRIAL / PRO)
   notifications/       intents de notificación, canales (in-app, email, WhatsApp), preferencias
   auth/               Better Auth
@@ -102,7 +95,7 @@ pnpm dev
 La app queda en **http://localhost:3000** · health check en `/api/health/live`.
 
 > [!TIP]
-> La IA está **apagada** por defecto (`AI_ENABLED=false`). KAI funciona igual con todo lo determinístico. Para habilitar el fallback LLM y la categorización con IA, configurá `AI_ENABLED=true` + `OPENROUTER_API_KEY` + los `AI_MODEL_*` en `.env`.
+> La integración con modelos de lenguaje viene **deshabilitada** por defecto (`AI_ENABLED=false`). Para habilitarla, configurá `AI_ENABLED=true` + `OPENROUTER_API_KEY` + los `AI_MODEL_*` en `.env`.
 
 ---
 
@@ -119,7 +112,6 @@ La app queda en **http://localhost:3000** · health check en `/api/health/live`.
 | `pnpm test:e2e` | Playwright |
 | `pnpm db:generate` · `pnpm db:migrate` | Generar / aplicar migraciones Drizzle |
 | `pnpm db:seed-taxonomy` · `pnpm db:backfill-transactions` | Semillas y backfills |
-| `pnpm ai:cost-report` | Reporte de costo real (USD) de las llamadas a IA |
 | `pnpm finance:audit` | Auditoría de consistencia financiera |
 
 ---
@@ -141,7 +133,7 @@ pnpm test              # todo
 
 - **Dominio puro en paquetes.** `finance` y `kai` no importan la DB ni `env`; reciben *ports* que `apps/web` implementa. Se testean en aislamiento.
 - **Montos como decimales, por moneda.** `Money` (decimal.js) redondea solo al serializar; nunca se suma entre monedas.
-- **Determinístico y auditable.** Saldos, disponible, proyecciones y las respuestas de KAI se calculan igual siempre; la IA solo *explica* o cubre lo que las reglas no llegan.
+- **Determinístico y auditable.** Saldos, disponible y proyecciones se calculan igual siempre y quedan trazados.
 - **Server Actions + RSC.** Sin API REST propia; cada acción re-autentica y valida con Zod.
 
 Decisiones registradas en `docs/adr/` y `docs/implementation/`.
