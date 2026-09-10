@@ -16,13 +16,22 @@ function addHours(date: Date, hours: number): Date {
   return new Date(date.getTime() + hours * 3_600_000);
 }
 
+// WP-KAI-PROACTIVE-CACHE: the evaluation runs 8 queries + writes rows, and the client polls
+// it. Throttle to once per user per TTL unless the caller forces a re-check (after a mutation
+// that could have triggered a new alert). In-memory → per-instance; fine for now.
+const THROTTLE_TTL_MS = 90_000;
+const lastRun = new Map<string, { at: number; result: KaiProactiveMessage | null }>();
+
 /**
  * The one proactive message KAI should show now — or null. Runs the deterministic rule engine,
  * records each firing condition as a `kai_notifications` row, then applies the priority queue +
  * frequency cap (spec §8/§9). Persists the "shown" side effect.
  */
-export async function getKaiProactiveMessageAction(): Promise<KaiProactiveMessage | null> {
+export async function getKaiProactiveMessageAction(force = false): Promise<KaiProactiveMessage | null> {
   const user = await requireCurrentUser();
+
+  const cached = lastRun.get(user.id);
+  if (!force && cached && Date.now() - cached.at < THROTTLE_TTL_MS) return cached.result;
   const now = new Date();
   const today = todayInTimezone(now, user.timezone);
   const [year, month] = today.split("-").map(Number);
@@ -90,11 +99,10 @@ export async function getKaiProactiveMessageAction(): Promise<KaiProactiveMessag
       now,
     );
 
-    if (result.message) {
-      await kaiNotificationRepository.markShown(user.id, result.message.id, now);
-      return result.message;
-    }
-    return null;
+    const message = result.message;
+    if (message) await kaiNotificationRepository.markShown(user.id, message.id, now);
+    lastRun.set(user.id, { at: Date.now(), result: message });
+    return message;
   } catch {
     return null;
   }
@@ -102,17 +110,20 @@ export async function getKaiProactiveMessageAction(): Promise<KaiProactiveMessag
 
 export async function dismissKaiProactiveAction(dedupKey: string): Promise<void> {
   const user = await requireCurrentUser();
+  lastRun.delete(user.id);
   await kaiNotificationRepository.setState(user.id, dedupKey, "DISMISSED", new Date()).catch(() => {});
 }
 
 export async function actKaiProactiveAction(dedupKey: string): Promise<void> {
   const user = await requireCurrentUser();
+  lastRun.delete(user.id);
   await kaiNotificationRepository.setState(user.id, dedupKey, "ACTED", new Date()).catch(() => {});
 }
 
 /** "Recordarme mañana" — hide until the start of the next day in the user's timezone. */
 export async function snoozeKaiProactiveAction(dedupKey: string): Promise<void> {
   const user = await requireCurrentUser();
+  lastRun.delete(user.id);
   const now = new Date();
   const today = todayInTimezone(now, user.timezone);
   const tomorrowStart = dayRangeForTimezone(today, user.timezone).end;
@@ -122,5 +133,6 @@ export async function snoozeKaiProactiveAction(dedupKey: string): Promise<void> 
 /** "No mostrarme este tipo de aviso". */
 export async function muteKaiProactiveKindAction(kind: string): Promise<void> {
   const user = await requireCurrentUser();
+  lastRun.delete(user.id);
   await kaiNotificationRepository.mute(user.id, kind as KaiProactiveKind).catch(() => {});
 }

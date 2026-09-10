@@ -254,6 +254,8 @@ export function QuickAdd({
     resetAll(context);
     onOpenChange(false);
     router.refresh();
+    // A new movement can trip a KAI proactive rule (budget / category spike).
+    window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 

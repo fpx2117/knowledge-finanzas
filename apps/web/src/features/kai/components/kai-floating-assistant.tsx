@@ -109,17 +109,29 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
 
   // Proactive message (spec §7). The server applies the priority queue + frequency cap
   // (spec §8/§9) and returns at most one; dismissal/snooze/mute state lives in `kai_notifications`.
+  // Re-checked on: mount, a light poll while the tab is visible, and a `kai:refresh-proactive`
+  // event fired after a mutation that could trigger a new alert (WP-KAI-EVENT-TRIGGERS).
   useEffect(() => {
-    let cancelled = false;
-    getKaiProactiveMessageAction()
-      .then((msg) => {
-        if (!cancelled && msg) setProactive(msg);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
+    let alive = true;
+    const check = (force = false) => {
+      getKaiProactiveMessageAction(force)
+        .then((msg) => {
+          if (alive && msg) setProactive(msg);
+        })
+        .catch(() => {});
     };
-  }, []);
+    check();
+    const onRefresh = () => check(true);
+    window.addEventListener("kai:refresh-proactive", onRefresh);
+    const poll = window.setInterval(() => {
+      if (!open && document.visibilityState === "visible") check();
+    }, 180_000);
+    return () => {
+      alive = false;
+      window.removeEventListener("kai:refresh-proactive", onRefresh);
+      window.clearInterval(poll);
+    };
+  }, [open]);
 
   const resolveProactive = useCallback(
     (action: (dedupKey: string) => Promise<void>) => {
@@ -233,6 +245,8 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
           },
         });
         router.refresh();
+        // A new movement can trip a proactive rule (budget, category spike) — re-check now.
+        window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
       } else {
         setBanner(result.error.message);
       }
