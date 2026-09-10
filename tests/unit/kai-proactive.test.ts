@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildProactiveMessage, type ProactiveInput } from "@know-finanzas/kai";
+import {
+  buildProactiveCandidates,
+  selectProactive,
+  DEFAULT_KAI_FREQUENCY_CAP,
+  type KaiDeliveryState,
+  type ProactiveInput,
+} from "@know-finanzas/kai";
 
 const base = (over: Partial<ProactiveInput> = {}): ProactiveInput => ({
   monthly: [{ currencyCode: "ARS", income: "1200000", expense: "850000", net: "350000" }],
@@ -12,13 +18,21 @@ const base = (over: Partial<ProactiveInput> = {}): ProactiveInput => ({
   ...over,
 });
 
-describe("buildProactiveMessage", () => {
-  it("returns null when nothing is worth interrupting for", () => {
-    expect(buildProactiveMessage(base({ previousMonthly: base().monthly }))).toBeNull();
+const emptyState = (): KaiDeliveryState => ({
+  resolvedDedupKeys: [],
+  snoozed: [],
+  mutedKinds: [],
+  shownInWindow: 0,
+  lastShownAt: null,
+});
+
+describe("buildProactiveCandidates", () => {
+  it("returns [] when nothing is worth interrupting for", () => {
+    expect(buildProactiveCandidates(base({ previousMonthly: base().monthly }))).toEqual([]);
   });
 
-  it("ALERTA (P1) when a budget is exceeded — beats everything else", () => {
-    const msg = buildProactiveMessage(
+  it("budget-exceeded (P1) outranks month-review (P3)", () => {
+    const c = buildProactiveCandidates(
       base({
         budgets: [{ name: "Comida", status: "EXCEEDED", usagePercent: 130, limit: "300000", spent: "390000", currencyCode: "ARS" }],
         topCategories: [
@@ -27,38 +41,87 @@ describe("buildProactiveMessage", () => {
         ],
       }),
     );
-    expect(msg).toMatchObject({ state: "ALERT", stateLabel: "Alerta", priority: 1 });
-    expect(msg?.title).toContain("Comida");
+    expect(c[0]).toMatchObject({ kind: "budget-exceeded", state: "ALERT", priority: 1 });
+    expect(c.map((x) => x.kind)).toContain("month-review");
   });
 
-  it("ALERTA for an overdue obligation", () => {
-    const msg = buildProactiveMessage(
-      base({ upcoming: [{ title: "Tarjeta", dueDate: "2026-11-10", amount: "80000", currencyCode: "ARS", daysUntilDue: -4, isOverdue: true }] }),
-    );
-    expect(msg).toMatchObject({ state: "ALERT" });
-    expect(msg?.body).toContain("Tarjeta");
-  });
-
-  it("ANALÍTICO (P3) with a bar chart when there are ≥2 categories", () => {
-    const msg = buildProactiveMessage(
+  it("category-spike when a category grew >20% MoM", () => {
+    const c = buildProactiveCandidates(
       base({
-        topCategories: [
-          { label: "Vivienda", amount: "420000", currencyCode: "ARS" },
-          { label: "Alimentación", amount: "280000", currencyCode: "ARS" },
-          { label: "Entretenimiento", amount: "110000", currencyCode: "ARS" },
-        ],
+        topCategories: [{ label: "Transporte", amount: "150000", currencyCode: "ARS" }, { label: "Comida", amount: "90000", currencyCode: "ARS" }],
+        previousTopCategories: [{ label: "Transporte", amount: "100000", currencyCode: "ARS" }, { label: "Comida", amount: "90000", currencyCode: "ARS" }],
       }),
     );
-    expect(msg).toMatchObject({ state: "ANALYTICAL", stateLabel: "Analítico" });
-    expect(msg?.title).toContain("noviembre");
-    expect(msg?.data?.chart?.segments).toHaveLength(3);
-    expect(msg?.data?.chart?.kind).toBe("bar");
+    const spike = c.find((x) => x.kind === "category-spike");
+    expect(spike?.body).toContain("Transporte");
+    expect(spike?.body).toContain("50%");
   });
 
-  it("POSITIVO (P4) when savings grew >10% MoM and no alert", () => {
-    const msg = buildProactiveMessage(base());
-    expect(msg).toMatchObject({ state: "POSITIVE", stateLabel: "Positivo", priority: 4 });
-    expect(msg?.title).toBe("¡Vas muy bien este mes!");
-    expect(msg?.body).toContain("75%");
+  it("goal-milestone at 50%", () => {
+    const c = buildProactiveCandidates(base({ goals: [{ name: "Viaje", actualProgressRatio: 0.52 }] }));
+    expect(c.find((x) => x.kind === "goal-milestone")?.title).toContain("50%");
+  });
+
+  it("savings-up (P4) as a fallback", () => {
+    const c = buildProactiveCandidates(base());
+    expect(c[0]).toMatchObject({ kind: "savings-up", state: "POSITIVE", priority: 4 });
+  });
+
+  it("subscription-due when a renewal is ≤7 days out", () => {
+    const c = buildProactiveCandidates(
+      base({ subscriptions: [{ label: "Netflix", currencyCode: "ARS", currentAmount: "5000", nextExpectedOn: "2026-11-18" }] }),
+    );
+    expect(c.find((x) => x.kind === "subscription-due")?.body).toContain("4 días");
+  });
+});
+
+describe("selectProactive (priority queue + frequency cap)", () => {
+  const cand = buildProactiveCandidates(
+    base({
+      budgets: [{ name: "Comida", status: "EXCEEDED", usagePercent: 130, limit: "300000", spent: "390000", currencyCode: "ARS" }],
+    }),
+  );
+
+  it("shows the top-priority eligible candidate", () => {
+    const r = selectProactive(cand, emptyState(), new Date("2026-11-14T12:00:00Z"));
+    expect(r).toMatchObject({ reason: "shown" });
+    expect(r.message?.kind).toBe("budget-exceeded");
+  });
+
+  it("skips a dismissed dedupKey and falls to the next", () => {
+    const r = selectProactive(
+      cand,
+      { ...emptyState(), resolvedDedupKeys: [cand[0].id] },
+      new Date("2026-11-14T12:00:00Z"),
+    );
+    expect(r.message?.kind).toBe("savings-up");
+  });
+
+  it("respects the daily cap (max 3)", () => {
+    const r = selectProactive(
+      buildProactiveCandidates(base()),
+      { ...emptyState(), shownInWindow: DEFAULT_KAI_FREQUENCY_CAP.maxPerWindow },
+      new Date(),
+    );
+    expect(r).toEqual({ message: null, reason: "cap-reached" });
+  });
+
+  it("respects the min-gap cooldown", () => {
+    const now = new Date("2026-11-14T12:00:00Z");
+    const r = selectProactive(
+      buildProactiveCandidates(base()),
+      { ...emptyState(), lastShownAt: new Date(now.getTime() - 10 * 60_000).toISOString() },
+      now,
+    );
+    expect(r).toEqual({ message: null, reason: "cooldown" });
+  });
+
+  it("hides a muted kind", () => {
+    const r = selectProactive(
+      buildProactiveCandidates(base()),
+      { ...emptyState(), mutedKinds: ["savings-up"] },
+      new Date(),
+    );
+    expect(r.message).toBeNull();
   });
 });

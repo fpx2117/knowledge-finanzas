@@ -13,45 +13,55 @@ export type ProactiveInput = {
   /** Previous calendar month, per currency. */
   previousMonthly: KaiMonthlyResult[];
   topCategories: { label: string; amount: string; currencyCode: string }[];
+  /** Same categories, previous month — for the spike rule. */
+  previousTopCategories?: { label: string; amount: string; currencyCode: string }[];
   budgets: KaiBudgetStatus[];
   upcoming: KaiUpcomingObligation[];
+  /** Active subscriptions with a next-charge date, for the "vence pronto" rule. */
+  subscriptions?: { label: string; currencyCode: string; currentAmount: string; nextExpectedOn: string | null }[];
+  /** Goal progress for the milestone rule. */
+  goals?: { name: string; actualProgressRatio: number }[];
   baseCurrency: string;
   /** YYYY-MM-DD in the user's timezone — makes the message id period-stable. */
   today: string;
 };
 
 /**
- * Deterministic proactive-message engine (spec §7, §8 priority). Returns the single most
- * important thing KAI would volunteer right now, or null if there's nothing worth interrupting
- * for. Priority order: Alerta (P1) → Analítico (P3) → Positivo (P4).
+ * Deterministic proactive-message engine (spec §7, §8). Returns **every** message KAI could
+ * volunteer right now, each tagged with kind / priority (P0 crítico … P5 consejo) / expiry.
+ * The queue + frequency cap (`selectProactive`) decides which one, if any, to actually show.
  */
-export function buildProactiveMessage(input: ProactiveInput): KaiProactiveMessage | null {
+export function buildProactiveCandidates(input: ProactiveInput): KaiProactiveMessage[] {
+  const out: KaiProactiveMessage[] = [];
   const period = input.today.slice(0, 7); // YYYY-MM
   const monthName = MONTHS[(Number(input.today.slice(5, 7)) - 1 + 12) % 12];
   const base = (rows: KaiMonthlyResult[]) => rows.find((r) => r.currencyCode === input.baseCurrency) ?? rows[0];
 
-  // ── P1 — ALERTA ───────────────────────────────────────────────────────────
-  const exceeded = input.budgets.find((b) => b.status === "EXCEEDED");
-  const overdue = input.upcoming.find((o) => o.isOverdue);
-  const dueSoon = input.upcoming.filter((o) => !o.isOverdue && o.daysUntilDue <= 3).sort((a, b) => a.daysUntilDue - b.daysUntilDue)[0];
-
-  if (exceeded) {
-    const over = Number(exceeded.spent) - Number(exceeded.limit);
-    return {
-      id: `alerta:budget:${exceeded.name}:${period}`,
+  // ── P1 — presupuesto excedido ─────────────────────────────────────────────
+  for (const b of input.budgets.filter((x) => x.status === "EXCEEDED")) {
+    const over = Number(b.spent) - Number(b.limit);
+    out.push({
+      id: `budget-exceeded:${b.name}:${period}`,
+      kind: "budget-exceeded",
       state: "ALERT",
       stateLabel: "Alerta",
-      title: `Te pasaste del presupuesto de ${exceeded.name}.`,
-      body: `Llevás ${formatMoney(exceeded.spent, exceeded.currencyCode)} sobre un límite de ${formatMoney(exceeded.limit, exceeded.currencyCode)} — ${formatMoney(String(over), exceeded.currencyCode)} de más.`,
+      title: `Te pasaste del presupuesto de ${b.name}.`,
+      body: `Llevás ${formatMoney(b.spent, b.currencyCode)} sobre un límite de ${formatMoney(b.limit, b.currencyCode)} — ${formatMoney(String(over), b.currencyCode)} de más.`,
       primary: { label: "Ver presupuestos", route: "/budgets" },
       secondary: { label: "Ver movimientos", route: "/transactions" },
       meta: "Alerta de presupuesto · atención",
       priority: 1,
-    };
+      expiresInHours: null,
+    });
   }
 
-  if (overdue || dueSoon) {
-    const o = (overdue ?? dueSoon)!;
+  // ── P1 — vencimiento vencido / ≤ 3 días ───────────────────────────────────
+  const overdue = input.upcoming.find((o) => o.isOverdue);
+  const dueSoon = input.upcoming
+    .filter((o) => !o.isOverdue && o.daysUntilDue <= 3)
+    .sort((a, b) => a.daysUntilDue - b.daysUntilDue)[0];
+  const o = overdue ?? dueSoon;
+  if (o) {
     const whenText = o.isOverdue
       ? "está vencido"
       : o.daysUntilDue === 0
@@ -59,8 +69,9 @@ export function buildProactiveMessage(input: ProactiveInput): KaiProactiveMessag
         : o.daysUntilDue === 1
           ? "vence mañana"
           : `vence en ${o.daysUntilDue} días`;
-    return {
-      id: `alerta:obligacion:${o.title}:${o.dueDate}`,
+    out.push({
+      id: `obligation-due:${o.title}:${o.dueDate}`,
+      kind: "obligation-due",
       state: "ALERT",
       stateLabel: "Alerta",
       title: o.isOverdue ? "Tenés un pago vencido." : "Se te viene un pago.",
@@ -69,13 +80,82 @@ export function buildProactiveMessage(input: ProactiveInput): KaiProactiveMessag
       secondary: { label: "Ver calendario", route: "/calendar" },
       meta: "Vencimiento próximo · atención",
       priority: 1,
-    };
+      expiresInHours: 72,
+    });
+  }
+
+  // ── P2 — presupuesto al límite (80–100%) ──────────────────────────────────
+  const near = input.budgets.find((b) => b.status === "NEAR_LIMIT");
+  if (near) {
+    out.push({
+      id: `budget-near-limit:${near.name}:${period}`,
+      kind: "budget-near-limit",
+      state: "ALERT",
+      stateLabel: "Alerta",
+      title: `Estás cerca del límite en ${near.name}.`,
+      body: `Ya usaste el ${formatPercent(near.usagePercent)} de tu presupuesto de ${near.name} este mes.`,
+      primary: { label: "Ver presupuestos", route: "/budgets" },
+      secondary: { label: "Ver movimientos", route: "/transactions" },
+      meta: "Alerta de presupuesto · atención",
+      priority: 2,
+      expiresInHours: null,
+    });
+  }
+
+  // ── P2 — suscripción que vence en ≤ 7 días ────────────────────────────────
+  for (const s of input.subscriptions ?? []) {
+    if (!s.nextExpectedOn) continue;
+    const days = daysBetween(input.today, s.nextExpectedOn);
+    if (days >= 0 && days <= 7) {
+      out.push({
+        id: `subscription-due:${s.label}:${s.nextExpectedOn}`,
+        kind: "subscription-due",
+        state: "ALERT",
+        stateLabel: "Alerta",
+        title: `${s.label} se renueva pronto.`,
+        body: `Se debita ${formatMoney(s.currentAmount, s.currencyCode)} ${days === 0 ? "hoy" : days === 1 ? "mañana" : `en ${days} días`}.`,
+        primary: { label: "Ver suscripciones", route: "/subscriptions" },
+        secondary: { label: "Ver obligaciones", route: "/obligations" },
+        meta: "Suscripción · recordatorio",
+        priority: 2,
+        expiresInHours: 48,
+      });
+      break;
+    }
   }
 
   const thisM = base(input.monthly);
   const prevM = base(input.previousMonthly);
 
-  // ── P3 — ANALÍTICO ────────────────────────────────────────────────────────
+  // ── P3 — suba de categoría (+20% mes a mes) ───────────────────────────────
+  if (input.previousTopCategories?.length) {
+    const prevByLabel = new Map(
+      input.previousTopCategories.filter((c) => c.currencyCode === input.baseCurrency).map((c) => [c.label, Number(c.amount)]),
+    );
+    for (const c of input.topCategories.filter((x) => x.currencyCode === input.baseCurrency)) {
+      const prev = prevByLabel.get(c.label);
+      const cur = Number(c.amount);
+      if (prev && prev > 0 && cur >= prev * 1.2) {
+        const pct = ((cur - prev) / prev) * 100;
+        out.push({
+          id: `category-spike:${c.label}:${period}`,
+          kind: "category-spike",
+          state: "ANALYTICAL",
+          stateLabel: "Analítico",
+          title: `Tus gastos en ${c.label} subieron.`,
+          body: `Este mes llevás ${formatMoney(c.amount, c.currencyCode)} en ${c.label}, un ${formatPercent(pct)} más que el mes pasado.`,
+          primary: { label: "Ver movimientos", route: "/transactions" },
+          secondary: { label: "Ver presupuestos", route: "/budgets" },
+          meta: "Insight financiero · datos procesados",
+          priority: 3,
+          expiresInHours: null,
+        });
+        break;
+      }
+    }
+  }
+
+  // ── P3 — análisis mensual (≥ 2 categorías) ────────────────────────────────
   const inBase = input.topCategories.filter((c) => c.currencyCode === input.baseCurrency && Number(c.amount) > 0);
   if (inBase.length >= 2) {
     const total = inBase.reduce((s, c) => s + Number(c.amount), 0);
@@ -86,42 +166,63 @@ export function buildProactiveMessage(input: ProactiveInput): KaiProactiveMessag
       thisM && prevM && Number(thisM.net) < Number(prevM.net)
         ? " Si seguís esta tendencia, cerrarías el mes con menor margen de ahorro."
         : "";
-    return {
-      id: `analitico:categorias:${period}`,
+    out.push({
+      id: `month-review:categorias:${period}`,
+      kind: "month-review",
       state: "ANALYTICAL",
       stateLabel: "Analítico",
       title: `Analicé tus movimientos de ${monthName}.`,
-      body:
-        `Detecté que tus mayores gastos estuvieron en ${first.label}` +
-        (second ? ` y ${second.label}` : "") +
-        `.${marginNote}`,
+      body: `Detecté que tus mayores gastos estuvieron en ${first.label}${second ? ` y ${second.label}` : ""}.${marginNote}`,
       data: {
         chart: {
           kind: "bar",
           currencyCode: input.baseCurrency,
           total: String(total),
-          segments: head.map((c) => ({
-            label: c.label,
-            value: Number(c.amount),
-            display: formatMoney(c.amount, c.currencyCode),
-          })),
+          segments: head.map((c) => ({ label: c.label, value: Number(c.amount), display: formatMoney(c.amount, c.currencyCode) })),
         },
       },
       primary: { label: "Ver análisis", route: "/reports/categories" },
       secondary: { label: "Ver presupuestos", route: "/budgets" },
       meta: "Insight financiero · datos procesados",
       priority: 3,
-    };
+      expiresInHours: null,
+    });
   }
 
-  // ── P4 — POSITIVO ─────────────────────────────────────────────────────────
+  // ── P4 — meta que cruza un hito (25 / 50 / 75 / 100%) ─────────────────────
+  for (const g of input.goals ?? []) {
+    const pct = Math.round(g.actualProgressRatio * 100);
+    const milestone = [100, 75, 50, 25].find((m) => pct >= m);
+    if (milestone) {
+      out.push({
+        id: `goal-milestone:${g.name}:${milestone}`,
+        kind: "goal-milestone",
+        state: "POSITIVE",
+        stateLabel: "Positivo",
+        title: milestone === 100 ? `¡Alcanzaste tu meta ${g.name}!` : `Vas por el ${milestone}% de tu meta ${g.name}.`,
+        body:
+          milestone === 100
+            ? "La completaste. Si querés, arrancá una nueva."
+            : `Seguís sumando — ya llevás ${pct}% de lo que te propusiste.`,
+        primary: { label: "Ver metas", route: "/goals" },
+        secondary: { label: "Aportar ahora", route: "/goals" },
+        meta: "Progreso de meta · logro",
+        priority: 4,
+        expiresInHours: null,
+      });
+      break;
+    }
+  }
+
+  // ── P4 — ahorro creció > 10% mes a mes ───────────────────────────────────
   if (thisM && prevM) {
     const savings = Number(thisM.net);
     const prevSavings = Number(prevM.net);
     if (savings > 0 && prevSavings > 0 && savings >= prevSavings * 1.1) {
       const pct = ((savings - prevSavings) / prevSavings) * 100;
-      return {
-        id: `positivo:ahorro:${period}`,
+      out.push({
+        id: `savings-up:${period}`,
+        kind: "savings-up",
         state: "POSITIVE",
         stateLabel: "Positivo",
         title: "¡Vas muy bien este mes!",
@@ -130,9 +231,16 @@ export function buildProactiveMessage(input: ProactiveInput): KaiProactiveMessag
         secondary: { label: "Crear nueva meta", route: "/goals" },
         meta: "Resumen mensual · progreso positivo",
         priority: 4,
-      };
+        expiresInHours: null,
+      });
     }
   }
 
-  return null;
+  return out.sort((a, b) => a.priority - b.priority);
+}
+
+function daysBetween(fromISO: string, toISO: string): number {
+  const a = Date.UTC(+fromISO.slice(0, 4), +fromISO.slice(5, 7) - 1, +fromISO.slice(8, 10));
+  const b = Date.UTC(+toISO.slice(0, 4), +toISO.slice(5, 7) - 1, +toISO.slice(8, 10));
+  return Math.round((b - a) / 86_400_000);
 }

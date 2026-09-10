@@ -6,9 +6,21 @@ import type { KaiVisualState } from "./kai-visual-state";
  * with the mascot in the matching state. Deterministic — built from rules over the user's
  * finance snapshot, never an LLM.
  */
+/** Message family — used for "no mostrarme este tipo de aviso" (spec §9) and telemetry. */
+export type KaiProactiveKind =
+  | "budget-exceeded"
+  | "budget-near-limit"
+  | "obligation-due"
+  | "category-spike"
+  | "subscription-due"
+  | "goal-milestone"
+  | "savings-up"
+  | "month-review";
+
 export type KaiProactiveMessage = {
-  /** Stable per message kind + period — used for dedup and "no repetir lo descartado" (spec §8/§9). */
+  /** Stable per message kind + subject + period — dedup + "no repetir lo descartado" (spec §8/§9). */
   id: string;
+  kind: KaiProactiveKind;
   state: KaiVisualState;
   /** es-AR label shown in the state pill ("Positivo", "Analítico", "Alerta"). */
   stateLabel: string;
@@ -22,6 +34,8 @@ export type KaiProactiveMessage = {
   meta: string;
   /** P0 (crítico) … P5 (consejo). Lower = more urgent. */
   priority: number;
+  /** After this many hours the message is stale and won't be shown. null = no expiry. */
+  expiresInHours: number | null;
 };
 
 export type KaiProactiveAction = {

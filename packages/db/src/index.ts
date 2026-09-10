@@ -32,6 +32,7 @@ import {
   createUserPreferencesRepository,
   createFxRateRepository,
   createKaiInteractionRepository,
+  createKaiNotificationRepository,
 } from "./repositories";
 
 export const accountRepository = createAccountRepository(db);
@@ -55,3 +56,4 @@ export const insightRepository = createInsightRepository(db);
 export const userPreferencesRepository = createUserPreferencesRepository(db);
 export const fxRateRepository = createFxRateRepository(db);
 export const kaiInteractionRepository = createKaiInteractionRepository(db);
+export const kaiNotificationRepository = createKaiNotificationRepository(db);

@@ -1238,6 +1238,42 @@ export const kaiInteractions = pgTable("kai_interactions", {
   index("kai_interactions_source_created_idx").on(table.resolutionSource, table.createdAt),
 ]);
 
+// Proactive KAI notifications (spec §7/§8). One row per (user, dedupKey) — dedupKey is stable
+// per message kind + subject + period so "no repetir lo descartado" (spec §9) survives across
+// devices. `state` drives the priority queue + frequency cap; `payload` holds the rendered
+// KaiProactiveMessage. TEXT columns (not pgEnum) — same rationale as the rest of this file.
+export const kaiNotifications = pgTable("kai_notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  dedupKey: text("dedup_key").notNull(),
+  // 0 (crítico) … 5 (consejo) — spec §8.
+  priority: integer("priority").notNull().default(3),
+  // PENDING | SHOWN | DISMISSED | ACTED | SNOOZED | EXPIRED
+  state: text("state").notNull().default("PENDING"),
+  payload: jsonb("payload").notNull(),
+  shownAt: timestamp("shown_at", { withTimezone: true }),
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  actionTakenAt: timestamp("action_taken_at", { withTimezone: true }),
+  snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("kai_notifications_user_dedup_idx").on(table.userId, table.dedupKey),
+  index("kai_notifications_user_state_idx").on(table.userId, table.state),
+]);
+
+// "No mostrarme este tipo de aviso" (spec §9) — a muted message kind per user.
+export const kaiNotificationMutes = pgTable("kai_notification_mutes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  mutedAt: timestamp("muted_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("kai_notification_mutes_user_kind_idx").on(table.userId, table.kind),
+]);
+
 export const reminders = pgTable("reminders", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),

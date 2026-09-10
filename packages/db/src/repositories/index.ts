@@ -56,6 +56,8 @@ export { createAIGenerationEventRepository } from "./ai-generation-events";
 export type { AIGenerationEventInput, AIGenerationEventRepository, DateRange as AIGenerationDateRange, SpendTotals } from "./ai-generation-events";
 export { createKaiInteractionRepository } from "./kai-interactions";
 export type { KaiInteractionInput, KaiInteractionRepository, KaiResolutionStats, KaiDateRange as KaiInteractionDateRange } from "./kai-interactions";
+export { createKaiNotificationRepository } from "./kai-notifications";
+export type { KaiNotificationRepository, KaiNotificationCandidateInput, KaiDeliveryStateRow } from "./kai-notifications";
 export { createNotificationRepository } from "./notifications";
 export { createNotificationDeliveryRepository } from "./notification-deliveries";
 export { createNotificationPreferenceRepository } from "./notification-preferences";

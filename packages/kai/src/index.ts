@@ -70,9 +70,11 @@ export type { KaiHandler, KaiHandlerContext, KaiHandlerResult } from "./handlers
 export { formatMoney, formatMoneyList, formatPercent, formatDayMonth } from "./templates/format";
 
 // Proactive
-export { buildProactiveMessage } from "./proactive/build-proactive-message";
+export { buildProactiveCandidates } from "./proactive/build-proactive-message";
 export type { ProactiveInput } from "./proactive/build-proactive-message";
-export type { KaiProactiveMessage, KaiProactiveAction } from "./domain/kai-proactive";
+export { selectProactive, DEFAULT_KAI_FREQUENCY_CAP } from "./proactive/select-proactive";
+export type { KaiDeliveryState, KaiFrequencyCap, SelectProactiveResult } from "./proactive/select-proactive";
+export type { KaiProactiveMessage, KaiProactiveAction, KaiProactiveKind } from "./domain/kai-proactive";
 
 // Orchestrator
 export { resolveKaiInteraction } from "./orchestrator/resolve-kai-interaction";

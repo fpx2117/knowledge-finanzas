@@ -51,11 +51,15 @@ export function KaiAlertCard({
   message,
   onNavigate,
   onDismiss,
+  onSnooze,
+  onMute,
   onOpen,
 }: {
   message: KaiProactiveMessage;
   onNavigate: (route: string) => void;
   onDismiss: () => void;
+  onSnooze: () => void;
+  onMute: () => void;
   onOpen: () => void;
 }) {
   const chart = message.data?.chart;
@@ -149,6 +153,30 @@ export function KaiAlertCard({
         <div className="mt-3 flex items-center gap-1.5 text-caption text-muted-foreground">
           <BarChart3Icon className="size-3.5" aria-hidden />
           {message.meta}
+        </div>
+
+        {/* frequency-cap controls (spec §9) — deliberately low-key */}
+        <div className="mt-1.5 flex items-center gap-3 text-[0.68rem] text-muted-foreground/70">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSnooze();
+            }}
+            className="hover:text-foreground hover:underline"
+          >
+            Recordarme mañana
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMute();
+            }}
+            className="hover:text-foreground hover:underline"
+          >
+            Ocultar este tipo
+          </button>
         </div>
 
         {/* speech-bubble tail toward the floating mascot */}
