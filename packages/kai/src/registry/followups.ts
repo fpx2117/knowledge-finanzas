@@ -130,6 +130,10 @@ const BY_INTENT: Partial<Record<KaiIntentId, KaiFollowup[]>> = {
     q("¿Cuáles son mis saldos?", "GET_ACCOUNT_BALANCES"),
     q("¿Cuánto tengo disponible?", "GET_AVAILABLE_MONEY"),
   ],
+  EDIT_TRANSACTION_CATEGORY: [
+    q("¿Cuánto gasté en esa categoría?", "GET_CATEGORY_EXPENSES"),
+    q("¿Cuánto gasté este mes?", "GET_MONTH_EXPENSES"),
+  ],
 };
 
 /** Follow-ups for whatever KAI just answered. `intentId` is the audit id (may be STATIC/UNRESOLVED). */

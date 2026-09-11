@@ -31,7 +31,8 @@ export type KaiIntentId =
   | "ALLOCATE_TO_GOAL"
   | "VOID_TRANSACTION"
   | "PAY_OBLIGATION"
-  | "CREATE_TRANSFER";
+  | "CREATE_TRANSFER"
+  | "EDIT_TRANSACTION_CATEGORY";
 
 /** Sentinel returned by the resolver when nothing deterministic matched. */
 export const UNRESOLVED_INTENT = "UNRESOLVED" as const;

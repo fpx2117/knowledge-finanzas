@@ -73,6 +73,14 @@ export function resolveIntent(
         strategy: "regex",
       };
     }
+    if (action.kind === "EDIT_TRANSACTION_CATEGORY") {
+      return {
+        id: "EDIT_TRANSACTION_CATEGORY",
+        params: { mode: action.mode, categoryName: action.categoryName, ...(action.merchant ? { merchant: action.merchant } : {}) },
+        confidence: 0.95,
+        strategy: "regex",
+      };
+    }
     return {
       id: "VOID_TRANSACTION",
       params:

@@ -128,6 +128,8 @@ export interface KaiDataPorts {
   getObligationsForPayment(): Promise<KaiObligationForPayment[]>;
   /** Cuentas del usuario, para resolver "transferí $X de {cuenta} a {cuenta}". */
   getAccountsForTransfer(): Promise<{ id: string; name: string; currencyCode: string }[]>;
+  /** Categorías propias del usuario por tipo, para resolver "cambiá la categoría … a {nombre}". */
+  getCategoriesForEdit(type: "EXPENSE" | "INCOME"): Promise<{ id: string; name: string }[]>;
   /** Finds the movement KAI should offer to void — the last one, or one matching a merchant. */
   findTransactionToVoid(criteria: {
     mode: "last" | "merchant";

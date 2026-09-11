@@ -170,6 +170,30 @@ export async function kaiPayObligationAction(input: z.input<typeof payObligation
   }
 }
 
+// ── Cambiar la categoría de un movimiento por chat (spec §11 write-actions-2) ─
+
+const editCategorySchema = z.object({
+  transactionId: z.string().min(1),
+  categoryId: z.string().min(1),
+  description: z.string().trim().min(1),
+});
+
+export type KaiEditCategoryResult = { ok: true } | { ok: false; error: { code: string; message: string } };
+
+export async function kaiEditTransactionCategoryAction(input: z.input<typeof editCategorySchema>): Promise<KaiEditCategoryResult> {
+  const user = await requireCurrentUser();
+  const parsed = editCategorySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar el cambio de categoría." } };
+  const { transactionId, categoryId, description } = parsed.data;
+  try {
+    await service.editTransaction(user.id, transactionId, { description, categoryId });
+    return { ok: true };
+  } catch (error) {
+    const mapped = mapErrorToUi(error);
+    return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
+  }
+}
+
 // ── Transferir entre cuentas por chat (spec §11 write-actions-2) ────────────
 
 const transferService = createTransferService();

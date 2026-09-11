@@ -278,6 +278,11 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
       return rows.map((a) => ({ id: a.id, name: a.name, currencyCode: a.currencyCode }));
     },
 
+    async getCategoriesForEdit(type) {
+      const rows = await categoryRepository.listForUser(user.id, { type, includeArchived: false });
+      return rows.map((c) => ({ id: c.id, name: c.name }));
+    },
+
     async getObligationsForPayment() {
       const debts = await debtService.listDebts(user, now).catch(() => []);
       return debts

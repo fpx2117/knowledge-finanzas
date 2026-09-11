@@ -41,6 +41,10 @@ function fakePorts(overrides: Partial<KaiDataPorts> = {}): KaiDataPorts {
       { id: "a1", name: "Banco", currencyCode: "ARS" },
       { id: "a2", name: "Billetera", currencyCode: "ARS" },
     ],
+    getCategoriesForEdit: async () => [
+      { id: "c1", name: "Alimentación" },
+      { id: "c2", name: "Transporte" },
+    ],
     getInsightsForProactive: async () => [],
     findTransactionToVoid: async () => ({ id: "t1", type: "EXPENSE" as const, description: "Super", merchant: "Coto", amount: "40000", currencyCode: "ARS", occurredAt: "2026-09-09T12:00:00Z" }),
     ...overrides,
@@ -206,6 +210,14 @@ describe("resolveKaiInteraction", () => {
       kind: "confirm-transfer",
       params: { fromAccountId: "a1", toAccountId: "a2", amount: "10000" },
     });
+  });
+
+  it("'cambiá la categoría de mi último gasto a Transporte' → confirmación de edición", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "cambiá la categoría de mi último gasto a Transporte" }));
+    expect(audit.intentId).toBe("EDIT_TRANSACTION_CATEGORY");
+    expect(response.type).toBe("KAI_CONFIRMATION");
+    expect(response.body).toContain("Transporte");
+    expect(response.actions?.[0]).toMatchObject({ kind: "confirm-edit-category", params: { transactionId: "t1", categoryId: "c2" } });
   });
 
   it("'¿cuándo vence Netflix?' → GET_SUBSCRIPTION_NEXT", async () => {

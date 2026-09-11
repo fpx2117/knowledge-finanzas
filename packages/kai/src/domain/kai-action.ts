@@ -12,6 +12,7 @@ export type KaiActionKind =
   | "confirm-void"
   | "confirm-pay-obligation"
   | "confirm-transfer"
+  | "confirm-edit-category"
   | "dismiss"
   | "remind-later";
 

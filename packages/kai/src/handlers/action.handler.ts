@@ -217,6 +217,65 @@ export const createTransfer: KaiHandler = async ({ ports, params }) => {
 };
 
 /**
+ * "Cambiá la categoría del gasto de YPF a Transporte" (spec §11). The only movement edit the
+ * app actually supports is metadata (category/comercio/nota) — never the amount, which is
+ * corrected by voiding and recreating so the ledger stays consistent (spec 14 §9). Finds the
+ * movement, resolves the target category by name among the user's own categories of that
+ * same type, and shows a confirmation with exactly what changes.
+ */
+export const editTransactionCategory: KaiHandler = async ({ ports, params }) => {
+  const mode = params.mode === "merchant" ? "merchant" : "last";
+  const tx = await ports.findTransactionToVoid({ mode, ...(params.merchant ? { merchant: params.merchant } : {}) });
+  if (!tx) {
+    return {
+      source: "DATABASE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body:
+          mode === "merchant"
+            ? `No encontré un movimiento reciente que coincida con "${params.merchant ?? ""}".`
+            : "No encontré un movimiento reciente para editar.",
+        actions: [{ kind: "navigate", label: "Ver movimientos", route: "/transactions" }],
+      },
+    };
+  }
+
+  const categories = await ports.getCategoriesForEdit(tx.type);
+  const q = normalizeText(params.categoryName ?? "");
+  const category = categories.find((c) => normalizeText(c.name).includes(q) || q.includes(normalizeText(c.name)));
+
+  if (!category) {
+    return {
+      source: "DATABASE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body: `No encontré la categoría "${params.categoryName ?? ""}". Tenés: ${categories.map((c) => c.name).join(", ")}.`,
+        actions: [{ kind: "navigate", label: "Ver categorías", route: "/settings/categories" }],
+      },
+    };
+  }
+
+  const who = tx.merchant ?? tx.description;
+  const confirmParams = { transactionId: tx.id, categoryId: category.id, categoryName: category.name, description: tx.description };
+  return {
+    source: "DATABASE",
+    response: {
+      type: "KAI_CONFIRMATION",
+      state: "NEUTRAL",
+      title: "Cambiar categoría",
+      body: `¿Cambio a ${category.name} la categoría del ${tx.type === "INCOME" ? "ingreso" : "gasto"} de ${formatMoney(tx.amount, tx.currencyCode)}${who ? ` en ${who}` : ""}?`,
+      data: { pendingEdit: confirmParams },
+      actions: [
+        { kind: "confirm-edit-category", label: "Confirmar", params: confirmParams },
+        { kind: "navigate", label: "Ver el movimiento", route: "/transactions" },
+      ],
+    },
+  };
+};
+
+/**
  * "Anulá el último gasto" / "borrá el gasto de YPF" (spec §11). Finds the movement, shows a
  * confirmation with exactly what will be voided.
  */

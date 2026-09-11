@@ -40,7 +40,14 @@ import {
   muteKaiProactiveKindAction,
   snoozeKaiProactiveAction,
 } from "../actions/kai-proactive-actions";
-import { kaiAllocateToGoalAction, kaiCreateTransactionAction, kaiCreateTransferAction, kaiPayObligationAction, kaiVoidTransactionAction } from "../actions/kai-create-actions";
+import {
+  kaiAllocateToGoalAction,
+  kaiCreateTransactionAction,
+  kaiCreateTransferAction,
+  kaiEditTransactionCategoryAction,
+  kaiPayObligationAction,
+  kaiVoidTransactionAction,
+} from "../actions/kai-create-actions";
 import { MAX_KAI_MESSAGE_LENGTH } from "../lib/constants";
 import { useDraggableFab } from "../lib/use-draggable-fab";
 import { KaiAlertCard } from "./kai-alert-card";
@@ -359,6 +366,25 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     [pending, doneMessage],
   );
 
+  const editCategoryFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiEditTransactionCategoryAction({
+        transactionId: params.transactionId,
+        categoryId: params.categoryId,
+        description: params.description ?? "",
+      });
+      setPending(false);
+      if (result.ok) {
+        doneMessage(`Listo, cambié la categoría a ${params.categoryName ?? ""}.`, "/transactions", "Ver movimientos");
+        toast.success("Categoría actualizada");
+      } else setBanner(result.error.message);
+    },
+    [pending, doneMessage],
+  );
+
   const onAction = useCallback(
     (action: KaiAction) => {
       if (action.kind === "navigate" && action.route) {
@@ -385,11 +411,13 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         void payFromCard(action.params);
       } else if (action.kind === "confirm-transfer" && action.params) {
         void transferFromCard(action.params);
+      } else if (action.kind === "confirm-edit-category" && action.params) {
+        void editCategoryFromCard(action.params);
       } else if (action.kind === "run-intent" && action.intentId) {
         void submit({ quickActionIntentId: action.intentId, label: action.label });
       }
     },
-    [router, submit, createFromCard, allocateFromCard, voidFromCard, payFromCard, transferFromCard],
+    [router, submit, createFromCard, allocateFromCard, voidFromCard, payFromCard, transferFromCard, editCategoryFromCard],
   );
 
   const rateEntry = useCallback((index: number, feedback: "up" | "down") => {

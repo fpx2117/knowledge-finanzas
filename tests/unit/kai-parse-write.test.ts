@@ -109,3 +109,21 @@ describe("parseActionIntent — CREATE_TRANSFER", () => {
     expect(parseActionIntent(normalizeText("moví la reunión"), "moví la reunión")).toBeNull();
   });
 });
+
+describe("parseActionIntent — EDIT_TRANSACTION_CATEGORY", () => {
+  it("recognises 'cambiá la categoría del gasto de YPF a Transporte'", () => {
+    const raw = "cambiá la categoría del gasto de YPF a Transporte";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result).toMatchObject({ kind: "EDIT_TRANSACTION_CATEGORY", mode: "merchant", merchant: "ypf", categoryName: "transporte" });
+  });
+
+  it("recognises 'corregí la categoría de mi último gasto a Comida' → mode last", () => {
+    const raw = "corregí la categoría de mi último gasto a Comida";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result).toMatchObject({ kind: "EDIT_TRANSACTION_CATEGORY", mode: "last", categoryName: "comida" });
+  });
+
+  it("does NOT fire without the word 'categoría'", () => {
+    expect(parseActionIntent(normalizeText("cambiá el monto a 5000"), "cambiá el monto a 5000")).toBeNull();
+  });
+});

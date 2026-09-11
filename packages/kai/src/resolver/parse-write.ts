@@ -138,7 +138,8 @@ export type KaiActionIntent =
   | { kind: "VOID_LAST"; ofType: "EXPENSE" | "INCOME" | null }
   | { kind: "VOID_MERCHANT"; merchant: string }
   | { kind: "PAY_OBLIGATION"; obligationName: string }
-  | { kind: "CREATE_TRANSFER"; amount: string | null; fromAccountName: string; toAccountName: string };
+  | { kind: "CREATE_TRANSFER"; amount: string | null; fromAccountName: string; toAccountName: string }
+  | { kind: "EDIT_TRANSACTION_CATEGORY"; mode: "last" | "merchant"; merchant?: string; categoryName: string };
 
 const ALLOCATE_VERB = /\b(aport[aáeé]\w*|mov[eé]\w*|mon[eé]\w*|pas[aá]\w*|guard[aá]\w*|transferi\w*|deposit[aá]\w*|sum[aá]\w* .*\bmeta\b)/;
 const VOID_VERB = /\b(anul[aá]\w*|borr[aá]\w*|elimin[aá]\w*|deshac[eé]\w*|dar de baja|da de baja)/;
@@ -150,6 +151,12 @@ const TRANSFER_SHAPE = /\bde\s+(?:la\s+|el\s+|mi\s+)?(.+?)\s+(?:a|hacia|al)\s+(?
 // "pagué luz $5.000" (un gasto nuevo, spec §11 CREATE_EXPENSE) — sin monto que confundir.
 const PAY_OBLIGATION_VERB = /\b(pagu[eé]\w*|pag[aá]\w*|abon[eé]\w*|abon[aá]\w*)\b/;
 const OBLIGATION_NOUN = /\b(cuota|cuotas|tarjeta|prestamo|deuda|obligacion)\b/;
+// "cambiá/corregí la categoría de {movimiento} a {categoría}" — la única edición que el propio
+// servicio de transacciones soporta es de metadata (categoría/comercio/nota), nunca el monto
+// (spec 14 §9: corregir un monto se hace anulando y creando de nuevo, no editando el ledger).
+const EDIT_CATEGORY_VERB = /\b(cambi[aá]\w*|corregi\w*|corrija\w*|actualiz[aá]\w*)\b/;
+const EDIT_CATEGORY_SHAPE =
+  /\bcategoria\s+(?:del?\s+|de la\s+)?(?:gasto|movimiento|ingreso|compra)?\s*(?:de\s+)?(.*?)\s+a\s+(.+)$/;
 
 export function parseActionIntent(normalized: string, raw: string): KaiActionIntent | null {
   // ── transferir entre dos cuentas propias ─────────────────────────────────
@@ -164,6 +171,21 @@ export function parseActionIntent(normalized: string, raw: string): KaiActionInt
       const fromAccountName = cleanTail(shape[1]);
       const toAccountName = cleanTail(shape[2]);
       if (fromAccountName && toAccountName) return { kind: "CREATE_TRANSFER", amount, fromAccountName, toAccountName };
+    }
+  }
+
+  // ── editar la categoría de un movimiento ─────────────────────────────────
+  if (EDIT_CATEGORY_VERB.test(normalized) && /\bcategoria\b/.test(normalized)) {
+    const shape = EDIT_CATEGORY_SHAPE.exec(normalized);
+    if (shape) {
+      const target = cleanTail(shape[1]);
+      const categoryName = cleanTail(shape[2]);
+      if (categoryName) {
+        const isLast = !target || target === "ultimo" || target === "ultima";
+        return isLast
+          ? { kind: "EDIT_TRANSACTION_CATEGORY", mode: "last", categoryName }
+          : { kind: "EDIT_TRANSACTION_CATEGORY", mode: "merchant", merchant: target, categoryName };
+      }
     }
   }
 
