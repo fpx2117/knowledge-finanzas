@@ -188,12 +188,27 @@ export const getCategoryExpenses: KaiHandler = async ({ ports, range, params }) 
   }
   const result = await ports.getCategoryExpenses(range, query);
   if (!result) {
+    // Not a category — maybe a merchant ("¿cuánto gasté en Starbucks?").
+    const merchant = await ports.getMerchantExpenses(range, query);
+    if (merchant && merchant.byCurrency.length) {
+      return {
+        source: "DATABASE",
+        response: {
+          type: "KAI_METRIC",
+          state: "ANALYTICAL",
+          title: merchant.label,
+          body: `${range.label[0].toUpperCase()}${range.label.slice(1)} gastaste ${formatMoneyList(merchant.byCurrency)} en ${merchant.label} (${merchant.count} ${merchant.count === 1 ? "movimiento" : "movimientos"}).`,
+          data: metric(merchant.byCurrency.map((m) => ({ label: `${merchant.label} (${m.currencyCode})`, amount: m.amount, currencyCode: m.currencyCode }))),
+          actions: [{ kind: "navigate", label: "Ver movimientos", route: "/transactions" }],
+        },
+      };
+    }
     return {
       source: "DATABASE",
       response: {
         type: "KAI_TEXT",
         state: "NEUTRAL",
-        body: `No encontré una categoría que coincida con "${query}".`,
+        body: `No encontré una categoría ni un comercio que coincida con "${query}".`,
         actions: [{ kind: "navigate", label: "Ver categorías", route: "/categories" }],
       },
     };

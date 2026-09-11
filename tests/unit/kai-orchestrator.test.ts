@@ -15,6 +15,7 @@ function fakePorts(overrides: Partial<KaiDataPorts> = {}): KaiDataPorts {
     getAccountBalances: async () => [{ name: "Banco", currencyCode: "ARS", balance: "500000" }],
     getSpendable: async () => [{ currencyCode: "ARS", spendable: "300000" }],
     getCategoryExpenses: async () => ({ label: "Alimentación", byCurrency: [{ currencyCode: "ARS", amount: "280000" }] }),
+    getMerchantExpenses: async () => null,
     getTopExpenseCategories: async () => [{ label: "Vivienda", amount: "420000", currencyCode: "ARS" }],
     getRecentExpenses: async () => [
       { description: "Super", merchant: "Coto", categoryName: "Alimentación", amount: "40000", currencyCode: "ARS", occurredAt: "2026-09-09" },
@@ -132,6 +133,27 @@ describe("resolveKaiInteraction", () => {
     expect(response.type).toBe("KAI_COMPARISON");
     expect((response.data as { direction: string }).direction).toBe("up");
     expect((response.data as { variationPercent: number }).variationPercent).toBe(45);
+  });
+
+  it("'¿cuándo vence Netflix?' → GET_SUBSCRIPTION_NEXT", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "¿cuándo vence Netflix?" }));
+    expect(audit.intentId).toBe("GET_SUBSCRIPTION_NEXT");
+    expect(response.body).toContain("Netflix");
+    expect(response.body).toContain("13 de septiembre");
+  });
+
+  it("'¿cuánto gasté en Coto?' falls back to merchant spend when it's not a category", async () => {
+    const input = baseInput({
+      message: "¿cuánto gasté en coto?",
+      ports: fakePorts({
+        getCategoryExpenses: async () => null,
+        getMerchantExpenses: async () => ({ label: "Coto", count: 3, byCurrency: [{ currencyCode: "ARS", amount: "62000" }] }),
+      }),
+    });
+    const { response, audit } = await resolveKaiInteraction(input);
+    expect(audit.intentId).toBe("GET_CATEGORY_EXPENSES");
+    expect(response.body).toContain("Coto");
+    expect(response.body).toContain("3 movimientos");
   });
 
   it("'¿y el mes pasado?' re-runs the last intent with a shifted range", async () => {

@@ -99,6 +99,8 @@ export const KAI_INTENT_ALIASES: Record<KaiIntentId, string[]> = {
   ],
   GET_SUBSCRIPTIONS: ["mis suscripciones", "cuantas suscripciones tengo", "que suscripciones tengo"],
   GET_SUBSCRIPTION_COST: ["cuanto gasto en suscripciones", "cuanto pago de suscripciones", "costo de mis suscripciones"],
+  // Matched by the "cuándo vence {x}" regex in intent-resolver.ts.
+  GET_SUBSCRIPTION_NEXT: [],
   GET_BUDGET_STATUS: [
     "como viene mi presupuesto",
     "estado del presupuesto",

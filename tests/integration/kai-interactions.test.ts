@@ -50,6 +50,7 @@ function buildPorts(database: ReturnType<typeof getTestDatabase>["db"]): KaiData
     getAccountBalances: empty,
     getSpendable: empty,
     getCategoryExpenses: async () => null,
+    getMerchantExpenses: async () => null,
     getTopExpenseCategories: empty,
     getRecentExpenses: empty,
     getUpcomingObligations: empty,

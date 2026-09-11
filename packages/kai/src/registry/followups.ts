@@ -85,6 +85,10 @@ const BY_INTENT: Partial<Record<KaiIntentId, KaiFollowup[]>> = {
     q("¿Cuáles son mis suscripciones?", "GET_SUBSCRIPTIONS"),
     q("¿Qué se me vence?", "GET_UPCOMING_PAYMENTS"),
   ],
+  GET_SUBSCRIPTION_NEXT: [
+    q("¿Cuánto pago de suscripciones?", "GET_SUBSCRIPTION_COST"),
+    q("¿Qué se me vence?", "GET_UPCOMING_PAYMENTS"),
+  ],
   GET_BUDGET_STATUS: [
     q("¿En qué gasté más?", "GET_TOP_EXPENSE_CATEGORIES"),
     q("¿Cuánto gasté este mes?", "GET_MONTH_EXPENSES"),

@@ -82,8 +82,13 @@ export interface KaiDataPorts {
   getLiquidBalances(): Promise<MoneyByCurrency[]>;
   getAccountBalances(): Promise<{ name: string; currencyCode: string; balance: string }[]>;
   getSpendable(): Promise<{ currencyCode: string; spendable: string }[]>;
-  /** Resolves a free-text category name to its spend in `range`, or null if unknown. */
+  /** Resolves a free-text category name (or taxonomy group) to its spend in `range`, or null. */
   getCategoryExpenses(range: KaiDateRangeInput, categoryQuery: string): Promise<KaiCategoryExpenses | null>;
+  /** Spend at a merchant matching `merchantQuery` in `range` — "¿cuánto gasté en Starbucks?". */
+  getMerchantExpenses(
+    range: KaiDateRangeInput,
+    merchantQuery: string,
+  ): Promise<{ label: string; count: number; byCurrency: MoneyByCurrency[] } | null>;
   getTopExpenseCategories(
     range: KaiDateRangeInput,
     limit: number,

@@ -18,6 +18,7 @@ import {
 import { normalizeText, type KaiDataPorts, type KaiDateRangeInput } from "@know-finanzas/kai";
 
 import type { CurrentUser } from "@/lib/auth/require-current-user";
+import { resolveCategoryQuery } from "./resolve-category-query";
 import { createBudgetService } from "@/features/budgets/services/budget-service";
 import { createGoalService } from "@/features/goals/services/goal-service";
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
@@ -114,11 +115,15 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
         categoryRepository.listForUser(user.id, { includeArchived: true }),
       ]);
       const query = normalizeText(categoryQuery);
+      const group = resolveCategoryQuery(categoryQuery);
+      const groupNames = new Set(group?.categoryNames ?? []);
       const matched = categories.filter((c) => {
         const name = normalizeText(c.name);
+        if (groupNames.has(name)) return true;
         return name === query || name.includes(query) || query.includes(name);
       });
       if (matched.length === 0) return null;
+      const label = group?.label ?? matched[0].name;
       const matchedIds = new Set(matched.map((c) => c.id));
       const byCurrency = new Map<string, Money>();
       for (const row of rows) {
@@ -127,10 +132,34 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
         byCurrency.set(row.currencyCode, current.add(Money.fromString(row.netExpense, row.currencyCode)));
       }
       if (byCurrency.size === 0) {
-        return { label: matched[0].name, byCurrency: [{ currencyCode: user.baseCurrency, amount: "0" }] };
+        return { label, byCurrency: [{ currencyCode: user.baseCurrency, amount: "0" }] };
       }
       return {
-        label: matched[0].name,
+        label,
+        byCurrency: [...byCurrency.entries()].map(([currencyCode, money]) => ({ currencyCode, amount: money.toString() })),
+      };
+    },
+
+    async getMerchantExpenses(range, merchantQuery) {
+      const q = normalizeText(merchantQuery);
+      if (q.length < 3) return null;
+      const rows = await activityQueries.listRecentActivity(user.id, { from: range.from, to: range.to, limit: 500 });
+      const hits = rows.filter((row) => {
+        if (row.type !== "EXPENSE") return false;
+        const merchant = normalizeText((row.merchant as string | null) ?? "");
+        const desc = normalizeText((row.description as string | null) ?? "");
+        return merchant.includes(q) || desc.includes(q);
+      });
+      if (hits.length === 0) return null;
+      const byCurrency = new Map<string, Money>();
+      for (const row of hits) {
+        const cc = row.currencyCode as string;
+        byCurrency.set(cc, (byCurrency.get(cc) ?? Money.zero(cc)).add(Money.fromString(row.amount as string, cc)));
+      }
+      const label = (hits.find((h) => h.merchant)?.merchant as string | undefined) ?? merchantQuery.trim();
+      return {
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        count: hits.length,
         byCurrency: [...byCurrency.entries()].map(([currencyCode, money]) => ({ currencyCode, amount: money.toString() })),
       };
     },

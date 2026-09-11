@@ -59,6 +59,12 @@ export function resolveIntent(
     };
   }
 
+  // "¿cuándo vence Netflix?" / "¿cuándo se renueva mi {x}?"
+  const subMatch = /\b(cuando|que dia)\s+(vence|se renueva|renueva|se debita|debita|pago|cobran)\s+(mi\s+|la\s+|el\s+)?(.{2,30})$/.exec(normalized);
+  if (subMatch) {
+    return { id: "GET_SUBSCRIPTION_NEXT", params: { subscription: subMatch[4].trim() }, confidence: 0.9, strategy: "regex" };
+  }
+
   // "¿cuánto gasté en {categoría}?" — checked first so the generic "cuanto gaste"
   // alias doesn't swallow the category question. "en junio" / "en total" / "esta semana"
   // are temporal or degenerate, not categories.

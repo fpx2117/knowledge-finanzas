@@ -19,6 +19,7 @@ import {
   getGoalProgress,
   getInsights,
   getSubscriptionCost,
+  getSubscriptionNext,
   getSubscriptions,
   getUpcomingPayments,
 } from "./commitments.handler";
@@ -46,6 +47,7 @@ export const KAI_HANDLERS: Record<KaiIntentId, KaiHandler> = {
   GET_GOAL_PROGRESS: getGoalProgress,
   GET_INSIGHTS: getInsights,
   GET_EXPENSE_COMPARISON: getExpenseComparison,
+  GET_SUBSCRIPTION_NEXT: getSubscriptionNext,
   CREATE_EXPENSE: createExpense,
   CREATE_INCOME: createIncome,
 };

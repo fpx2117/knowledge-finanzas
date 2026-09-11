@@ -95,6 +95,40 @@ export const getSubscriptions: KaiHandler = async ({ ports }) => {
   };
 };
 
+export const getSubscriptionNext: KaiHandler = async ({ ports, params }) => {
+  const subs = await ports.getActiveSubscriptions();
+  const q = (params.subscription ?? "").toLowerCase().trim();
+  if (!subs.length) {
+    return { source: "DATABASE", response: { type: "KAI_TEXT", state: "NEUTRAL", body: "No tengo suscripciones activas detectadas." } };
+  }
+  const match = q
+    ? subs.find((s) => s.label.toLowerCase().includes(q) || q.includes(s.label.toLowerCase()))
+    : undefined;
+  if (!match) {
+    return {
+      source: "DATABASE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body: `No tengo una suscripción que coincida con "${params.subscription ?? ""}". Tenés: ${subs.map((s) => s.label).join(", ")}.`,
+        actions: [{ kind: "navigate", label: "Ver suscripciones", route: "/subscriptions" }],
+      },
+    };
+  }
+  return {
+    source: "DATABASE",
+    response: {
+      type: "KAI_METRIC",
+      state: "NEUTRAL",
+      title: match.label,
+      body: match.nextExpectedOn
+        ? `${match.label} se renueva el ${formatDayMonth(match.nextExpectedOn)} por ${formatMoney(match.currentAmount, match.currencyCode)}.`
+        : `${match.label} cuesta ${formatMoney(match.currentAmount, match.currencyCode)}, pero todavía no tengo la próxima fecha de cobro.`,
+      actions: [{ kind: "navigate", label: "Ver suscripción", route: "/subscriptions" }],
+    },
+  };
+};
+
 export const getSubscriptionCost: KaiHandler = async ({ ports }) => {
   const subs = await ports.getActiveSubscriptions();
   if (!subs.length) {
