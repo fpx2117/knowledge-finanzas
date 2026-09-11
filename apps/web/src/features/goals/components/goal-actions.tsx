@@ -45,10 +45,12 @@ export function GoalActions({
   if (addState?.ok && addOpen) {
     setAddOpen(false);
     router.refresh();
+    window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
   }
   if (withdrawState?.ok && withdrawOpen) {
     setWithdrawOpen(false);
     router.refresh();
+    window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
   }
   const addErrors = addState?.ok === false ? addState.error.fieldErrors ?? {} : {};
   const withdrawErrors = withdrawState?.ok === false ? withdrawState.error.fieldErrors ?? {} : {};

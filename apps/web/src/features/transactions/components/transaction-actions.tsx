@@ -68,6 +68,7 @@ export function TransactionActions({
     setEditOpen(false);
     kaiToast("Actualicé el movimiento.", { state: "POSITIVE", duration: 3500 });
     router.refresh();
+    window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
   }, [router, editState]);
 
   return (
@@ -192,7 +193,10 @@ export function TransactionActions({
         pendingLabel="Anulando…"
         action={voidTransactionAction}
         hiddenFields={{ transactionId }}
-        onSuccess={() => router.refresh()}
+        onSuccess={() => {
+          router.refresh();
+          window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
+        }}
       />
     </div>
   );

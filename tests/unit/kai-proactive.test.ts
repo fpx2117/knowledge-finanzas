@@ -155,4 +155,20 @@ describe("selectProactive (priority queue + frequency cap)", () => {
     );
     expect(r.message).toBeNull();
   });
+
+  it("respects quiet hours (23–8) for a non-critical candidate", () => {
+    const r = selectProactive(buildProactiveCandidates(base()), emptyState(), new Date(), undefined, 2);
+    expect(r).toEqual({ message: null, reason: "quiet-hours" });
+  });
+
+  it("does not apply quiet hours outside the window", () => {
+    const r = selectProactive(buildProactiveCandidates(base()), emptyState(), new Date(), undefined, 12);
+    expect(r.reason).toBe("shown");
+  });
+
+  it("never suppresses a P0 candidate for quiet hours", () => {
+    const p0: KaiProactiveMessage = { ...cand[0], priority: 0 };
+    const r = selectProactive([p0], emptyState(), new Date("2026-11-14T12:00:00Z"), undefined, 3);
+    expect(r).toMatchObject({ reason: "shown" });
+  });
 });

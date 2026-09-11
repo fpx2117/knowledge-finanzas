@@ -7,7 +7,7 @@ import {
   type KaiProactiveKind,
   type KaiProactiveMessage,
 } from "@know-finanzas/kai";
-import { dayRangeForTimezone, monthRangeForTimezone, todayInTimezone } from "@know-finanzas/finance";
+import { dayRangeForTimezone, hourInTimezone, monthRangeForTimezone, todayInTimezone } from "@know-finanzas/finance";
 
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { buildKaiPorts } from "../lib/kai-ports.instance";
@@ -101,6 +101,8 @@ export async function getKaiProactiveMessageAction(force = false): Promise<KaiPr
         lastShownAt: state.lastShownAt,
       },
       now,
+      undefined,
+      hourInTimezone(now, user.timezone),
     );
 
     const message = result.message;

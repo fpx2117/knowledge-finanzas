@@ -21,7 +21,7 @@ llamadas a IA.** El KPI es `KAI_LOCAL_RESOLUTION_RATE` ≥ 80% → 90% (spec §2
 | Respuestas | `KAI_METRIC`, `KAI_CHART` (barras), `KAI_TABLE`, `KAI_CONFIRMATION`, `KAI_INSIGHT`, `KAI_NAVIGATION`, `KAI_ACTION`, `KAI_TEXT`, `KAI_ERROR`. | §12 |
 | Follow-ups | `KAI_FOLLOWUPS` por intent → chips clicables tras cada respuesta. | §16 |
 | Frontend | `KaiFloatingAssistant` (estados visuales, quick actions 2×2, animaciones de "pensando"/reveal/barras), `KaiResponseCard`, `KaiAvatar` (mascot 3D por estado), tokens `--kai-*`. | §5, §6 |
-| Proactivo (básico) | `buildProactiveMessage` (3 reglas: ALERTA presupuesto/vencimiento, ANALÍTICO ≥2 categorías, POSITIVO ahorro +10% MoM). `KaiAlertCard` pixel-fiel a los mockups. Descarte por id en `localStorage`. | §7 |
+| Proactivo | `buildProactiveCandidates` (10 reglas: presupuesto excedido/cerca del límite, vencimiento ≤7d, suscripción por vencer/cambio de precio, gasto grande atípico, insights por severidad, category-spike +20% MoM, cierre de mes ≥2 categorías, hito de meta 25/50/75/100%, racha de ahorro +10% MoM) + `selectProactive` (cola de prioridad P0–P5, cap 3/día + cooldown 90min, quiet hours 23–8, snooze/mute por tipo). Persistido en `kai_notifications` (no `localStorage`). `KaiAlertCard` pixel-fiel a los mockups. | §7, §8, §9 |
 | Monetización | Puntos KAI (determinístico 1 / LLM 5). FREE 150/mes, TRIAL/PRO ilimitado. Tabla `kai_interactions.weight`. LLM desacoplado del pool de créditos IA. | §19 |
 | Guardas | Budget guard USD por usuario/día + global/mes. Rate limiter (in-memory). | §19 |
 
@@ -35,15 +35,15 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ### Fase A — Proactivo completo  *(P0 — es lo que más se nota que falta)*
 
-| WP | Contenido | Spec | Aceptación |
+| WP | Contenido | Spec | Estado |
 |---|---|---|---|
-| **WP-KAI-PROACTIVE-QUEUE** | Priority queue P0–P5 real. `KaiProactiveMessage.priority` ya existe; falta el selector con niveles (P0 crítico, P1 vencimientos, P2 presupuesto/flujo, P3 insights, P4 progreso, P5 consejos) y "máximo 1 flotante simultáneo". | §8 | Con 3 condiciones activas, KAI muestra solo la P-más-baja; al descartarla aparece la siguiente. |
-| **WP-KAI-PROACTIVE-PERSIST** | Tabla `kai_notifications` (`userId, kind, dedupKey, priority, shownAt, dismissedAt, actionTakenAt, expiresAt, payload`). Reemplaza el `localStorage`. | §8 | El descarte sobrevive entre dispositivos; hay historial. |
-| **WP-KAI-FREQ-CAP** | Máx 3 proactivos/día, 1 cada X min por sesión, no repetir un insight sin info nueva. Acciones "Recordarme mañana" (re-agenda) y "Ocultar este tipo de aviso" (preferencia). Quiet hours. | §9 | Test: 4 condiciones en un día → solo 3 cards; "recordarme mañana" reaparece a las 24h. |
-| **WP-KAI-EVENT-TRIGGERS** | Eventos de dominio → proactivo *al toque* (sin esperar refresh): `TRANSACTION_CREATED`, `BUDGET_THRESHOLD_REACHED`, `PAYMENT_DUE_SOON`, `SUBSCRIPTION_DUE_SOON`, `GOAL_PROGRESS_CHANGED`, `IMPORT_COMPLETED`, `MONTH_STARTED`, `MONTH_END_APPROACHING`. Engancha en `emitFinancialEvent()` + SSE. | §21, §22 | Registro un gasto que excede el presupuesto → la card ALERTA salta en esa misma pantalla. |
-| **WP-KAI-PROACTIVE-RULES** | Más reglas: category spike (`+20%` MoM), suscripción vence ≤ 7 días, meta cruza 25/50/75/100%, racha de ahorro, `calculateSpendingVariation`. Mueve la lógica a `packages/kai/rules/*`. | §4, §7 | Cada regla con test unitario + su copy es-AR. |
-| **WP-KAI-PROACTIVE-DELIVERY** | Decidir canal: nuevo `NotificationType` (`KAI_INSIGHT`) sobre el SSE existente, o segundo event-type en `/api/notifications/stream`. Toasts fuera del chat. | §7 | Card proactiva aparece sin tener KAI abierto, en cualquier pantalla. |
-| **WP-KAI-PROACTIVE-CACHE** | Cachear `getKaiProactiveMessageAction` 5–15 min (hoy corre en cada navegación → 5 queries). Invalidar en eventos financieros. | §20 | ≤ 1 evaluación cada 10 min salvo evento. |
+| **WP-KAI-PROACTIVE-QUEUE** | Priority queue P0–P5 real (P0 crítico nunca se sofoca). | §8 | ✅ DONE — `selectProactive`. |
+| **WP-KAI-PROACTIVE-PERSIST** | Tabla `kai_notifications` (`userId, kind, dedupKey, priority, shownAt, dismissedAt, actionTakenAt, expiresAt, payload`). | §8 | ✅ DONE. |
+| **WP-KAI-FREQ-CAP** | Máx 3/día, cooldown 90min, snooze ("recordarme mañana"), mute por tipo, **quiet hours** (23–8 hora local, P0 exento). | §9 | ✅ DONE (quiet hours agregado 2026-09-11: `hourInTimezone` + `KaiFrequencyCap.quietHours`, tests en `kai-proactive.test.ts`). |
+| **WP-KAI-PROACTIVE-RULES** | 10 reglas (presupuesto, vencimientos, suscripciones + cambio de precio, gasto atípico, insights, category-spike, cierre de mes, hito de meta, racha de ahorro). | §4, §7 | ✅ DONE — `buildProactiveCandidates`. |
+| **WP-KAI-PROACTIVE-CACHE** | Throttle de `getKaiProactiveMessageAction` (90s in-memory por usuario) + invalidación explícita vía evento del cliente tras una mutación. | §20 | ✅ DONE. |
+| **WP-KAI-EVENT-TRIGGERS** | Evento `kai:refresh-proactive` disparado tras cada mutación financiera relevante en el propio cliente (no solo Quick Add): editar/anular movimiento, aportar/retirar/editar meta, registrar pago de obligación. Sigue siendo *misma pestaña* — no hay push entre pestañas/dispositivos (eso es WP-KAI-PROACTIVE-DELIVERY). | §21, §22 | ⚠️ PARCIAL (ampliado 2026-09-11 a `transaction-actions.tsx`, `goal-actions.tsx`, `goal-form.tsx`, `debt-actions.tsx`). Falta: transferencias, presupuestos, importaciones, categorías — y el mecanismo sigue siendo por-componente, no un bus central. |
+| **WP-KAI-PROACTIVE-DELIVERY** | Push real entre pestañas/dispositivos sobre el SSE existente (`/api/notifications/stream`), no solo el poll de 180s + evento same-tab. | §7 | ❌ PENDIENTE — requiere enganchar `emitFinancialEvent` (server) a un segundo event-type SSE; no se abordó en esta pasada, es la pieza más grande que queda de la Fase A. |
 
 ---
 

@@ -65,6 +65,11 @@ export function todayInTimezone(now: Date, timezone: string): LocalDate {
   return formatLocalDate(parts.year, parts.month, parts.day);
 }
 
+/** The 0–23 local hour in `timezone` at `now`. Used for quiet-hours style gating. */
+export function hourInTimezone(now: Date, timezone: string): number {
+  return getDateParts(now, timezone).hour;
+}
+
 export function dayRangeForTimezone(date: LocalDate | string, timezone: string) {
   const localDate = parseLocalDate(date);
   const start = localMidnightInTimezone(localDate, timezone);

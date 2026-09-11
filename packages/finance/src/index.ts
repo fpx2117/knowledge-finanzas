@@ -69,6 +69,7 @@ export {
 } from "./dates/local-date";
 export {
   dayRangeForTimezone,
+  hourInTimezone,
   monthRangeForTimezone,
   todayInTimezone,
 } from "./dates/timezone";

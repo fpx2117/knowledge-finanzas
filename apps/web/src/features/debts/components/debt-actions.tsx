@@ -45,6 +45,7 @@ export function DebtActions({
   if (payState?.ok && payOpen) {
     setPayOpen(false);
     router.refresh();
+    window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
   }
   const payErrors = payState?.ok === false ? payState.error.fieldErrors ?? {} : {};
   const eligibleAccounts = accounts.filter((account) => account.currencyCode === currencyCode);

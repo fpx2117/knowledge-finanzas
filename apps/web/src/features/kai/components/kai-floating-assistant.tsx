@@ -382,11 +382,19 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
           onClick={() => {
             if (!fab.wasDragged()) setOpen(true);
           }}
+          onPointerEnter={fab.wake}
+          onFocus={fab.wake}
           style={fab.style}
+          data-idle={fab.idle || undefined}
           aria-label="Abrir KAI, tu asistente — mantené presionado para moverlo"
           className={cn(
-            "fixed z-[var(--z-popover)] size-16 touch-none cursor-grab select-none rounded-full transition-transform hover:scale-[1.06] active:scale-95 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/60",
+            "group fixed z-[var(--z-popover)] size-14 touch-none cursor-grab select-none rounded-full transition-[transform,opacity] duration-300 ease-out active:cursor-grabbing focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/60 sm:size-16",
             !fab.isPositioned && FAB_DEFAULT_POS,
+            // Idle: fade back and tuck ~40% past the nearest edge so it stops competing with
+            // content. Hover / focus / tap wakes it (see `fab.wake`).
+            fab.idle
+              ? cn("opacity-45", fab.edge === "right" ? "translate-x-[40%]" : "-translate-x-[40%]")
+              : "hover:scale-[1.06] active:scale-95",
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static brand asset, no next/image optimizer */}
@@ -395,7 +403,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
             alt=""
             draggable={false}
             className={cn(
-              "pointer-events-none size-full object-contain [filter:drop-shadow(0_8px_16px_rgb(16_24_47_/_0.30))]",
+              "pointer-events-none size-full object-contain transition-[filter] duration-300 [filter:drop-shadow(0_8px_16px_rgb(16_24_47_/_0.30))] group-data-[idle]:[filter:drop-shadow(0_4px_8px_rgb(16_24_47_/_0.18))]",
               pending && "animate-pulse",
             )}
           />

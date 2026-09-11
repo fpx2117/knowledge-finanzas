@@ -33,6 +33,7 @@ export function GoalForm({ baseCurrency, goal }: { baseCurrency: string; goal?: 
   if (isEdit && state?.ok) {
     router.push(`/goals/${goal!.id}`);
     router.refresh();
+    window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
   }
 
   return (
