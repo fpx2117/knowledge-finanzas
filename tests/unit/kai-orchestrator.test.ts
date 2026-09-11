@@ -135,6 +135,20 @@ describe("resolveKaiInteraction", () => {
     expect((response.data as { variationPercent: number }).variationPercent).toBe(45);
   });
 
+  it("projects month-end spend from the run-rate (GET_SPENDING_PROJECTION)", async () => {
+    const input = baseInput({
+      message: "¿cuánto voy a gastar este mes?",
+      // now = 2026-09-10 → 10 of 30 days elapsed. spent 150000 → projected ~450000.
+      ports: fakePorts({
+        getMonthlySummary: async () => [{ currencyCode: "ARS", income: "600000", expense: "150000", net: "0" }],
+      }),
+    });
+    const { response, audit } = await resolveKaiInteraction(input);
+    expect(audit.intentId).toBe("GET_SPENDING_PROJECTION");
+    expect(audit.resolutionSource).toBe("CALCULATOR");
+    expect(response.body).toMatch(/45[0-9]\.\d{3}|450\.000/);
+  });
+
   it("'¿cuándo vence Netflix?' → GET_SUBSCRIPTION_NEXT", async () => {
     const { response, audit } = await resolveKaiInteraction(baseInput({ message: "¿cuándo vence Netflix?" }));
     expect(audit.intentId).toBe("GET_SUBSCRIPTION_NEXT");

@@ -25,6 +25,18 @@ export const KAI_INTENT_ALIASES: Record<KaiIntentId, string[]> = {
     "cuanto pude ahorrar",
   ],
   GET_NET_CASHFLOW: ["como viene mi resultado", "resultado del mes", "flujo de caja", "balance del mes"],
+  GET_SPENDING_PROJECTION: [
+    "cuanto voy a gastar",
+    "cuanto voy a terminar gastando",
+    "a este ritmo cuanto gasto",
+    "a este ritmo",
+    "cuanto voy a gastar este mes",
+    "me va a alcanzar",
+    "voy a llegar a fin de mes",
+    "proyecta mi gasto",
+    "proyeccion de gasto",
+    "como voy a cerrar el mes",
+  ],
   GET_EXPENSE_COMPARISON: [
     "gaste mas que",
     "gaste menos que",

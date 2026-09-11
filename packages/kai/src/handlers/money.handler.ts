@@ -301,6 +301,52 @@ export const getLargestExpense: KaiHandler = async ({ ports, range }) => {
 
 export const getYesterdayExpenses = getMonthExpenses;
 
+export const getSpendingProjection: KaiHandler = async ({ ports, now, timezone, baseCurrency }) => {
+  const range = resolveDateRange("este mes", now, timezone);
+  const rows = await ports.getMonthlySummary({ from: range.from, to: range.to });
+  const row = rows.find((r) => r.currencyCode === baseCurrency) ?? rows[0];
+  if (!row || Number(row.expense) === 0) {
+    return {
+      source: "CALCULATOR",
+      response: { type: "KAI_TEXT", state: "NEUTRAL", body: "Todavía no tengo suficientes gastos este mes para proyectar." },
+    };
+  }
+
+  // days elapsed (inclusive of today) and days in the month, from the timezone-local range.
+  const msDay = 86_400_000;
+  const daysInMonth = Math.round((range.to.getTime() - range.from.getTime()) / msDay);
+  const elapsed = Math.max(1, Math.min(daysInMonth, Math.ceil((now.getTime() - range.from.getTime()) / msDay)));
+  const spent = Number(row.expense);
+  const projected = Math.round((spent / elapsed) * daysInMonth);
+  const income = Number(row.income);
+  const remaining = projected - spent;
+
+  const incomeNote =
+    income > 0
+      ? projected > income
+        ? ` Eso supera tus ingresos del mes (${formatMoney(row.income, row.currencyCode)}) — ojo con eso.`
+        : ` Sería el ${formatPercent((projected / income) * 100)} de tus ingresos del mes.`
+      : "";
+
+  return {
+    source: "CALCULATOR",
+    response: {
+      type: "KAI_METRIC",
+      state: income > 0 && projected > income ? "ALERT" : "ANALYTICAL",
+      title: "Proyección del mes",
+      body:
+        `Llevás ${formatMoney(row.expense, row.currencyCode)} en ${elapsed} de ${daysInMonth} días. ` +
+        `A este ritmo vas a terminar el mes en ~${formatMoney(String(projected), row.currencyCode)} (te quedarían ~${formatMoney(String(Math.max(0, remaining)), row.currencyCode)} de gasto).` +
+        incomeNote,
+      data: metric([
+        { label: "Gastado hasta hoy", amount: row.expense, currencyCode: row.currencyCode },
+        { label: "Proyección a fin de mes", amount: String(projected), currencyCode: row.currencyCode },
+      ]),
+      actions: [{ kind: "navigate", label: "Ver reporte", route: "/reports/cash-flow" }],
+    },
+  };
+};
+
 export const getExpenseComparison: KaiHandler = async ({ ports, range, baseCurrency, now, timezone }) => {
   // The user names a period as the *baseline* ("¿gasté más que el mes pasado?"). Compare the
   // current period of that same kind against the previous one — not whatever `range` resolved to.
