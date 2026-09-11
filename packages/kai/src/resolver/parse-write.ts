@@ -136,10 +136,15 @@ function stripAccents(value: string): string {
 export type KaiActionIntent =
   | { kind: "ALLOCATE_TO_GOAL"; amount: string | null; goalName: string }
   | { kind: "VOID_LAST"; ofType: "EXPENSE" | "INCOME" | null }
-  | { kind: "VOID_MERCHANT"; merchant: string };
+  | { kind: "VOID_MERCHANT"; merchant: string }
+  | { kind: "PAY_OBLIGATION"; obligationName: string };
 
 const ALLOCATE_VERB = /\b(aport[aáeé]\w*|mov[eé]\w*|mon[eé]\w*|pas[aá]\w*|guard[aá]\w*|transferi\w*|deposit[aá]\w*|sum[aá]\w* .*\bmeta\b)/;
 const VOID_VERB = /\b(anul[aá]\w*|borr[aá]\w*|elimin[aá]\w*|deshac[eé]\w*|dar de baja|da de baja)/;
+// "cuota" al lado del verbo de pago distingue "pagué la cuota del auto" (una obligación) de
+// "pagué luz $5.000" (un gasto nuevo, spec §11 CREATE_EXPENSE) — sin monto que confundir.
+const PAY_OBLIGATION_VERB = /\b(pagu[eé]\w*|pag[aá]\w*|abon[eé]\w*|abon[aá]\w*)\b/;
+const OBLIGATION_NOUN = /\b(cuota|cuotas|tarjeta|prestamo|deuda|obligacion)\b/;
 
 export function parseActionIntent(normalized: string, raw: string): KaiActionIntent | null {
   // ── mover plata a una meta ───────────────────────────────────────────────
@@ -150,6 +155,15 @@ export function parseActionIntent(normalized: string, raw: string): KaiActionInt
       /\b(?:meta|objetivo|ahorro)(?:\s+de|\s+del)?\s+(.+)$/.exec(normalized);
     const goalName = nameMatch ? cleanTail(nameMatch[1]) : "";
     if (goalName || amount) return { kind: "ALLOCATE_TO_GOAL", amount, goalName };
+  }
+
+  // ── pagar la cuota de una obligación ─────────────────────────────────────
+  if (PAY_OBLIGATION_VERB.test(normalized) && OBLIGATION_NOUN.test(normalized)) {
+    const nameMatch =
+      /\b(?:cuota|cuotas|tarjeta|prestamo|deuda|obligacion)(?:\s+de|\s+del)?\s+(?:la\s+|el\s+|mi\s+)?(.+)$/.exec(normalized) ??
+      /\b(?:pagu[eé]\w*|pag[aá]\w*|abon[eé]\w*|abon[aá]\w*)\s+(?:la\s+|el\s+|mi\s+)?(.+)$/.exec(normalized);
+    const obligationName = nameMatch ? cleanTail(nameMatch[1]) : "";
+    return { kind: "PAY_OBLIGATION", obligationName };
   }
 
   // ── anular un movimiento ─────────────────────────────────────────────────

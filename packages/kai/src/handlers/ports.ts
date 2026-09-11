@@ -88,6 +88,15 @@ export type KaiProactiveInsight = {
   route: string | null;
 };
 
+export type KaiObligationForPayment = {
+  id: string;
+  name: string;
+  currencyCode: string;
+  /** Remaining amount of the earliest unpaid installment, or null with nothing outstanding. */
+  nextInstallmentAmount: string | null;
+  nextDueOn: string | null;
+};
+
 export interface KaiDataPorts {
   getMonthlySummary(range: KaiDateRangeInput): Promise<KaiMonthlyResult[]>;
   getLiquidBalances(): Promise<MoneyByCurrency[]>;
@@ -115,6 +124,8 @@ export interface KaiDataPorts {
 
   /** Active goals, for resolving "aportá $X a la meta {nombre}". */
   getGoalsForAllocation(): Promise<{ id: string; name: string; currencyCode: string }[]>;
+  /** Obligaciones (deudas/cuotas) activas, para resolver "pagué la cuota de {nombre}". */
+  getObligationsForPayment(): Promise<KaiObligationForPayment[]>;
   /** Finds the movement KAI should offer to void — the last one, or one matching a merchant. */
   findTransactionToVoid(criteria: {
     mode: "last" | "merchant";

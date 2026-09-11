@@ -34,6 +34,9 @@ function fakePorts(overrides: Partial<KaiDataPorts> = {}): KaiDataPorts {
     ],
     getTopInsight: async () => null,
     getGoalsForAllocation: async () => [{ id: "g1", name: "Viaje", currencyCode: "ARS" }],
+    getObligationsForPayment: async () => [
+      { id: "d1", name: "Auto", currencyCode: "ARS", nextInstallmentAmount: "60000", nextDueOn: "2026-09-20" },
+    ],
     getInsightsForProactive: async () => [],
     findTransactionToVoid: async () => ({ id: "t1", type: "EXPENSE" as const, description: "Super", merchant: "Coto", amount: "40000", currencyCode: "ARS", occurredAt: "2026-09-09T12:00:00Z" }),
     ...overrides,
@@ -171,6 +174,22 @@ describe("resolveKaiInteraction", () => {
   it("'borrá el gasto de Coto' → VOID_TRANSACTION modo merchant", async () => {
     const { audit } = await resolveKaiInteraction(baseInput({ message: "borrá el gasto de Coto" }));
     expect(audit.intentId).toBe("VOID_TRANSACTION");
+  });
+
+  it("'pagué la cuota del auto' → confirmación de pago con el monto de la próxima cuota", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "pagué la cuota del auto" }));
+    expect(audit.intentId).toBe("PAY_OBLIGATION");
+    expect(response.type).toBe("KAI_CONFIRMATION");
+    expect(response.body).toContain("Auto");
+    expect(response.actions?.[0]).toMatchObject({
+      kind: "confirm-pay-obligation",
+      params: { debtId: "d1", amount: "60000" },
+    });
+  });
+
+  it("'pagué luz $5000' sigue siendo CREATE_EXPENSE (sin 'cuota' no es una obligación)", async () => {
+    const { audit } = await resolveKaiInteraction(baseInput({ message: "pagué luz $5000" }));
+    expect(audit.intentId).toBe("CREATE_EXPENSE");
   });
 
   it("'¿cuándo vence Netflix?' → GET_SUBSCRIPTION_NEXT", async () => {

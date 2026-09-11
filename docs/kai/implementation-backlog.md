@@ -16,7 +16,7 @@ llamadas a IA.** El KPI es `KAI_LOCAL_RESOLUTION_RATE` ≥ 80% → 90% (spec §2
 | Pipeline | `resolveKaiInteraction`: intent handler → estático → LLM fallback (último recurso, tras budget guard). Auditoría de `resolutionSource` en `kai_interactions`. | §2, §3, §24 |
 | Resolver | `normalizeText`, `resolveDateRange` (este mes / ayer / semana / mes pasado), `resolveIntent` (alias "frase más larga gana" + keyword/regex), `parseWriteIntent` (montos AR, slang). | §15 |
 | Intents lectura | ~18: gastos/ingresos/ahorro/resultado del mes, saldo, saldos por cuenta, disponible, categoría, top categorías (bar chart), mayor gasto, ayer, vencimientos (tabla), suscripciones (tabla), costo suscripciones, presupuesto, meta, insights. | §1, §14 |
-| Intents escritura | `CREATE_EXPENSE` / `CREATE_INCOME` → `KAI_CONFIRMATION` → `kaiCreateTransactionAction` (cuenta auto, toast con Deshacer). | §11, §12 |
+| Intents escritura | `CREATE_EXPENSE` / `CREATE_INCOME` (cuenta auto, toast con Deshacer), `ALLOCATE_TO_GOAL`, `VOID_TRANSACTION`, `PAY_OBLIGATION` (paga la próxima cuota de una deuda/tarjeta con la cuenta de esa moneda con más prioridad). Todos vía `KAI_CONFIRMATION`. | §11, §12 |
 | Estático | Registro Nivel 0: saludos, ayuda, navegación, FAQ, "¿qué es esta pantalla?" por contexto. | §3, §10 |
 | Respuestas | `KAI_METRIC`, `KAI_CHART` (barras), `KAI_TABLE`, `KAI_CONFIRMATION`, `KAI_INSIGHT`, `KAI_NAVIGATION`, `KAI_ACTION`, `KAI_TEXT`, `KAI_ERROR`. | §12 |
 | Follow-ups | `KAI_FOLLOWUPS` por intent → chips clicables tras cada respuesta. | §16 |
@@ -59,15 +59,19 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ### Fase C — Catálogo determinístico  *(P1 — sube el KPI)*
 
-| WP | Contenido | Spec |
-|---|---|---|
-| **WP-KAI-INTENTS-TEMPORAL** | Rangos: esta quincena, este trimestre, este año, últimos N meses/semanas, "en {mes}". Ampliar `resolveDateRange`. | §15 |
-| **WP-KAI-INTENTS-CATEGORY-TAXONOMY** | Query "gastos por nodo de taxonomía" (no existe — memoria) → "¿cuánto gasté en {grupo}?" (Comida, Transporte…), no solo nombres de categoría del usuario. | §1, §6 |
-| **WP-KAI-INTENTS-MERCHANT** | "¿cuánto gasté en {comercio}?", "¿cuándo vence {suscripción concreta}?", "¿cuántas veces compré en {X}?". | §1 |
-| **WP-KAI-INTENTS-COMPARISON** | Handler que produce `KAI_COMPARISON` + su renderer (tipo definido, nadie lo emite). "¿gasté más que el mes pasado?", "¿cómo viene vs mi promedio?". | §12 |
-| **WP-KAI-CALCULATORS** | `calculateExpenseTrend`, `calculateHistoricalAverage`, `calculateProjectedMonthEnd`, `calculateSpendingVariation`, `calculateInstallmentCommitment`, `calculateUpcomingCommitments`. Muchos listados en §3 LEVEL 2 no existen. | §3 |
-| **WP-KAI-WRITE-ACTIONS-2** | Por chat: transferencia, aporte a meta ("moné $10.000 a Viaje"), pagar una cuota/obligación, editar/anular un movimiento, crear presupuesto o meta. Cada uno con `KAI_CONFIRMATION`. | §11 |
-| **WP-KAI-FORM** | Tipo `KAI_FORM` (definido, nunca producido) + mini-formularios inline en la card (ej. ajustar monto de un gasto antes de confirmar). | §12 |
+> Auditoría 2026-09-11: esta tabla decía "no existe" para varias cosas que ya se habían hecho
+> en pasadas anteriores (temporal, taxonomía, comercio, comparación) — quedó desactualizada,
+> no la Fase C en sí. Corregido abajo para no repetir el mismo problema.
+
+| WP | Contenido | Spec | Estado |
+|---|---|---|---|
+| **WP-KAI-INTENTS-TEMPORAL** | Rangos: esta quincena, este trimestre, este año, últimos N meses/semanas, "en {mes}". | §15 | ✅ DONE — `resolveDateRange` ya los cubre. |
+| **WP-KAI-INTENTS-CATEGORY-TAXONOMY** | "¿cuánto gasté en {grupo}?" (Comida, Transporte…) resolviendo por nodo de taxonomía, no solo por categoría propia del usuario. | §1, §6 | ✅ DONE — `resolve-category-query.ts` (`flattenTaxonomy` + sinónimos). |
+| **WP-KAI-INTENTS-MERCHANT** | "¿cuánto gasté en {comercio}?" con cantidad de movimientos. | §1 | ✅ DONE — `getMerchantExpenses` (con `count`). |
+| **WP-KAI-INTENTS-COMPARISON** | `KAI_COMPARISON` emitido y renderizado. "¿gasté más que el mes pasado?". | §12 | ✅ DONE — `GET_EXPENSE_COMPARISON` + renderer en `kai-response-card.tsx`. |
+| **WP-KAI-CALCULATORS** | `calculateExpenseTrend`, `calculateHistoricalAverage`, `calculateProjectedMonthEnd`, `calculateSpendingVariation`, `calculateInstallmentCommitment`, `calculateUpcomingCommitments` como funciones nombradas y testeadas en `packages/finance`/`packages/kai`. | §3 | ❌ PENDIENTE — la capacidad existe (run-rate en `GET_SPENDING_PROJECTION`, variación en `GET_EXPENSE_COMPARISON`) pero inline en el handler, no como calculadora reusable/testeable por separado. Cosmético/testabilidad, no bloquea nada. |
+| **WP-KAI-WRITE-ACTIONS-2** | Por chat: aporte a meta, anular movimiento, **pagar una cuota/obligación**, transferencia, editar movimiento, crear presupuesto o meta. | §11 | ⚠️ PARCIAL — aporte a meta ✅, anular ✅, **pagar cuota ✅ (agregado 2026-09-11: intent `PAY_OBLIGATION`, resuelve el nombre de la deuda/tarjeta, confirma el monto de la próxima cuota, paga con la cuenta de esa moneda con más prioridad)**. Falta: transferencia, editar movimiento, crear presupuesto/meta por chat. |
+| **WP-KAI-FORM** | Tipo `KAI_FORM` (definido, nunca producido) + mini-formularios inline en la card. | §12 | ❌ PENDIENTE. |
 
 ---
 

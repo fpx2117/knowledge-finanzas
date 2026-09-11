@@ -64,6 +64,7 @@ export type {
   KaiCategoryExpenses,
   KaiTopInsight,
   KaiProactiveInsight,
+  KaiObligationForPayment,
 } from "./handlers/ports";
 export type { KaiHandler, KaiHandlerContext, KaiHandlerResult } from "./handlers/types";
 

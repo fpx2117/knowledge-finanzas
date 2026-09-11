@@ -180,7 +180,8 @@ export function KaiResponseCard({
             const primary =
               action.kind === "confirm-create" ||
               action.kind === "confirm-goal-allocation" ||
-              action.kind === "confirm-void";
+              action.kind === "confirm-void" ||
+              action.kind === "confirm-pay-obligation";
             return (
               <button
                 key={index}

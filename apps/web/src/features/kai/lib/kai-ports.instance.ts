@@ -21,6 +21,7 @@ import type { CurrentUser } from "@/lib/auth/require-current-user";
 import { resolveCategoryQuery } from "./resolve-category-query";
 import { createBudgetService } from "@/features/budgets/services/budget-service";
 import { createGoalService } from "@/features/goals/services/goal-service";
+import { createDebtService } from "@/features/debts/services/debt-service";
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
 import { createObligationReadModel } from "@/features/obligations/services/obligation-read-model";
 import { createInsightService } from "@/features/insights/services/insight-service";
@@ -36,6 +37,7 @@ const budgetService = createBudgetService({
   budgetQueries,
 });
 const goalService = createGoalService();
+const debtService = createDebtService();
 const obligationReadModel = createObligationReadModel(db);
 const insightService = createInsightService();
 
@@ -268,6 +270,22 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
       return goals
         .filter((g) => g.status === "ACTIVE")
         .map((g) => ({ id: g.id, name: g.name, currencyCode: g.currencyCode }));
+    },
+
+    async getObligationsForPayment() {
+      const debts = await debtService.listDebts(user, now).catch(() => []);
+      return debts
+        .filter((d) => d.effectiveStatus !== "PAID" && d.status !== "CANCELLED")
+        .map((d) => {
+          const next = d.installments.find((i) => i.effectiveStatus !== "PAID" && i.effectiveStatus !== "CANCELLED");
+          return {
+            id: d.id,
+            name: d.name,
+            currencyCode: d.currencyCode,
+            nextInstallmentAmount: next?.remainingAmount ?? null,
+            nextDueOn: next?.dueDate ?? null,
+          };
+        });
     },
 
     async findTransactionToVoid(criteria) {

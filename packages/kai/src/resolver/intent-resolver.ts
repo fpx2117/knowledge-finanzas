@@ -53,6 +53,14 @@ export function resolveIntent(
         strategy: "regex",
       };
     }
+    if (action.kind === "PAY_OBLIGATION") {
+      return {
+        id: "PAY_OBLIGATION",
+        params: { obligationName: action.obligationName },
+        confidence: 0.95,
+        strategy: "regex",
+      };
+    }
     return {
       id: "VOID_TRANSACTION",
       params:

@@ -19,6 +19,7 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { getTodayInTimezone, resolveOccurredAtISO } from "@/lib/date";
 import { createTransactionService } from "@/features/transactions/services/transaction-service";
 import { createGoalService } from "@/features/goals/services/goal-service";
+import { createDebtPaymentService } from "@/features/debts/services/debt-payment-service";
 import {
   createExpenseTransactionSchema,
   createIncomeTransactionSchema,
@@ -130,5 +131,40 @@ export async function kaiVoidTransactionAction(transactionId: string): Promise<{
     return { ok: true };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error).message };
+  }
+}
+
+// ── Pagar una cuota/obligación por chat (spec §11 write-actions-2) ───────────
+
+const debtPaymentService = createDebtPaymentService();
+
+const payObligationSchema = z.object({ debtId: z.string().min(1), amount: z.string().trim().min(1), currencyCode: z.string().min(1) });
+
+export type KaiPayObligationResult = { ok: true } | { ok: false; error: { code: string; message: string } };
+
+/**
+ * Pays the earliest unpaid installment of a debt from a KAI confirmation card. The account is
+ * picked automatically — same currency-first, `ACCOUNT_PRIORITY` policy as `kaiCreateTransactionAction`
+ * — since the card already showed the exact amount before the user tapped "Confirmar pago".
+ */
+export async function kaiPayObligationAction(input: z.input<typeof payObligationSchema>): Promise<KaiPayObligationResult> {
+  const user = await requireCurrentUser();
+  const parsed = payObligationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar el pago." } };
+  const { debtId, amount, currencyCode } = parsed.data;
+
+  const userAccounts = await accountRepository.listForUser(user.id);
+  const pool = userAccounts.filter((a) => a.currencyCode === currencyCode);
+  if (pool.length === 0) {
+    return { ok: false, error: { code: "NO_ACCOUNT", message: `No tenés una cuenta en ${currencyCode} para pagar esto.` } };
+  }
+  const account = [...pool].sort((a, b) => (ACCOUNT_PRIORITY[a.type] ?? 9) - (ACCOUNT_PRIORITY[b.type] ?? 9))[0];
+
+  try {
+    await debtPaymentService.recordDebtPayment(user, { debtId, accountId: account.id, amount, commandId: randomUUID() });
+    return { ok: true };
+  } catch (error) {
+    const mapped = mapErrorToUi(error);
+    return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
   }
 }

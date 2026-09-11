@@ -25,7 +25,7 @@ import {
   getUpcomingPayments,
 } from "./commitments.handler";
 import { createExpense, createIncome } from "./write.handler";
-import { allocateToGoal, voidTransaction } from "./action.handler";
+import { allocateToGoal, payObligation, voidTransaction } from "./action.handler";
 import type { KaiHandler } from "./types";
 
 /** Intent id → deterministic handler (spec §14 Query Registry). */
@@ -55,6 +55,7 @@ export const KAI_HANDLERS: Record<KaiIntentId, KaiHandler> = {
   CREATE_INCOME: createIncome,
   ALLOCATE_TO_GOAL: allocateToGoal,
   VOID_TRANSACTION: voidTransaction,
+  PAY_OBLIGATION: payObligation,
 };
 
 export * from "./ports";

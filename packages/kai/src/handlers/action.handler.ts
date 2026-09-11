@@ -71,6 +71,76 @@ export const allocateToGoal: KaiHandler = async ({ ports, params, baseCurrency }
 };
 
 /**
+ * "Pagué la cuota del auto" / "abonar la tarjeta Visa" (spec §11). Resolves which debt/
+ * obligation, shows the earliest unpaid installment amount for confirmation — KAI never asks
+ * the user to type the amount, it's already known. The write (and picking which account it
+ * comes out of) happens in apps/web only after "Confirmar".
+ */
+export const payObligation: KaiHandler = async ({ ports, params }) => {
+  const obligations = await ports.getObligationsForPayment();
+  if (obligations.length === 0) {
+    return {
+      source: "TEMPLATE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body: "No tenés deudas u obligaciones activas para pagar.",
+        actions: [{ kind: "navigate", label: "Ver obligaciones", route: "/obligations" }],
+      },
+    };
+  }
+
+  const q = normalizeText(params.obligationName ?? "");
+  const match = q
+    ? obligations.find((o) => normalizeText(o.name).includes(q) || q.includes(normalizeText(o.name)))
+    : obligations.length === 1
+      ? obligations[0]
+      : undefined;
+
+  if (!match) {
+    return {
+      source: "TEMPLATE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body: `¿Cuál de estas querés pagar? Tenés: ${obligations.map((o) => o.name).join(", ")}.`,
+        actions: [{ kind: "navigate", label: "Ver obligaciones", route: "/obligations" }],
+      },
+    };
+  }
+
+  if (!match.nextInstallmentAmount) {
+    return {
+      source: "DATABASE",
+      response: {
+        type: "KAI_TEXT",
+        state: "POSITIVE",
+        body: `${match.name} ya está totalmente pagada.`,
+        actions: [{ kind: "navigate", label: "Ver obligaciones", route: "/obligations" }],
+      },
+    };
+  }
+
+  const confirmParams = { debtId: match.id, debtName: match.name, amount: match.nextInstallmentAmount, currencyCode: match.currencyCode };
+  return {
+    source: "DATABASE",
+    response: {
+      type: "KAI_CONFIRMATION",
+      state: "NEUTRAL",
+      title: "Pagar una cuota",
+      body: `¿Pago ${formatMoney(match.nextInstallmentAmount, match.currencyCode)} de ${match.name}${
+        match.nextDueOn ? ` (vence el ${formatDayMonth(match.nextDueOn)})` : ""
+      }?`,
+      data: { pendingPayment: confirmParams },
+      actions: [
+        { kind: "confirm-pay-obligation", label: "Confirmar pago", params: confirmParams },
+        { kind: "navigate", label: "Ver la obligación", route: "/obligations" },
+      ],
+    },
+  };
+};
+
+/**
  * "Anulá el último gasto" / "borrá el gasto de YPF" (spec §11). Finds the movement, shows a
  * confirmation with exactly what will be voided.
  */

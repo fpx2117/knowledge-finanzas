@@ -40,7 +40,7 @@ import {
   muteKaiProactiveKindAction,
   snoozeKaiProactiveAction,
 } from "../actions/kai-proactive-actions";
-import { kaiAllocateToGoalAction, kaiCreateTransactionAction, kaiVoidTransactionAction } from "../actions/kai-create-actions";
+import { kaiAllocateToGoalAction, kaiCreateTransactionAction, kaiPayObligationAction, kaiVoidTransactionAction } from "../actions/kai-create-actions";
 import { MAX_KAI_MESSAGE_LENGTH } from "../lib/constants";
 import { useDraggableFab } from "../lib/use-draggable-fab";
 import { KaiAlertCard } from "./kai-alert-card";
@@ -327,6 +327,22 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     [pending, doneMessage],
   );
 
+  const payFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiPayObligationAction({ debtId: params.debtId, amount: params.amount ?? "", currencyCode: params.currencyCode ?? "" });
+      setPending(false);
+      if (result.ok) {
+        doneMessage(`Listo, pagué la cuota de ${params.debtName ?? ""}.`, "/obligations", "Ver obligaciones");
+        toast.success("Pago registrado", { description: `KAI pagó ${params.debtName ?? "la cuota"}.` });
+        window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
+      } else setBanner(result.error.message);
+    },
+    [pending, doneMessage],
+  );
+
   const onAction = useCallback(
     (action: KaiAction) => {
       if (action.kind === "navigate" && action.route) {
@@ -349,11 +365,13 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         void allocateFromCard(action.params);
       } else if (action.kind === "confirm-void" && action.params) {
         void voidFromCard(action.params);
+      } else if (action.kind === "confirm-pay-obligation" && action.params) {
+        void payFromCard(action.params);
       } else if (action.kind === "run-intent" && action.intentId) {
         void submit({ quickActionIntentId: action.intentId, label: action.label });
       }
     },
-    [router, submit, createFromCard, allocateFromCard, voidFromCard],
+    [router, submit, createFromCard, allocateFromCard, voidFromCard, payFromCard],
   );
 
   const rateEntry = useCallback((index: number, feedback: "up" | "down") => {

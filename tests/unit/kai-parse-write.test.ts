@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeText, parseAmount, parseWriteIntent } from "@know-finanzas/kai";
+import { normalizeText, parseActionIntent, parseAmount, parseWriteIntent } from "@know-finanzas/kai";
 
 describe("parseAmount", () => {
   it.each([
@@ -65,5 +65,23 @@ describe("parseWriteIntent", () => {
   it("still fires when there IS a real amount", () => {
     expect(parseWriteIntent(normalizeText("gasté $50 en el kiosco"), "gasté $50 en el kiosco")?.kind).toBe("CREATE_EXPENSE");
     expect(parseWriteIntent(normalizeText("gasté 5000 en el super"), "gasté 5000 en el super")?.kind).toBe("CREATE_EXPENSE");
+  });
+});
+
+describe("parseActionIntent — PAY_OBLIGATION", () => {
+  it.each([
+    ["pagué la cuota del auto", "auto"],
+    ["pagá la tarjeta Visa", "visa"],
+    ["aboné la cuota de la heladera", "heladera"],
+    ["quiero pagar el préstamo del banco", "banco"],
+  ])("'%s' → PAY_OBLIGATION (%s)", (raw, expected) => {
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result?.kind).toBe("PAY_OBLIGATION");
+    expect((result as { obligationName: string }).obligationName).toContain(expected);
+  });
+
+  it("does NOT fire without a 'cuota/tarjeta/préstamo/deuda' noun — that stays a plain expense", () => {
+    expect(parseActionIntent(normalizeText("pagué luz $5000"), "pagué luz $5000")).toBeNull();
+    expect(parseActionIntent(normalizeText("pagué el super"), "pagué el super")).toBeNull();
   });
 });
