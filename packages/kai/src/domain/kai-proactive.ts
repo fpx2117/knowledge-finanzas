@@ -13,6 +13,8 @@ export type KaiProactiveKind =
   | "obligation-due"
   | "category-spike"
   | "subscription-due"
+  | "subscription-price-change"
+  | "large-transaction"
   | "goal-milestone"
   | "savings-up"
   | "month-review";

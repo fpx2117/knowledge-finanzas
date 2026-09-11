@@ -17,8 +17,16 @@ export type ProactiveInput = {
   previousTopCategories?: { label: string; amount: string; currencyCode: string }[];
   budgets: KaiBudgetStatus[];
   upcoming: KaiUpcomingObligation[];
-  /** Active subscriptions with a next-charge date, for the "vence pronto" rule. */
-  subscriptions?: { label: string; currencyCode: string; currentAmount: string; nextExpectedOn: string | null }[];
+  /** Active subscriptions — `previousAmount` set when the price changed vs the prior charge. */
+  subscriptions?: {
+    label: string;
+    currencyCode: string;
+    currentAmount: string;
+    previousAmount?: string | null;
+    nextExpectedOn: string | null;
+  }[];
+  /** This month's POSTED expenses — for the "gasto inusualmente grande" rule. */
+  recentExpenses?: { description: string; merchant: string | null; amount: string; currencyCode: string }[];
   /** Goal progress for the milestone rule. */
   goals?: { name: string; actualProgressRatio: number }[];
   /** The insight queue (already detected + prioritised by the insight engine). */
@@ -141,6 +149,53 @@ export function buildProactiveCandidates(input: ProactiveInput): KaiProactiveMes
       priority: ins.severity === "critical" ? 1 : ins.severity === "warning" ? 3 : 4,
       expiresInHours: null,
     });
+  }
+
+  // ── P2 — una suscripción cambió de precio ────────────────────────────────
+  for (const s of input.subscriptions ?? []) {
+    if (!s.previousAmount || Number(s.previousAmount) <= 0) continue;
+    const cur = Number(s.currentAmount);
+    const pre = Number(s.previousAmount);
+    if (Math.abs(cur - pre) / pre < 0.03) continue; // ignore rounding noise
+    const pct = ((cur - pre) / pre) * 100;
+    out.push({
+      id: `subscription-price-change:${s.label}:${s.currentAmount}`,
+      kind: "subscription-price-change",
+      state: "ANALYTICAL",
+      stateLabel: "Analítico",
+      title: `${s.label} ${cur > pre ? "aumentó" : "bajó"} de precio.`,
+      body: `Pasó de ${formatMoney(s.previousAmount, s.currencyCode)} a ${formatMoney(s.currentAmount, s.currencyCode)} (${cur > pre ? "+" : ""}${formatPercent(pct)}).`,
+      primary: { label: "Ver suscripciones", route: "/subscriptions" },
+      secondary: { label: "Ver obligaciones", route: "/obligations" },
+      meta: "Suscripción · cambio de precio",
+      priority: 2,
+      expiresInHours: null,
+    });
+    break;
+  }
+
+  // ── P3 — un gasto inusualmente grande ────────────────────────────────────
+  const expenses = (input.recentExpenses ?? []).filter((e) => e.currencyCode === input.baseCurrency && Number(e.amount) > 0);
+  if (expenses.length >= 5) {
+    const amounts = expenses.map((e) => Number(e.amount)).sort((a, b) => a - b);
+    const median = amounts[Math.floor(amounts.length / 2)];
+    const biggest = expenses.reduce((max, e) => (Number(e.amount) > Number(max.amount) ? e : max));
+    if (median > 0 && Number(biggest.amount) >= median * 4 && Number(biggest.amount) >= median + 1) {
+      const who = biggest.merchant ?? biggest.description ?? "un movimiento";
+      out.push({
+        id: `large-transaction:${who}:${biggest.amount}:${period}`,
+        kind: "large-transaction",
+        state: "ANALYTICAL",
+        stateLabel: "Analítico",
+        title: "Registraste un gasto grande.",
+        body: `${formatMoney(biggest.amount, biggest.currencyCode)} en ${who} — bastante más que tu gasto habitual (~${formatMoney(String(Math.round(median)), input.baseCurrency)}).`,
+        primary: { label: "Ver movimientos", route: "/transactions" },
+        secondary: { label: "Ver reporte", route: "/reports" },
+        meta: "Movimiento inusual · datos procesados",
+        priority: 3,
+        expiresInHours: 72,
+      });
+    }
   }
 
   const thisM = base(input.monthly);

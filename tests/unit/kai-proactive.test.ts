@@ -86,6 +86,24 @@ describe("buildProactiveCandidates", () => {
     );
     expect(c.find((x) => x.kind === "subscription-due")?.body).toContain("4 días");
   });
+
+  it("subscription-price-change when the amount moved", () => {
+    const c = buildProactiveCandidates(
+      base({ subscriptions: [{ label: "Netflix", currencyCode: "ARS", currentAmount: "6500", previousAmount: "5000", nextExpectedOn: null }] }),
+    );
+    const p = c.find((x) => x.kind === "subscription-price-change");
+    expect(p?.title).toContain("aumentó");
+    expect(p?.body).toContain("30%");
+  });
+
+  it("large-transaction when one expense dwarfs the rest", () => {
+    const small = Array.from({ length: 6 }, (_, i) => ({ description: `c${i}`, merchant: null, amount: "3000", currencyCode: "ARS" }));
+    const c = buildProactiveCandidates(
+      base({ recentExpenses: [...small, { description: "Notebook", merchant: "Mercado Libre", amount: "180000", currencyCode: "ARS" }] }),
+    );
+    const big = c.find((x) => x.kind === "large-transaction");
+    expect(big?.body).toContain("Mercado Libre");
+  });
 });
 
 describe("selectProactive (priority queue + frequency cap)", () => {

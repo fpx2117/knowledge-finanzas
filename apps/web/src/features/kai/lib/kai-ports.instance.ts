@@ -219,13 +219,19 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
 
     async getActiveSubscriptions() {
       const rows = await subscriptionRepository.listForUser(user.id, "ACTIVE");
-      return rows.map((row) => ({
-        label: row.label,
-        frequency: row.frequency,
-        currentAmount: row.currentAmount,
-        currencyCode: row.currencyCode,
-        nextExpectedOn: row.nextExpectedOn ?? null,
-      }));
+      return rows.map((row) => {
+        // Most recent price-history entry whose amount differs from the current one.
+        const history = Array.isArray(row.priceHistory) ? row.priceHistory : [];
+        const prior = [...history].reverse().find((h) => h.amount !== row.currentAmount);
+        return {
+          label: row.label,
+          frequency: row.frequency,
+          currentAmount: row.currentAmount,
+          previousAmount: prior?.amount ?? null,
+          currencyCode: row.currencyCode,
+          nextExpectedOn: row.nextExpectedOn ?? null,
+        };
+      });
     },
 
     async getBudgetStatus() {

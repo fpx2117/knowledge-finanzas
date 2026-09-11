@@ -41,6 +41,8 @@ export type KaiSubscription = {
   label: string;
   frequency: string;
   currentAmount: string;
+  /** The previous charge amount when it differs from `currentAmount` (price change). */
+  previousAmount?: string | null;
   currencyCode: string;
   nextExpectedOn: string | null;
 };
