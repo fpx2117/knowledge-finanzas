@@ -13,6 +13,8 @@ export type KaiInteractionInput = {
   latencyMs: number;
   responseType: string;
   screenContext: string | null;
+  /** Truncated user phrasing — only for UNRESOLVED / LLM rows (spec §25). */
+  unresolvedText?: string | null;
 };
 
 export type KaiDateRange = { from: Date; to: Date };
@@ -35,7 +37,18 @@ export function createKaiInteractionRepository(database: Database) {
       await database.insert(kaiInteractions).values({
         ...input,
         aiCostUsd: input.aiCostUsd.toString(),
+        unresolvedText: input.unresolvedText ?? null,
       });
+    },
+
+    /** Recent UNRESOLVED / LLM-fallback phrasings — the "intents faltantes" report (spec §25). */
+    recentUnresolved(range: KaiDateRange, limit: number) {
+      return database
+        .select({ text: kaiInteractions.unresolvedText, createdAt: kaiInteractions.createdAt })
+        .from(kaiInteractions)
+        .where(and(rangeWhere(range), sql`${kaiInteractions.unresolvedText} is not null`))
+        .orderBy(desc(kaiInteractions.createdAt))
+        .limit(limit);
     },
 
     /** Total KAI points the user consumed in the range — drives the FREE monthly allowance. */

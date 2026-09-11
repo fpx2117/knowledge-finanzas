@@ -102,6 +102,11 @@ export async function sendKaiMessageAction(input: {
         latencyMs: audit.latencyMs,
         responseType: audit.responseType,
         screenContext: audit.screenContext,
+        // Keep the phrasing only when we couldn't resolve it deterministically — to close the gap.
+        unresolvedText:
+          (audit.resolutionSource === "LLM" || audit.intentId === "UNRESOLVED") && message
+            ? message.slice(0, 120)
+            : null,
       });
     } catch (error) {
       recorded = false;

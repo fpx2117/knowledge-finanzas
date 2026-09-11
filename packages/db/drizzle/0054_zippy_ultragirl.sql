@@ -1,0 +1,1 @@
+ALTER TABLE "kai_interactions" ADD COLUMN "unresolved_text" text;

@@ -11,6 +11,7 @@
     "db:backfill-transactions": "tsx packages/db/scripts/backfill-transactions.ts",
     "dev": "pnpm --filter web dev",
     "ai:cost-report": "tsx packages/db/scripts/ai-cost-report.ts",
+    "kai:report": "tsx packages/db/scripts/kai-report.ts",
     "finance:audit": "tsx packages/db/scripts/finance-audit.ts",
     "lint": "pnpm --filter web lint",
     "recovery:validate": "tsx packages/db/scripts/recovery-validate.ts",

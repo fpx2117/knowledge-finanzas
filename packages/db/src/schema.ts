@@ -1231,6 +1231,9 @@ export const kaiInteractions = pgTable("kai_interactions", {
   latencyMs: integer("latency_ms").notNull(),
   responseType: text("response_type").notNull(),
   screenContext: text("screen_context"),
+  // Only set for UNRESOLVED / LLM-fallback rows — the truncated user phrasing, to find the
+  // deterministic intents that are still missing (spec §25 "intents faltantes"). Null otherwise.
+  unresolvedText: text("unresolved_text"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("kai_interactions_user_created_idx").on(table.userId, table.createdAt),
