@@ -127,8 +127,12 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
 
   // Proactive message (spec §7). The server applies the priority queue + frequency cap
   // (spec §8/§9) and returns at most one; dismissal/snooze/mute state lives in `kai_notifications`.
-  // Re-checked on: mount, a light poll while the tab is visible, and a `kai:refresh-proactive`
-  // event fired after a mutation that could trigger a new alert (WP-KAI-EVENT-TRIGGERS).
+  // Two delivery paths, both server-driven:
+  //  - same-tab, instant: `kai:refresh-proactive` (WP-KAI-EVENT-TRIGGERS) forces a re-check right
+  //    after a mutation that could trip a new alert.
+  //  - any tab/device, near-real-time: an SSE subscription to `/api/kai/proactive/stream`
+  //    (WP-KAI-PROACTIVE-DELIVERY) — server-side poll of the same throttled action, so a card
+  //    triggered from another tab or device still reaches this one within ~15s, even backgrounded.
   useEffect(() => {
     let alive = true;
     const check = (force = false) => {
@@ -141,15 +145,23 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     check();
     const onRefresh = () => check(true);
     window.addEventListener("kai:refresh-proactive", onRefresh);
-    const poll = window.setInterval(() => {
-      if (!open && document.visibilityState === "visible") check();
-    }, 180_000);
+
+    const source = new EventSource("/api/kai/proactive/stream");
+    source.addEventListener("kai-proactive", (event) => {
+      try {
+        const msg = JSON.parse((event as MessageEvent).data) as KaiProactiveMessage;
+        if (alive) setProactive(msg);
+      } catch {
+        // malformed payload — ignore this tick
+      }
+    });
+
     return () => {
       alive = false;
       window.removeEventListener("kai:refresh-proactive", onRefresh);
-      window.clearInterval(poll);
+      source.close();
     };
-  }, [open]);
+  }, []);
 
   const resolveProactive = useCallback(
     (action: (dedupKey: string) => Promise<void>) => {

@@ -33,7 +33,7 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ---
 
-### Fase A — Proactivo completo  *(P0 — es lo que más se nota que falta)*
+### Fase A — Proactivo completo  *(✅ CERRADA 2026-09-11 — el WP-KAI-EVENT-TRIGGERS que queda "parcial" es una mejora incremental, no bloquea seguir a la Fase C)*
 
 | WP | Contenido | Spec | Estado |
 |---|---|---|---|
@@ -43,7 +43,7 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 | **WP-KAI-PROACTIVE-RULES** | 10 reglas (presupuesto, vencimientos, suscripciones + cambio de precio, gasto atípico, insights, category-spike, cierre de mes, hito de meta, racha de ahorro). | §4, §7 | ✅ DONE — `buildProactiveCandidates`. |
 | **WP-KAI-PROACTIVE-CACHE** | Throttle de `getKaiProactiveMessageAction` (90s in-memory por usuario) + invalidación explícita vía evento del cliente tras una mutación. | §20 | ✅ DONE. |
 | **WP-KAI-EVENT-TRIGGERS** | Evento `kai:refresh-proactive` disparado tras cada mutación financiera relevante en el propio cliente (no solo Quick Add): editar/anular movimiento, aportar/retirar/editar meta, registrar pago de obligación. Sigue siendo *misma pestaña* — no hay push entre pestañas/dispositivos (eso es WP-KAI-PROACTIVE-DELIVERY). | §21, §22 | ⚠️ PARCIAL (ampliado 2026-09-11 a `transaction-actions.tsx`, `goal-actions.tsx`, `goal-form.tsx`, `debt-actions.tsx`). Falta: transferencias, presupuestos, importaciones, categorías — y el mecanismo sigue siendo por-componente, no un bus central. |
-| **WP-KAI-PROACTIVE-DELIVERY** | Push real entre pestañas/dispositivos sobre el SSE existente (`/api/notifications/stream`), no solo el poll de 180s + evento same-tab. | §7 | ❌ PENDIENTE — requiere enganchar `emitFinancialEvent` (server) a un segundo event-type SSE; no se abordó en esta pasada, es la pieza más grande que queda de la Fase A. |
+| **WP-KAI-PROACTIVE-DELIVERY** | Push entre pestañas/dispositivos: endpoint propio `/api/kai/proactive/stream` (SSE, mismo patrón que `/api/notifications/stream` — poll de Postgres por conexión, sin pub/sub) reutilizando la acción throttleada; el cliente lo escucha además del evento same-tab. | §7 | ✅ DONE (2026-09-11). Poll por conexión (~15s), no push instantáneo cross-proceso — suficiente dado que no hay infra de pub/sub. |
 
 ---
 
