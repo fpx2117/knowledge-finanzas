@@ -20,9 +20,15 @@ const dashboardService = createDashboardService({
 });
 
 /**
- * The read-only picture of the user's finances handed to the assistant. Deliberately small and
- * already-computed — the model only reads it, never recomputes. Amounts stay in their own
- * currency (never summed across currencies).
+ * The read-only picture of the user's finances handed to KAI's LLM fallback (spec §18
+ * "minimumRequiredContext" — this is the whole-snapshot version; per-question minimal contexts
+ * are WP-KAI-LLM-MIN-CONTEXT, still open). Deliberately small and already-computed — the model
+ * only reads it, never recomputes. Amounts stay in their own currency (never summed across
+ * currencies).
+ *
+ * WP-KAI-CLEANUP-ASSISTANT: moved here from the old `features/assistant/` (the pre-KAI floating
+ * assistant) — this was the only file in that folder still used; the rest of it (and the dead
+ * `runAssistantChat`/`sendAssistantMessageAction` it fed) is gone.
  */
 export async function buildAssistantSnapshot(userId: string, timezone: string, now: Date = new Date()) {
   const [summary, blue] = await Promise.all([

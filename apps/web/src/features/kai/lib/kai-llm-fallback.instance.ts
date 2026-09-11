@@ -3,7 +3,7 @@ import { env } from "@know-finanzas/config";
 
 import { aiProvider } from "@/lib/ai/execute-ai-capability.instance";
 import { productAccessGate } from "@/lib/billing/product-access-gate.instance";
-import { buildAssistantSnapshot } from "@/features/assistant/services/assistant-snapshot";
+import { buildAssistantSnapshot } from "./assistant-snapshot";
 import type { CurrentUser } from "@/lib/auth/require-current-user";
 import type { KaiLlmFallback } from "@know-finanzas/kai";
 

@@ -15,7 +15,7 @@ import {
   XIcon,
   type LucideIcon,
 } from "lucide-react";
-import { toast } from "sonner";
+import { kaiToast } from "@/components/shared/kai-toast";
 
 import {
   KAI_QUICK_ACTIONS,
@@ -320,8 +320,8 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
             },
           },
         ]);
-        toast.success("Movimiento registrado", {
-          description: "KAI lo creó por vos.",
+        kaiToast("Movimiento registrado", {
+          description: "Lo creé por vos.",
           action: {
             label: "Deshacer",
             onClick: async () => {
@@ -358,7 +358,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.ok) {
         doneMessage(`Listo, aporté a tu meta ${params.goalName ?? ""}.`, "/goals", "Ver la meta");
-        toast.success("Aporte registrado", { description: `KAI sumó a ${params.goalName ?? "tu meta"}.` });
+        kaiToast("Aporte registrado", { description: `Sumé a ${params.goalName ?? "tu meta"}.` });
       } else setBanner(result.error.message);
     },
     [pending, doneMessage],
@@ -373,7 +373,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.ok) {
         doneMessage("Listo, anulé el movimiento.", "/transactions", "Ver movimientos");
-        toast.success("Movimiento anulado");
+        kaiToast("Movimiento anulado");
       } else setBanner(result.error ?? "No pude anular el movimiento.");
     },
     [pending, doneMessage],
@@ -388,7 +388,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.ok) {
         doneMessage(`Listo, pagué la cuota de ${params.debtName ?? ""}.`, "/obligations", "Ver obligaciones");
-        toast.success("Pago registrado", { description: `KAI pagó ${params.debtName ?? "la cuota"}.` });
+        kaiToast("Pago registrado", { description: `Pagué ${params.debtName ?? "la cuota"}.` });
         window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
       } else setBanner(result.error.message);
     },
@@ -404,7 +404,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.ok) {
         doneMessage("Listo, hice la transferencia.", "/accounts", "Ver cuentas");
-        toast.success("Transferencia registrada");
+        kaiToast("Transferencia registrada");
         window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
       } else setBanner(result.error.message);
     },
@@ -424,7 +424,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.ok) {
         doneMessage(`Listo, cambié la categoría a ${params.categoryName ?? ""}.`, "/transactions", "Ver movimientos");
-        toast.success("Categoría actualizada");
+        kaiToast("Categoría actualizada");
       } else setBanner(result.error.message);
     },
     [pending, doneMessage],
@@ -444,7 +444,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.ok) {
         doneMessage(`Listo, creé la meta ${params.name ?? ""}.`, "/goals", "Ver metas");
-        toast.success("Meta creada");
+        kaiToast("Meta creada");
       } else setBanner(result.error.message);
     },
     [pending, doneMessage],
@@ -463,7 +463,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.ok) {
         doneMessage(`Listo, creé el presupuesto de ${params.categoryName ?? ""}.`, "/budgets", "Ver presupuestos");
-        toast.success("Presupuesto creado");
+        kaiToast("Presupuesto creado");
       } else setBanner(result.error.message);
     },
     [pending, doneMessage],

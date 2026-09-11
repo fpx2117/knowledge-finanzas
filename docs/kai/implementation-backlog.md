@@ -121,13 +121,13 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ---
 
-### Fase H — Limpieza  *(P2)*
+### Fase H — Limpieza  *(✅ CERRADA 2026-09-11)*
 
-| WP | Contenido |
-|---|---|
-| **WP-KAI-CLEANUP-ASSISTANT** | Plegar `features/assistant/` (solo `assistant-snapshot.ts` se usa) dentro de `features/kai/`. Auditar si `runAssistantChat` / `assistant.query.simple` siguen usándose. |
-| **WP-KAI-CLEANUP-ASSETS** | Dedupe de PNGs del mascot (`kai.png` / `kai-alerta.png` / `kai-enojado.png` / `kai-positivo.png` conviven con `kai-alert.png` etc). |
-| **WP-KAI-CLEANUP-TOAST** | Reconciliar `components/shared/kai-toast.tsx` (de otra sesión) con los componentes de `features/kai`. |
+| WP | Contenido | Estado |
+|---|---|---|
+| **WP-KAI-CLEANUP-ASSISTANT** | Plegar `features/assistant/` (solo `assistant-snapshot.ts` se usa) dentro de `features/kai/`. Auditar si `runAssistantChat` / `assistant.query.simple` siguen usándose. | ✅ DONE — `assistant-snapshot.ts` movido a `features/kai/lib/`; `runAssistantChat` (`lib/ai/assistant-chat.instance.ts`) tenía cero llamadores reales, eliminado junto con la carpeta `features/assistant/`. `assistant.query.simple` (la capability en `packages/ai`) se deja — es infra de IA compartida y testeada, no específica de una feature; solo no la usa nada hoy. |
+| **WP-KAI-CLEANUP-ASSETS** | Dedupe de PNGs del mascot (`kai.png` / `kai-alerta.png` / `kai-enojado.png` / `kai-positivo.png` conviven con `kai-alert.png` etc). | ✅ DONE — confirmados byte-a-byte idénticos (md5) antes de borrar: `kai.png`/`kai-alerta.png`/`kai-enojado.png`/`kai-positivo.png` eliminados (duplicados exactos o de un estado ANGRY que ya no existe en la máquina de estados). `kai-register.png` (contenido distinto, sin referencias en código, el archivo más nuevo de la carpeta) se dejó sin tocar — probablemente en preparación para algo, no es un duplicado. |
+| **WP-KAI-CLEANUP-TOAST** | Reconciliar `components/shared/kai-toast.tsx` (de otra sesión) con los componentes de `features/kai`. | ✅ DONE — no era código muerto: ya lo usaban `quick-add.tsx` y `transaction-actions.tsx` para que KAI "hable" en confirmaciones fuera del panel de chat. La inconsistencia real era que `kai-floating-assistant.tsx` seguía usando `toast.success()` liso en sus propias 8 confirmaciones de escritura (crear/anular/pagar/transferir/editar/crear meta/crear presupuesto) en vez del toast con la marca de KAI. Unificado a `kaiToast(...)` en los 8 casos. |
 
 ---
 
