@@ -47,7 +47,7 @@ export async function getKaiProactiveMessageAction(force = false): Promise<KaiPr
   try {
     await kaiNotificationRepository.wakeSnoozed(user.id, now);
 
-    const [monthly, previousMonthly, topCategories, previousTopCategories, budgets, upcoming, subscriptions, goals] =
+    const [monthly, previousMonthly, topCategories, previousTopCategories, budgets, upcoming, subscriptions, goals, insights] =
       await Promise.all([
         ports.getMonthlySummary({ from: thisMonth.start, to: thisMonth.end }),
         ports.getMonthlySummary({ from: lastMonth.start, to: lastMonth.end }),
@@ -57,6 +57,7 @@ export async function getKaiProactiveMessageAction(force = false): Promise<KaiPr
         ports.getUpcomingObligations(7),
         ports.getActiveSubscriptions(),
         ports.getGoalProgress(),
+        ports.getInsightsForProactive(2).catch(() => []),
       ]);
 
     const candidates = buildProactiveCandidates({
@@ -68,6 +69,7 @@ export async function getKaiProactiveMessageAction(force = false): Promise<KaiPr
       upcoming,
       subscriptions,
       goals: goals.map((g) => ({ name: g.name, actualProgressRatio: g.actualProgressRatio })),
+      insights,
       baseCurrency: user.baseCurrency,
       today,
     });

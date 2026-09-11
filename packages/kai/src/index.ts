@@ -63,6 +63,7 @@ export type {
   KaiGoalProgress,
   KaiCategoryExpenses,
   KaiTopInsight,
+  KaiProactiveInsight,
 } from "./handlers/ports";
 export type { KaiHandler, KaiHandlerContext, KaiHandlerResult } from "./handlers/types";
 

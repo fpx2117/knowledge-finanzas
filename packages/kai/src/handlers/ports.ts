@@ -77,6 +77,15 @@ export type KaiTopInsight = {
   route: string | null;
 };
 
+export type KaiProactiveInsight = {
+  id: string;
+  family: string;
+  title: string;
+  body: string;
+  severity: "info" | "warning" | "critical";
+  route: string | null;
+};
+
 export interface KaiDataPorts {
   getMonthlySummary(range: KaiDateRangeInput): Promise<KaiMonthlyResult[]>;
   getLiquidBalances(): Promise<MoneyByCurrency[]>;
@@ -99,6 +108,8 @@ export interface KaiDataPorts {
   getBudgetStatus(): Promise<KaiBudgetStatus[]>;
   getGoalProgress(): Promise<KaiGoalProgress[]>;
   getTopInsight(): Promise<KaiTopInsight | null>;
+  /** The insight queue, for turning detected insights into proactive cards (spec §4). */
+  getInsightsForProactive(limit: number): Promise<KaiProactiveInsight[]>;
 
   /** Active goals, for resolving "aportá $X a la meta {nombre}". */
   getGoalsForAllocation(): Promise<{ id: string; name: string; currencyCode: string }[]>;

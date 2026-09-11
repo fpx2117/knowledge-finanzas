@@ -1,5 +1,5 @@
 import type { KaiProactiveMessage } from "../domain/kai-proactive";
-import type { KaiBudgetStatus, KaiMonthlyResult, KaiUpcomingObligation } from "../handlers/ports";
+import type { KaiBudgetStatus, KaiMonthlyResult, KaiProactiveInsight, KaiUpcomingObligation } from "../handlers/ports";
 import { formatMoney, formatPercent } from "../templates/format";
 
 const MONTHS = [
@@ -21,6 +21,8 @@ export type ProactiveInput = {
   subscriptions?: { label: string; currencyCode: string; currentAmount: string; nextExpectedOn: string | null }[];
   /** Goal progress for the milestone rule. */
   goals?: { name: string; actualProgressRatio: number }[];
+  /** The insight queue (already detected + prioritised by the insight engine). */
+  insights?: KaiProactiveInsight[];
   baseCurrency: string;
   /** YYYY-MM-DD in the user's timezone — makes the message id period-stable. */
   today: string;
@@ -122,6 +124,23 @@ export function buildProactiveCandidates(input: ProactiveInput): KaiProactiveMes
       });
       break;
     }
+  }
+
+  // ── Insights ya detectados por el motor (spec §4) ────────────────────────
+  for (const ins of input.insights ?? []) {
+    out.push({
+      id: `insight:${ins.id}`,
+      kind: "month-review",
+      state: ins.severity === "critical" ? "ALERT" : ins.severity === "warning" ? "ALERT" : "ANALYTICAL",
+      stateLabel: ins.severity === "info" ? "Analítico" : "Alerta",
+      title: ins.title,
+      body: ins.body,
+      primary: ins.route ? { label: "Ver detalle", route: ins.route } : { label: "Ver insights", route: "/insights" },
+      secondary: { label: "Ver reportes", route: "/reports" },
+      meta: "Insight de KAI · datos procesados",
+      priority: ins.severity === "critical" ? 1 : ins.severity === "warning" ? 3 : 4,
+      expiresInHours: null,
+    });
   }
 
   const thisM = base(input.monthly);

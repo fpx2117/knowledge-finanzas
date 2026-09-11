@@ -67,6 +67,19 @@ describe("buildProactiveCandidates", () => {
     expect(c[0]).toMatchObject({ kind: "savings-up", state: "POSITIVE", priority: 4 });
   });
 
+  it("surfaces a detected insight (critical → P1)", () => {
+    const c = buildProactiveCandidates(
+      base({
+        insights: [
+          { id: "ins-1", family: "INS-CASH-RISK", title: "Riesgo de quedarte corto", body: "Proyectás negativo el 25.", severity: "critical", route: "/insights/ins-1" },
+        ],
+      }),
+    );
+    const ins = c.find((x) => x.id === "insight:ins-1");
+    expect(ins).toMatchObject({ state: "ALERT", priority: 1 });
+    expect(ins?.primary.route).toBe("/insights/ins-1");
+  });
+
   it("subscription-due when a renewal is ≤7 days out", () => {
     const c = buildProactiveCandidates(
       base({ subscriptions: [{ label: "Netflix", currencyCode: "ARS", currentAmount: "5000", nextExpectedOn: "2026-11-18" }] }),

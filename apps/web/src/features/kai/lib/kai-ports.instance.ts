@@ -304,5 +304,20 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
           : "info";
       return { title: top.title, body: top.body, severity, route: top.cta?.href ?? "/insights" };
     },
+
+    async getInsightsForProactive(limit) {
+      const queue = await insightService
+        .getQueue(user)
+        .catch(() => [] as Awaited<ReturnType<typeof insightService.getQueue>>);
+      return queue.slice(0, limit).map((ins) => {
+        const family = String(ins.family);
+        const severity: "info" | "warning" | "critical" = family.includes("CASH-RISK")
+          ? "critical"
+          : family.includes("BUDGET-LIMIT") || ins.confidence === "HIGH"
+            ? "warning"
+            : "info";
+        return { id: ins.id, family, title: ins.title, body: ins.body, severity, route: ins.cta?.href ?? "/insights" };
+      });
+    },
   };
 }

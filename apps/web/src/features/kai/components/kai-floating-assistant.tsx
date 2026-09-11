@@ -42,9 +42,24 @@ import {
 } from "../actions/kai-proactive-actions";
 import { kaiAllocateToGoalAction, kaiCreateTransactionAction, kaiVoidTransactionAction } from "../actions/kai-create-actions";
 import { MAX_KAI_MESSAGE_LENGTH } from "../lib/constants";
+import { useDraggableFab } from "../lib/use-draggable-fab";
 import { KaiAlertCard } from "./kai-alert-card";
 import { KaiAvatar } from "./kai-avatar";
 import { KaiResponseCard } from "./kai-response-card";
+
+// El FAB de KAI se puede arrastrar (sobre todo en mobile, donde chocaba con la barra inferior).
+// Default: por encima de la barra + safe-area.
+const FAB_DEFAULT_POS = "bottom-[calc(5.5rem_+_env(safe-area-inset-bottom))] right-4 sm:bottom-6 sm:right-6";
+
+// El FAB es la mascota en PNG (sin aro, sin fondo, sin el texto "KAI") — 100% fiel al mockup.
+// Cada estado tiene su propio PNG con su color; el color no viene de un aro superpuesto.
+const KAI_MASCOT_SRC: Record<KaiVisualState, string> = {
+  NEUTRAL: "/brand/kai/kai-neutral.png",
+  ANALYTICAL: "/brand/kai/kai-analytical.png",
+  ALERT: "/brand/kai/kai-alert.png",
+  POSITIVE: "/brand/kai/kai-positive.png",
+};
+const FAB_SIZE = 64;
 
 type Entry =
   | { role: "user"; text: string }
@@ -92,6 +107,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const fab = useDraggableFab(FAB_SIZE);
   const screenContext = resolveScreenContext(pathname);
   const quickActions = KAI_QUICK_ACTIONS[screenContext];
   const lastAssistant = [...entries].reverse().find((e): e is Extract<Entry, { role: "assistant" }> => e.role === "assistant");
@@ -339,7 +355,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   return (
     <>
       {!open && proactive ? (
-        <div className="fixed bottom-24 right-4 z-[var(--z-popover)] sm:bottom-16 sm:right-6">
+        <div className="fixed bottom-[calc(6.5rem_+_env(safe-area-inset-bottom))] right-4 z-[var(--z-popover)] sm:bottom-24 sm:right-6">
           <KaiAlertCard
             message={proactive}
             onOpen={() => {
@@ -362,12 +378,27 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       ) : !open ? (
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Abrir KAI, tu asistente"
-          className="fixed bottom-4 right-4 z-[var(--z-popover)] flex items-center gap-2 rounded-full border border-border bg-card py-1.5 pl-1.5 pr-3.5 shadow-[var(--shadow-md)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:bottom-6 sm:right-6"
+          {...fab.dragHandlers}
+          onClick={() => {
+            if (!fab.wasDragged()) setOpen(true);
+          }}
+          style={fab.style}
+          aria-label="Abrir KAI, tu asistente — mantené presionado para moverlo"
+          className={cn(
+            "fixed z-[var(--z-popover)] size-16 touch-none cursor-grab select-none rounded-full transition-transform hover:scale-[1.06] active:scale-95 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/60",
+            !fab.isPositioned && FAB_DEFAULT_POS,
+          )}
         >
-          <KaiAvatar state={visualState} size={30} />
-          <span className="text-small font-semibold text-foreground">KAI</span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- tiny static brand asset, no next/image optimizer */}
+          <img
+            src={KAI_MASCOT_SRC[visualState]}
+            alt=""
+            draggable={false}
+            className={cn(
+              "pointer-events-none size-full object-contain [filter:drop-shadow(0_8px_16px_rgb(16_24_47_/_0.30))]",
+              pending && "animate-pulse",
+            )}
+          />
         </button>
       ) : null}
 

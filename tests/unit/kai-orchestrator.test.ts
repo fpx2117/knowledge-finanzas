@@ -34,6 +34,7 @@ function fakePorts(overrides: Partial<KaiDataPorts> = {}): KaiDataPorts {
     ],
     getTopInsight: async () => null,
     getGoalsForAllocation: async () => [{ id: "g1", name: "Viaje", currencyCode: "ARS" }],
+    getInsightsForProactive: async () => [],
     findTransactionToVoid: async () => ({ id: "t1", type: "EXPENSE" as const, description: "Super", merchant: "Coto", amount: "40000", currencyCode: "ARS", occurredAt: "2026-09-09T12:00:00Z" }),
     ...overrides,
   };
