@@ -4,6 +4,7 @@ import {
   getAvailableMoney,
   getCategoryExpenses,
   getCurrentBalance,
+  getExpenseComparison,
   getLargestExpense,
   getMonthExpenses,
   getMonthIncome,
@@ -44,6 +45,7 @@ export const KAI_HANDLERS: Record<KaiIntentId, KaiHandler> = {
   GET_BUDGET_STATUS: getBudgetStatus,
   GET_GOAL_PROGRESS: getGoalProgress,
   GET_INSIGHTS: getInsights,
+  GET_EXPENSE_COMPARISON: getExpenseComparison,
   CREATE_EXPENSE: createExpense,
   CREATE_INCOME: createIncome,
 };

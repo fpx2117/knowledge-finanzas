@@ -26,10 +26,11 @@ const inputSchema = z.object({
   history: z.array(turnSchema).max(40).default([]),
   pathname: z.string().max(512).optional(),
   quickActionIntentId: z.string().max(64).optional(),
+  lastIntentId: z.string().max(64).optional(),
 });
 
 export type KaiActionResult =
-  | { ok: true; response: KaiResponse; followups: KaiFollowup[]; access: KaiAccess | null }
+  | { ok: true; response: KaiResponse; followups: KaiFollowup[]; intentId: string; access: KaiAccess | null }
   | { ok: false; error: { code: string; message: string }; access: KaiAccess | null };
 
 export async function sendKaiMessageAction(input: {
@@ -37,6 +38,7 @@ export async function sendKaiMessageAction(input: {
   history: Array<{ role: "user" | "assistant"; content: string }>;
   pathname?: string;
   quickActionIntentId?: string;
+  lastIntentId?: string;
 }): Promise<KaiActionResult> {
   const user = await requireCurrentUser();
   const parsed = inputSchema.safeParse(input);
@@ -48,7 +50,7 @@ export async function sendKaiMessageAction(input: {
     };
   }
 
-  const { message, history, pathname, quickActionIntentId } = parsed.data;
+  const { message, history, pathname, quickActionIntentId, lastIntentId } = parsed.data;
   const now = new Date();
   const operationId = randomUUID();
   const screenContext = resolveScreenContext(pathname);
@@ -74,6 +76,7 @@ export async function sendKaiMessageAction(input: {
       message,
       screenContext,
       quickActionIntentId,
+      lastIntentId,
       history: history.slice(-KAI_HISTORY_LIMIT),
       ports: buildKaiPorts(user, now),
       llmFallback: createKaiLlmFallback(user, operationId),
@@ -108,7 +111,7 @@ export async function sendKaiMessageAction(input: {
     const nextAccess = recorded
       ? await getKaiAccess(user.id, user.timezone, now).catch(() => access)
       : access;
-    return { ok: true, response, followups, access: nextAccess };
+    return { ok: true, response, followups, intentId: audit.intentId, access: nextAccess };
   } catch {
     return {
       ok: false,

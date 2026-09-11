@@ -25,6 +25,18 @@ export const KAI_INTENT_ALIASES: Record<KaiIntentId, string[]> = {
     "cuanto pude ahorrar",
   ],
   GET_NET_CASHFLOW: ["como viene mi resultado", "resultado del mes", "flujo de caja", "balance del mes"],
+  GET_EXPENSE_COMPARISON: [
+    "gaste mas que",
+    "gaste menos que",
+    "gaste mas o menos que",
+    "compara mis gastos",
+    "como vengo vs",
+    "como voy vs",
+    "estoy gastando mas",
+    "estoy gastando menos",
+    "gaste mas este mes",
+    "gaste menos este mes",
+  ],
   GET_CURRENT_BALANCE: [
     "cuanto tengo",
     "mi saldo",
@@ -54,7 +66,9 @@ export const KAI_INTENT_ALIASES: Record<KaiIntentId, string[]> = {
     "sin quedar corto",
     "sin quedarme corto",
   ],
-  GET_CATEGORY_EXPENSES: ["cuanto gaste en", "gastos en", "cuanto llevo gastado en"],
+  // Category questions ("gasté en {cat}") are matched by the regex in intent-resolver.ts,
+  // which guards against months / "total". No bare "en …" aliases here — too greedy.
+  GET_CATEGORY_EXPENSES: [],
   GET_TOP_EXPENSE_CATEGORIES: [
     "en que gaste mas",
     "gastos por categoria",

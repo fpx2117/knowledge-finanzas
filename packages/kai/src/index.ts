@@ -35,8 +35,8 @@ export type { KaiScreenContext } from "./domain/kai-context";
 export { KAI_CONTEXT_REGISTRY, resolveScreenContext } from "./domain/kai-context";
 
 // Resolver
-export { normalizeText, resolveDateRange, previousMonthRange } from "./resolver/normalize";
-export type { KaiDateRange } from "./resolver/normalize";
+export { normalizeText, resolveDateRange, previousMonthRange, shiftRangeBack } from "./resolver/normalize";
+export type { KaiDateRange, KaiDateRangeKind } from "./resolver/normalize";
 export { resolveIntent, isConfident } from "./resolver/intent-resolver";
 export { parseWriteIntent, parseAmount } from "./resolver/parse-write";
 export type { KaiWriteIntent } from "./resolver/parse-write";

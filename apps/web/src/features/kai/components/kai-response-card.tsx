@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
 import type { KaiAction, KaiResponse, KaiVisualState } from "@know-finanzas/kai";
 
@@ -30,6 +30,12 @@ export function KaiResponseCard({
   const values = (response.data as { values?: MetricValue[] } | undefined)?.values ?? [];
   const chart = response.type === "KAI_CHART" ? (response.data as KaiChartData | undefined)?.chart : undefined;
   const table = response.type === "KAI_TABLE" ? (response.data as KaiTableData | undefined)?.table : undefined;
+  const comparison =
+    response.type === "KAI_COMPARISON"
+      ? (response.data as
+          | { current: string; previous: string; currencyCode: string; variationPercent: number; direction: "up" | "down" | "flat" }
+          | undefined)
+      : undefined;
 
   return (
     <div className="flex max-w-[92%] flex-col gap-2 self-start rounded-2xl border border-border bg-card px-3.5 py-3 text-small shadow-[var(--shadow-sm)]">
@@ -92,6 +98,40 @@ export function KaiResponseCard({
             centerLabel="Total"
             centerValue={formatMoney(chart.total, chart.currencyCode)}
           />
+        </div>
+      ) : null}
+
+      {comparison ? (
+        <div className="mt-1 flex items-stretch gap-2 rounded-lg border border-border bg-card p-2.5">
+          <div className="flex flex-1 flex-col">
+            <span className="text-caption text-muted-foreground">Ahora</span>
+            <span className="text-small font-semibold tabular-nums text-foreground">
+              {formatMoney(comparison.current, comparison.currencyCode)}
+            </span>
+          </div>
+          <div className="flex flex-1 flex-col border-l border-border pl-2">
+            <span className="text-caption text-muted-foreground">Antes</span>
+            <span className="text-small font-medium tabular-nums text-foreground-secondary">
+              {formatMoney(comparison.previous, comparison.currencyCode)}
+            </span>
+          </div>
+          <div
+            className={cn(
+              "flex items-center gap-1 self-center rounded-full px-2 py-0.5 text-caption font-semibold tabular-nums",
+              comparison.direction === "up"
+                ? "bg-warning-soft text-[var(--warning)]"
+                : comparison.direction === "down"
+                  ? "bg-success-soft text-[var(--success)]"
+                  : "bg-secondary text-muted-foreground",
+            )}
+          >
+            {comparison.direction === "up" ? (
+              <TrendingUpIcon className="size-3.5" />
+            ) : comparison.direction === "down" ? (
+              <TrendingDownIcon className="size-3.5" />
+            ) : null}
+            {comparison.direction === "flat" ? "≈" : `${comparison.variationPercent > 0 ? "+" : ""}${comparison.variationPercent}%`}
+          </div>
         </div>
       ) : null}
 

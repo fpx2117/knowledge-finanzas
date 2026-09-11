@@ -25,6 +25,8 @@ export type ResolveKaiInteractionInput = {
   screenContext: KaiScreenContext;
   /** Set when a quick-action chip was tapped — skips text resolution. */
   quickActionIntentId?: string;
+  /** The intent of the previous answer — lets "¿y el mes pasado?" re-run it with a new range. */
+  lastIntentId?: string;
   history: KaiHistoryTurn[];
   ports: KaiDataPorts;
   llmFallback: KaiLlmFallback;
@@ -61,7 +63,7 @@ export async function resolveKaiInteraction(
   // ── Levels 1–4 — deterministic intent handlers ─────────────────────────────
   // Runs before the static layer: a concrete command ("registrá un gasto en YPF de $30.000")
   // or a specific finance question must win over the generic "cómo registro un gasto" help.
-  const resolved = resolveIntent(input.message, input.quickActionIntentId);
+  const resolved = resolveIntent(input.message, input.quickActionIntentId, input.lastIntentId);
   if (isConfident(resolved)) {
     const handler = KAI_HANDLERS[resolved.id];
     const range = resolveDateRange(normalizeText(input.message), input.now, input.timezone);

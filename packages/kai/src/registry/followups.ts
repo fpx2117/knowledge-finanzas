@@ -19,8 +19,14 @@ const DEFAULT: KaiFollowup[] = [
 const BY_INTENT: Partial<Record<KaiIntentId, KaiFollowup[]>> = {
   GET_MONTH_EXPENSES: [
     q("¿En qué gasté más?", "GET_TOP_EXPENSE_CATEGORIES"),
-    m("¿Y el mes pasado?", "cuánto gasté el mes pasado"),
+    m("¿Y el mes pasado?", "y el mes pasado"),
+    q("¿Gasté más que antes?", "GET_EXPENSE_COMPARISON"),
     q("¿Cómo viene mi presupuesto?", "GET_BUDGET_STATUS"),
+  ],
+  GET_EXPENSE_COMPARISON: [
+    q("¿En qué gasté más?", "GET_TOP_EXPENSE_CATEGORIES"),
+    q("¿Cómo viene mi presupuesto?", "GET_BUDGET_STATUS"),
+    m("¿Y el trimestre?", "gasté más que el trimestre pasado"),
   ],
   GET_MONTH_INCOME: [
     q("¿Cuánto ahorré este mes?", "GET_MONTH_SAVINGS"),

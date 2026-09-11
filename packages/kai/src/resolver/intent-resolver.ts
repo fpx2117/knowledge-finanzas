@@ -16,7 +16,17 @@ import { parseWriteIntent } from "./parse-write";
  *   3. keyword / regex table
  *   4. give up → UNRESOLVED (the orchestrator may then use the LLM fallback)
  */
-export function resolveIntent(rawMessage: string, quickActionIntentId?: string): KaiResolvedIntent {
+const TEMPORAL_TAIL =
+  /^(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|total|este mes|el mes|esta semana|este ano|este trimestre|el ano|el trimestre|los ultimos)/;
+
+const TEMPORAL_FOLLOWUP =
+  /^(y|que tal|y que tal)\s+(ayer|hoy|esta semana|esta quincena|el mes pasado|este mes|este trimestre|el trimestre pasado|este ano|el ano pasado|en \w+|los ultimos)/;
+
+export function resolveIntent(
+  rawMessage: string,
+  quickActionIntentId?: string,
+  lastIntentId?: string,
+): KaiResolvedIntent {
   if (quickActionIntentId && isKaiIntentId(quickActionIntentId)) {
     return { id: quickActionIntentId, params: {}, confidence: 1, strategy: "quick-action" };
   }
@@ -24,6 +34,12 @@ export function resolveIntent(rawMessage: string, quickActionIntentId?: string):
   const normalized = normalizeText(rawMessage);
   if (!normalized) {
     return { id: UNRESOLVED_INTENT, params: {}, confidence: 0, strategy: "none" };
+  }
+
+  // "¿y el mes pasado?" / "¿y ayer?" — re-run the previous intent with a new date range
+  // (spec §15 follow-up context). The orchestrator resolves the range from this same message.
+  if (lastIntentId && isKaiIntentId(lastIntentId) && TEMPORAL_FOLLOWUP.test(normalized)) {
+    return { id: lastIntentId, params: {}, confidence: 0.9, strategy: "keyword" };
   }
 
   // Write intents ("creá un gasto de YPF de $30.000") — checked before any read intent so a
@@ -44,9 +60,10 @@ export function resolveIntent(rawMessage: string, quickActionIntentId?: string):
   }
 
   // "¿cuánto gasté en {categoría}?" — checked first so the generic "cuanto gaste"
-  // alias doesn't swallow the category question.
+  // alias doesn't swallow the category question. "en junio" / "en total" / "esta semana"
+  // are temporal or degenerate, not categories.
   const categoryMatch = /\bgast\w+ en ([a-záéíóúñ ]{3,30})$/.exec(normalized);
-  if (categoryMatch) {
+  if (categoryMatch && !TEMPORAL_TAIL.test(categoryMatch[1].trim())) {
     return { id: "GET_CATEGORY_EXPENSES", params: { category: categoryMatch[1].trim() }, confidence: 0.9, strategy: "regex" };
   }
 

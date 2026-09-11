@@ -23,6 +23,7 @@ export type KaiIntentId =
   | "GET_BUDGET_STATUS"
   | "GET_GOAL_PROGRESS"
   | "GET_INSIGHTS"
+  | "GET_EXPENSE_COMPARISON"
   | "CREATE_EXPENSE"
   | "CREATE_INCOME";
 

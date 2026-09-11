@@ -46,7 +46,9 @@ import { KaiAlertCard } from "./kai-alert-card";
 import { KaiAvatar } from "./kai-avatar";
 import { KaiResponseCard } from "./kai-response-card";
 
-type Entry = { role: "user"; text: string } | { role: "assistant"; response: KaiResponse; feedback?: "up" | "down" };
+type Entry =
+  | { role: "user"; text: string }
+  | { role: "assistant"; response: KaiResponse; intentId?: string; feedback?: "up" | "down" };
 
 const STATE_META: Record<KaiVisualState, { label: string; dot: string }> = {
   NEUTRAL: { label: "En línea", dot: "bg-[var(--color-kai-positive)]" },
@@ -186,11 +188,15 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       // so KAI reads as if it's working, not glitching.
       const startedAt = Date.now();
       const MIN_THINK_MS = 650;
+      const lastIntentId = [...entries]
+        .reverse()
+        .find((e): e is Extract<Entry, { role: "assistant" }> => e.role === "assistant")?.intentId;
       const result = await sendKaiMessageAction({
         message: payload.message ?? "",
         history,
         pathname,
         quickActionIntentId: payload.quickActionIntentId,
+        lastIntentId,
       });
       const wait = MIN_THINK_MS - (Date.now() - startedAt);
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -198,7 +204,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.access) setAccess(result.access);
       if (result.ok) {
-        setEntries((current) => [...current, { role: "assistant", response: result.response }]);
+        setEntries((current) => [...current, { role: "assistant", response: result.response, intentId: result.intentId }]);
         setFollowups(result.followups ?? []);
       } else {
         setBanner(result.error.message);

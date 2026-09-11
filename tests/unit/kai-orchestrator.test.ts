@@ -115,6 +115,32 @@ describe("resolveKaiInteraction", () => {
     expect(table?.rows[1][0]).toBe("Vencido");
   });
 
+  it("compares expenses against the previous period (KAI_COMPARISON)", async () => {
+    let call = 0;
+    const input = baseInput({
+      message: "¿gasté más que el mes pasado?",
+      ports: fakePorts({
+        getMonthlySummary: async () => {
+          call += 1;
+          // 1st call = this month (145000), 2nd = previous (100000)
+          return [{ currencyCode: "ARS", income: "500000", expense: call === 1 ? "145000" : "100000", net: "0" }];
+        },
+      }),
+    });
+    const { response, audit } = await resolveKaiInteraction(input);
+    expect(audit.intentId).toBe("GET_EXPENSE_COMPARISON");
+    expect(response.type).toBe("KAI_COMPARISON");
+    expect((response.data as { direction: string }).direction).toBe("up");
+    expect((response.data as { variationPercent: number }).variationPercent).toBe(45);
+  });
+
+  it("'¿y el mes pasado?' re-runs the last intent with a shifted range", async () => {
+    const input = baseInput({ message: "¿y el mes pasado?", lastIntentId: "GET_MONTH_EXPENSES" });
+    const { audit, response } = await resolveKaiInteraction(input);
+    expect(audit.intentId).toBe("GET_MONTH_EXPENSES");
+    expect(response.body).toContain("mes pasado");
+  });
+
   it("computes savings via the calculator source", async () => {
     const { audit, response } = await resolveKaiInteraction(baseInput({ message: "¿cuánto estoy ahorrando?" }));
     expect(audit.resolutionSource).toBe("CALCULATOR");

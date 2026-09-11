@@ -1,5 +1,5 @@
 import { formatMoney, formatMoneyList, formatPercent } from "../templates/format";
-import type { KaiDateRange } from "../resolver/normalize";
+import { shiftRangeBack, type KaiDateRange } from "../resolver/normalize";
 import type { KaiMetricValue } from "../domain/kai-response";
 import type { KaiHandler } from "./types";
 
@@ -285,3 +285,53 @@ export const getLargestExpense: KaiHandler = async ({ ports, range }) => {
 };
 
 export const getYesterdayExpenses = getMonthExpenses;
+
+export const getExpenseComparison: KaiHandler = async ({ ports, range, baseCurrency }) => {
+  const prev = shiftRangeBack(range);
+  const [current, previous] = await Promise.all([
+    ports.getMonthlySummary({ from: range.from, to: range.to }),
+    ports.getMonthlySummary({ from: prev.from, to: prev.to }),
+  ]);
+  const cur = current.find((r) => r.currencyCode === baseCurrency) ?? current[0];
+  const pre = previous.find((r) => r.currencyCode === baseCurrency) ?? previous[0];
+
+  if (!cur || !pre || Number(pre.expense) === 0) {
+    return {
+      source: "CALCULATOR",
+      response: {
+        type: "KAI_TEXT",
+        state: "ANALYTICAL",
+        body: cur
+          ? `${range.label[0].toUpperCase()}${range.label.slice(1)} gastaste ${formatMoney(cur.expense, cur.currencyCode)}. No tengo con qué compararlo en ${prev.label}.`
+          : `No tengo gastos registrados para ${range.label}.`,
+      },
+    };
+  }
+
+  const curN = Number(cur.expense);
+  const preN = Number(pre.expense);
+  const variationPercent = ((curN - preN) / preN) * 100;
+  const direction = Math.abs(variationPercent) < 1 ? "flat" : variationPercent > 0 ? "up" : "down";
+  const word = direction === "up" ? "más" : direction === "down" ? "menos" : "casi lo mismo";
+
+  return {
+    source: "CALCULATOR",
+    response: {
+      type: "KAI_COMPARISON",
+      state: direction === "up" ? "ALERT" : "POSITIVE",
+      title: "Comparación de gastos",
+      body:
+        direction === "flat"
+          ? `${range.label[0].toUpperCase()}${range.label.slice(1)} gastaste ${word} que ${prev.label}: ${formatMoney(cur.expense, cur.currencyCode)} vs ${formatMoney(pre.expense, pre.currencyCode)}.`
+          : `${range.label[0].toUpperCase()}${range.label.slice(1)} gastaste un ${formatPercent(Math.abs(variationPercent))} ${word} que ${prev.label} (${formatMoney(cur.expense, cur.currencyCode)} vs ${formatMoney(pre.expense, pre.currencyCode)}).`,
+      data: {
+        current: cur.expense,
+        previous: pre.expense,
+        currencyCode: cur.currencyCode,
+        variationPercent: Math.round(variationPercent * 10) / 10,
+        direction,
+      },
+      actions: [{ kind: "navigate", label: "Ver reporte", route: "/reports" }],
+    },
+  };
+};

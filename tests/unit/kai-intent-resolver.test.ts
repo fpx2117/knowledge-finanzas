@@ -43,6 +43,11 @@ describe("resolveIntent", () => {
     expect(resolved.params.category).toBe("comida");
   });
 
+  it("does NOT treat a month or 'total' as a category", () => {
+    expect(resolveIntent("cuánto gasté en junio").id).not.toBe("GET_CATEGORY_EXPENSES");
+    expect(resolveIntent("cuánto gasté en total").id).not.toBe("GET_CATEGORY_EXPENSES");
+  });
+
   it("honours an explicit quick-action intent id", () => {
     const resolved = resolveIntent("", "GET_BUDGET_STATUS");
     expect(resolved).toMatchObject({ id: "GET_BUDGET_STATUS", confidence: 1, strategy: "quick-action" });
@@ -81,5 +86,33 @@ describe("resolveDateRange", () => {
     const range = resolveDateRange(normalizeText("cuánto gasté el mes pasado"), now, tz);
     expect(range.kind).toBe("month");
     expect(range.label).toBe("el mes pasado");
+  });
+
+  it("recognises 'este trimestre' / 'este año' / 'últimos 3 meses' / 'en {mes}'", () => {
+    expect(resolveDateRange(normalizeText("gastos de este trimestre"), now, tz).kind).toBe("quarter");
+    expect(resolveDateRange(normalizeText("cuánto gasté este año"), now, tz).kind).toBe("year");
+    const l3 = resolveDateRange(normalizeText("cuánto gasté los últimos 3 meses"), now, tz);
+    expect(l3.kind).toBe("range");
+    expect(l3.label).toContain("3 meses");
+    const inJune = resolveDateRange(normalizeText("cuánto gasté en junio"), now, tz);
+    expect(inJune.kind).toBe("month");
+    expect(inJune.label).toContain("junio");
+  });
+});
+
+describe("temporal follow-up", () => {
+  it("'¿y el mes pasado?' re-runs the last intent", () => {
+    const r = resolveIntent("¿y el mes pasado?", undefined, "GET_MONTH_EXPENSES");
+    expect(r.id).toBe("GET_MONTH_EXPENSES");
+    expect(isConfident(r)).toBe(true);
+  });
+
+  it("without a last intent it stays UNRESOLVED", () => {
+    expect(resolveIntent("¿y el mes pasado?").id).toBe("UNRESOLVED");
+  });
+
+  it("'¿gasté más que el mes pasado?' → GET_EXPENSE_COMPARISON", () => {
+    const r = resolveIntent("¿gasté más que el mes pasado?");
+    expect(r.id).toBe("GET_EXPENSE_COMPARISON");
   });
 });
