@@ -28,7 +28,7 @@ export function createKaiLlmFallback(user: CurrentUser, operationId: string): Ka
       throw new Error("Necesitás una cuenta activa para usar el análisis con IA.");
     }
 
-    const snapshot = await buildAssistantSnapshot(user.id, user.timezone);
+    const snapshot = await buildAssistantSnapshot(user.id, user.timezone, user.baseCurrency);
     // FREE/EXPIRED stay on the fast model regardless of complexity — cost control for the tier
     // that isn't paying for KAI points. Otherwise: a genuine reasoning question (spec §17
     // WP-KAI-LLM-COMPLEX, weighted 10 points instead of 5) gets the REASONING model — but only

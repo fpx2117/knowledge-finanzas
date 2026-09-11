@@ -15,6 +15,7 @@ export type KaiActionKind =
   | "confirm-edit-category"
   | "confirm-create-goal"
   | "confirm-create-budget"
+  | "explain-insight"
   | "dismiss"
   | "remind-later";
 

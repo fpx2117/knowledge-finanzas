@@ -32,6 +32,7 @@ import { quickVoidTransactionAction } from "@/features/capture/actions/quick-act
 import type { KaiAccess } from "../lib/kai-points.instance";
 import type { KaiProactiveMessage } from "@know-finanzas/kai";
 import { getKaiAccessAction, kaiRateInteractionAction, sendKaiMessageAction } from "../actions/kai-actions";
+import { kaiExplainInsightAction } from "../actions/kai-insight-actions";
 import {
   dismissKaiProactiveAction,
   actKaiProactiveAction,
@@ -153,6 +154,10 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   // its expiry — a `hydratedRef` gate so the save effect right below doesn't immediately
   // overwrite it with the still-empty initial state before this runs.
   const hydratedRef = useRef(false);
+  // WP-KAI-LLM-STREAMING: which assistant entry (if any) should reveal its body progressively —
+  // only the one just appended live in this tab, never a restored/older one.
+  const freshEntryCountRef = useRef(0);
+  const [streamingIndex, setStreamingIndex] = useState<number | null>(null);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(CONVERSATION_KEY);
@@ -161,6 +166,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         if (Date.now() - stored.savedAt < CONVERSATION_MAX_AGE_MS && Array.isArray(stored.entries) && stored.entries.length > 0) {
           setEntries(stored.entries);
           setFollowups(stored.followups ?? []);
+          freshEntryCountRef.current = stored.entries.length; // don't stream-reveal a restored conversation
         } else {
           localStorage.removeItem(CONVERSATION_KEY);
         }
@@ -186,6 +192,14 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       /* private mode / quota exceeded — the conversation just won't survive a reload */
     }
   }, [entries, followups]);
+
+  useEffect(() => {
+    if (entries.length > freshEntryCountRef.current) {
+      const lastIndex = entries.length - 1;
+      if (entries[lastIndex].role === "assistant") setStreamingIndex(lastIndex);
+    }
+    freshEntryCountRef.current = entries.length;
+  }, [entries]);
 
   // The single entry point for "show the panel" (FAB tap, kai:open, the J shortcut) — clears the
   // onboarding pulse and records whether this particular open was the first one, for the greeting.
@@ -530,6 +544,33 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     [pending, doneMessage],
   );
 
+  const explainInsightFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending || !params.insightId) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiExplainInsightAction(params.insightId);
+      setPending(false);
+      if (result.access) setAccess(result.access);
+      if (result.ok) {
+        setEntries((current) => [
+          ...current,
+          {
+            role: "assistant",
+            response: {
+              type: "KAI_TEXT",
+              state: "ANALYTICAL",
+              body: result.caveats ? `${result.explanation}\n\n${result.caveats}` : result.explanation,
+            },
+          },
+        ]);
+      } else {
+        setBanner(result.error.message);
+      }
+    },
+    [pending],
+  );
+
   const onAction = useCallback(
     (action: KaiAction) => {
       if (action.kind === "navigate" && action.route) {
@@ -562,6 +603,8 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         void createGoalFromCard(action.params);
       } else if (action.kind === "confirm-create-budget" && action.params) {
         void createBudgetFromCard(action.params);
+      } else if (action.kind === "explain-insight" && action.params) {
+        void explainInsightFromCard(action.params);
       } else if (action.kind === "run-intent" && action.intentId) {
         void submit({ quickActionIntentId: action.intentId, label: action.label });
       }
@@ -577,6 +620,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       editCategoryFromCard,
       createGoalFromCard,
       createBudgetFromCard,
+      explainInsightFromCard,
     ],
   );
 
@@ -757,7 +801,12 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
                 <div key={index} className="kai-rise flex items-start gap-2">
                   <KaiAvatar state={entry.response.state} size={26} className="mt-0.5 shrink-0" />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <KaiResponseCard response={entry.response} onAction={onAction} />
+                    <KaiResponseCard
+                      response={entry.response}
+                      onAction={onAction}
+                      streaming={index === streamingIndex}
+                      onStreamDone={() => setStreamingIndex((current) => (current === index ? null : current))}
+                    />
                     {entry.response.type === "KAI_TEXT" || entry.response.type === "KAI_INSIGHT" ? (
                       <div className="flex items-center gap-1 pl-1">
                         <button

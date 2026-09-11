@@ -73,6 +73,8 @@ export type KaiCategoryExpenses = {
 };
 
 export type KaiTopInsight = {
+  /** The stored `insights` row id — lets KAI offer "Explicame el detalle" without navigating away. */
+  id: string;
   title: string;
   body: string;
   severity: "info" | "warning" | "critical";

@@ -115,4 +115,23 @@ describe("temporal follow-up", () => {
     const r = resolveIntent("¿gasté más que el mes pasado?");
     expect(r.id).toBe("GET_EXPENSE_COMPARISON");
   });
+
+  // WP-KAI-RESOLVER-FUZZY (spec §15 step 7) — a typo shouldn't fall through to the LLM.
+  describe("typo tolerance (fuzzy, last resort)", () => {
+    it("a 1-edit typo on a long alias word still resolves, with lower confidence", () => {
+      const r = resolveIntent("cuanto gasye este mes"); // "gasye" ~ "gaste"
+      expect(r.id).toBe("GET_MONTH_EXPENSES");
+      expect(r.strategy).toBe("fuzzy");
+      expect(isConfident(r)).toBe(true);
+      expect(r.confidence).toBeLessThan(0.95); // strictly weaker than an exact alias hit
+    });
+
+    it("a missing letter in 'presupuesto' still resolves", () => {
+      expect(resolveIntent("como viene mi presupesto").id).toBe("GET_BUDGET_STATUS");
+    });
+
+    it("an unrelated short message stays UNRESOLVED, not a false fuzzy hit", () => {
+      expect(resolveIntent("hola que tal").id).toBe("UNRESOLVED");
+    });
+  });
 });

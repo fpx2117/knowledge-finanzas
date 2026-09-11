@@ -368,6 +368,21 @@ describe("resolveKaiInteraction", () => {
     expect(input.llmFallback).toHaveBeenCalledTimes(1);
     expect(audit.reasonForLlm).toBe("handler-error");
   });
+
+  // WP-KAI-LLM-EXPLAIN: the insight card offers "Explicame el detalle" without leaving the chat.
+  it("'algo que deba saber' → KAI_INSIGHT with an explain-insight action carrying the insight id", async () => {
+    const input = baseInput({
+      message: "¿algo que deba saber?",
+      ports: fakePorts({
+        getTopInsight: async () => ({ id: "ins-1", title: "Riesgo de quedarte corto", body: "Proyectás negativo el 25.", severity: "critical", route: "/insights/ins-1" }),
+      }),
+    });
+    const { response, audit } = await resolveKaiInteraction(input);
+    expect(audit.intentId).toBe("GET_INSIGHTS");
+    expect(response.type).toBe("KAI_INSIGHT");
+    expect(response.actions).toContainEqual({ kind: "explain-insight", label: "Explicame el detalle", params: { insightId: "ins-1" } });
+    expect(response.actions).toContainEqual({ kind: "navigate", label: "Ver detalle", route: "/insights/ins-1" });
+  });
 });
 
 describe("classifyLlmComplexity (spec §17 WP-KAI-LLM-COMPLEX)", () => {

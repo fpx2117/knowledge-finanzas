@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { ArrowRightIcon, TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
 import type { KaiAction, KaiResponse, KaiVisualState } from "@know-finanzas/kai";
@@ -7,6 +8,48 @@ import type { KaiAction, KaiResponse, KaiVisualState } from "@know-finanzas/kai"
 import { cn } from "@/lib/utils";
 import { formatMoney, type KaiChartData, type KaiTableData } from "@know-finanzas/kai";
 import { DonutChart } from "@/components/charts/donut-chart";
+
+const WORD_REVEAL_MS = 22;
+
+/**
+ * WP-KAI-LLM-STREAMING (spec §6 "processing"): real token streaming isn't available — every AI
+ * call in this app goes through `generateStructured` (schema-validated JSON), which a provider
+ * can only return complete, not token-by-token (see docs/kai/implementation-backlog.md for why
+ * that's a deliberate trade-off, not a gap). This gets the same *felt* result — the answer
+ * reveals progressively instead of popping in all at once — client-side, with zero backend risk.
+ * Only ever passed `streaming: true` for an answer that was just added live (see
+ * `kai-floating-assistant.tsx`'s `streamingIndex`); a restored conversation renders instantly.
+ */
+function KaiStreamedText({ text, streaming, onDone }: { text: string; streaming: boolean; onDone?: () => void }) {
+  const words = text.split(" ");
+  const [count, setCount] = useState(streaming ? 0 : words.length);
+  const doneRef = useRef(!streaming);
+
+  useEffect(() => {
+    if (!streaming || doneRef.current) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setCount(words.length);
+      doneRef.current = true;
+      onDone?.();
+      return;
+    }
+    const interval = window.setInterval(() => {
+      setCount((current) => {
+        const next = current + 1;
+        if (next >= words.length) {
+          window.clearInterval(interval);
+          doneRef.current = true;
+          onDone?.();
+        }
+        return next;
+      });
+    }, WORD_REVEAL_MS);
+    return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per entry; `text`/`onDone` are stable for the entry's lifetime
+  }, [streaming]);
+
+  return <p className="whitespace-pre-wrap text-foreground-secondary">{words.slice(0, count).join(" ")}</p>;
+}
 
 const CHART_COLORS = ["var(--chart-1)", "var(--chart-5)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--border-strong)"];
 
@@ -22,9 +65,14 @@ type MetricValue = { label: string; amount: string; currencyCode: string; hint?:
 export function KaiResponseCard({
   response,
   onAction,
+  streaming = false,
+  onStreamDone,
 }: {
   response: KaiResponse;
   onAction: (action: KaiAction) => void;
+  /** WP-KAI-LLM-STREAMING — reveal `response.body` progressively instead of all at once. */
+  streaming?: boolean;
+  onStreamDone?: () => void;
 }) {
   const accent = ACCENT[response.state];
   const values = (response.data as { values?: MetricValue[] } | undefined)?.values ?? [];
@@ -46,7 +94,7 @@ export function KaiResponseCard({
         </div>
       ) : null}
 
-      <p className="whitespace-pre-wrap text-foreground-secondary">{response.body}</p>
+      <KaiStreamedText text={response.body} streaming={streaming} onDone={onStreamDone} />
 
       {values.length > 0 ? (
         <ul className="mt-0.5 flex flex-col gap-1 rounded-lg bg-secondary/60 p-2">

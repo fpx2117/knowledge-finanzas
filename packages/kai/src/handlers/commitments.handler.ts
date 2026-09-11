@@ -260,7 +260,10 @@ export const getInsights: KaiHandler = async ({ ports }) => {
       state: insight.severity === "critical" ? "ALERT" : insight.severity === "warning" ? "ALERT" : "ANALYTICAL",
       title: insight.title,
       body: insight.body,
-      actions: insight.route ? [{ kind: "navigate", label: "Ver detalle", route: insight.route }] : undefined,
+      actions: [
+        { kind: "explain-insight", label: "Explicame el detalle", params: { insightId: insight.id } },
+        ...(insight.route ? [{ kind: "navigate" as const, label: "Ver detalle", route: insight.route }] : []),
+      ],
     },
   };
 };

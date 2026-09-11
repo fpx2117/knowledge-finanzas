@@ -41,7 +41,7 @@ export const UNRESOLVED_INTENT = "UNRESOLVED" as const;
 export type UnresolvedIntent = typeof UNRESOLVED_INTENT;
 
 /** How the resolver landed on an intent (spec §15 "Intent Resolver sin LLM"). */
-export type KaiIntentMatchStrategy = "quick-action" | "alias" | "keyword" | "regex" | "none";
+export type KaiIntentMatchStrategy = "quick-action" | "alias" | "keyword" | "regex" | "fuzzy" | "none";
 
 export type KaiResolvedIntent = {
   id: KaiIntentId | UnresolvedIntent;

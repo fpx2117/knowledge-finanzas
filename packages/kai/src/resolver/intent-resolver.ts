@@ -163,6 +163,14 @@ export function resolveIntent(
     }
   }
 
+  // WP-KAI-RESOLVER-FUZZY (spec §15): a typo shouldn't have to fall through to the LLM.
+  // Last resort before giving up — deliberately conservative (see fuzzyAliasMatch) so it can't
+  // start swallowing phrasings the exact/keyword steps above were supposed to catch on their own.
+  const fuzzy = fuzzyAliasMatch(normalized);
+  if (fuzzy) {
+    return { id: fuzzy.id, params: extractParams(fuzzy.id, normalized), confidence: 0.75, strategy: "fuzzy" };
+  }
+
   return { id: UNRESOLVED_INTENT, params: {}, confidence: 0, strategy: "none" };
 }
 
@@ -190,4 +198,51 @@ const KAI_INTENT_IDS = new Set(Object.keys(KAI_INTENT_ALIASES));
 
 function isKaiIntentId(value: string): value is KaiIntentId {
   return KAI_INTENT_IDS.has(value);
+}
+
+/** Classic edit distance — cheap here, both strings are single words. */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const prev = new Array<number>(b.length + 1);
+  const curr = new Array<number>(b.length + 1);
+  for (let j = 0; j <= b.length; j += 1) prev[j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    curr[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    for (let j = 0; j <= b.length; j += 1) prev[j] = curr[j];
+  }
+  return prev[b.length];
+}
+
+/** A word matches its alias counterpart if identical, or — only once it's long enough that a
+ * single typo can't flip it into an unrelated word ("de"→"se" is a 1-edit "typo" no one made) —
+ * within edit distance 1. Short words (≤4 chars: "de", "en", "mis", "vale"…) must match exactly. */
+function wordFuzzyMatches(messageWord: string, aliasWord: string): boolean {
+  if (messageWord === aliasWord) return true;
+  if (aliasWord.length <= 4) return false;
+  return levenshtein(messageWord, aliasWord) <= 1;
+}
+
+/**
+ * A conservative typo-tolerant alias match, tried only after exact aliases and keyword regexes
+ * both missed (spec §15 step 7). Requires every word of the alias phrase to line up, in order,
+ * against a contiguous run of the message's words — same shape as the exact alias check, just
+ * with a 1-edit tolerance per word — so it can't match on a handful of scattered word fragments.
+ */
+function fuzzyAliasMatch(normalized: string): { id: KaiIntentId; phrase: string } | null {
+  const messageWords = normalized.split(" ").filter(Boolean);
+  for (const entry of ALIAS_INDEX) {
+    const phraseWords = entry.phrase.split(" ").filter(Boolean);
+    if (phraseWords.length === 0 || phraseWords.length > messageWords.length) continue;
+    for (let start = 0; start <= messageWords.length - phraseWords.length; start += 1) {
+      const allMatch = phraseWords.every((word, offset) => wordFuzzyMatches(messageWords[start + offset], word));
+      if (allMatch) return entry;
+    }
+  }
+  return null;
 }

@@ -338,7 +338,7 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
         : family.includes("BUDGET-LIMIT") || top.confidence === "HIGH"
           ? "warning"
           : "info";
-      return { title: top.title, body: top.body, severity, route: top.cta?.href ?? "/insights" };
+      return { id: top.id, title: top.title, body: top.body, severity, route: top.cta?.href ?? "/insights" };
     },
 
     async getInsightsForProactive(limit) {
