@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 
@@ -6,7 +8,7 @@ import { createCategoryRepository } from "../../packages/db/src/repositories/cat
 import { createBudgetRepository } from "../../packages/db/src/repositories/budgets";
 import { createInsightRepository } from "../../packages/db/src/repositories/insights";
 import { createInsightService } from "../../apps/web/src/features/insights/services/insight-service";
-import { insights as insightsTable, transactions, users } from "../../packages/db/src/schema";
+import { debtInstallments, debts, insights as insightsTable, merchants, subscriptions, transactions, users } from "../../packages/db/src/schema";
 import { getTestDatabase } from "../support/postgres-test-setup";
 
 // WP-INSIGHT-DETECTORS (spec 09 §8/§17/§18): the engine persists detected insights, dedupes on
@@ -49,12 +51,14 @@ describe("insight engine (integration)", () => {
 
     await service.refreshInsights(user);
     let stored = await database.select().from(insightsTable).where(eq(insightsTable.userId, userId));
-    expect(stored.map((s) => s.family).sort()).toEqual(["INS-BUDGET-LIMIT", "INS-DATA-QUALITY"]);
+    // Also fires INS-ANOMALY-AMOUNT: the 80k "pedido caro" dwarfs the 6× 2k uncategorised rows.
+    expect(stored.map((s) => s.family).sort()).toEqual(["INS-ANOMALY-AMOUNT", "INS-BUDGET-LIMIT", "INS-DATA-QUALITY"]);
     expect(stored.every((s) => s.status === "ACTIVE")).toBe(true);
 
+    const countAfterFirstRun = stored.length;
     await service.refreshInsights(user);
     stored = await database.select().from(insightsTable).where(eq(insightsTable.userId, userId));
-    expect(stored).toHaveLength(2); // no duplicates
+    expect(stored).toHaveLength(countAfterFirstRun); // no duplicates
   });
 
   it("countActiveForUser drops as insights are seen or dismissed (sidebar badge, spec 13 §6.13)", async () => {
@@ -131,5 +135,54 @@ describe("insight engine (integration)", () => {
     const withRefresh = await service.getQueue(user);
     expect(Array.isArray(withRefresh)).toBe(true);
     expect(withRefresh.length).toBeGreaterThanOrEqual(stored.length);
+  });
+
+  // WP-KAI-DETECTORS-6: the 6 detectors added 2026-09-11.
+  it("detects an obligation due soon (INS-OBL-DUE)", async () => {
+    const { database, service } = await seed({ withBudgetBreach: false });
+    const [debt] = await database
+      .insert(debts)
+      .values({ userId, name: "Heladera en cuotas", type: "PURCHASE_INSTALLMENTS", currencyCode: "ARS", originalAmount: "300000", startDate: "2026-08-01" })
+      .returning();
+    await database.insert(debtInstallments).values({
+      debtId: debt.id, installmentNumber: 1, dueDate: "2026-09-25", totalAmount: "100000", principalAmount: "100000",
+    });
+
+    await service.refreshInsights(user);
+    const queue = await service.getQueue(user, { refresh: false });
+    const oblDue = queue.find((i) => i.family === "INS-OBL-DUE");
+    expect(oblDue).toBeDefined();
+    expect(oblDue!.body).toContain("Heladera en cuotas");
+  });
+
+  it("detects a subscription price change (INS-REC-AMOUNT)", async () => {
+    const { database, service } = await seed({ withBudgetBreach: false });
+    // `merchants` is a shared catalog table, not user-scoped — the test harness never
+    // truncates it between runs, so the slug must be unique per invocation, not fixed.
+    const [merchant] = await database
+      .insert(merchants)
+      .values({ slug: `netflix-test-${randomUUID()}`, canonicalName: "Netflix" })
+      .returning();
+    await database.insert(subscriptions).values({
+      userId,
+      merchantId: merchant.id,
+      label: "Netflix",
+      frequency: "MONTHLY",
+      currencyCode: "ARS",
+      currentAmount: "6500",
+      priceHistory: [{ amount: "5000", from: "2026-08-01" }],
+      firstChargedOn: "2026-01-04",
+      lastChargedOn: "2026-09-04",
+      nextExpectedOn: "2026-10-04",
+      chargeCount: 9,
+      confidence: "0.950",
+    });
+
+    await service.refreshInsights(user);
+    const queue = await service.getQueue(user, { refresh: false });
+    const priceChange = queue.find((i) => i.family === "INS-REC-AMOUNT");
+    expect(priceChange).toBeDefined();
+    expect(priceChange!.body).toContain("Netflix");
+    expect(priceChange!.body).toContain("30%");
   });
 });

@@ -461,17 +461,28 @@ function DashboardBody({
           compact
           icon={PieChartIcon}
           title="Gastos por categoría"
+          contentClassName="flex-1"
           expand={
             donutSegments.length > 0 ? (
               <DonutChart segments={donutSegments} centerLabel="Gasto total" centerValue={money0(currency).format(totalSpend)} expanded />
             ) : undefined
           }
         >
-          {donutSegments.length > 0 ? (
-            <DonutChart segments={donutSegments} centerLabel="Gasto total" centerValue={money0(currency).format(totalSpend)} />
-          ) : (
-            <p className="py-8 text-center text-caption text-muted-foreground">Todavía no hay gastos categorizados este mes.</p>
-          )}
+          {/* flex-1 on CardContent (above) lets this row take the leftover height when the
+              sibling "Flujo del mes" card is taller, so the donut centers instead of hugging
+              the top with blank space below it. */}
+          <div className="flex flex-1 items-center">
+            {donutSegments.length > 0 ? (
+              <DonutChart
+                segments={donutSegments}
+                centerLabel="Gasto total"
+                centerValue={money0(currency).format(totalSpend)}
+                className="w-full"
+              />
+            ) : (
+              <p className="w-full py-8 text-center text-caption text-muted-foreground">Todavía no hay gastos categorizados este mes.</p>
+            )}
+          </div>
         </SectionCard>
       </section>
 

@@ -16,10 +16,12 @@ export function WeeklyFlowChart({ weeks, currency, expanded = false }: { weeks: 
   const axisMax = Math.ceil(max / step) * step;
   const ticks = Array.from({ length: Math.round(axisMax / step) + 1 }, (_, i) => i * step);
 
+  // Compact tile: a flatter aspect ratio (not just a smaller viewBox) so the chart reads as a
+  // glance-able sparkline next to "Gastos por categoría", not a full-size report chart.
   const W = expanded ? 560 : 280;
-  const H = expanded ? 300 : 190;
+  const H = expanded ? 300 : 150;
   const padL = expanded ? 48 : 30;
-  const padB = expanded ? 34 : 26;
+  const padB = expanded ? 34 : 22;
   const padT = expanded ? 10 : 6;
   const axisFont = expanded ? 12 : 8.5;
   const labelFont = expanded ? 13 : 9;
@@ -28,7 +30,9 @@ export function WeeklyFlowChart({ weeks, currency, expanded = false }: { weeks: 
   const groupW = plotW / weeks.length;
   const barW = expanded ? Math.max(14, Math.min(34, groupW / 3.4)) : Math.max(7, Math.min(14, groupW / 3.4));
 
-  const compact = new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 0 });
+  // `maximumFractionDigits: 1` avoids adjacent gridlines rounding to the same compact label
+  // (e.g. 1.0M/1.2M/1.4M all showing "1 M") when the step doesn't land on a whole million.
+  const compact = new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 1 });
   const full = new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 0 });
 
   return (
@@ -43,7 +47,7 @@ export function WeeklyFlowChart({ weeks, currency, expanded = false }: { weeks: 
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className={expanded ? "h-auto w-full" : "mx-auto h-auto w-full max-w-[380px]"}
+        className="h-auto w-full"
         role="img"
         aria-label="Ingresos y gastos por semana"
       >
@@ -82,10 +86,13 @@ export function WeeklyFlowChart({ weeks, currency, expanded = false }: { weeks: 
   );
 }
 
+// Classic "nice number" step so ~4 gridlines cover the range, instead of the axis filling up
+// with 8-10 thin bands (the old 1/2/5 thresholds picked too fine a step for most values —
+// e.g. a rough step of 4.25 rounded down to 2 instead of up to 5).
 function niceStep(max: number): number {
   const rough = max / 4;
   const mag = 10 ** Math.floor(Math.log10(rough || 1));
   const norm = rough / mag;
-  const nice = norm >= 5 ? 5 : norm >= 2 ? 2 : 1;
+  const nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
   return nice * mag;
 }

@@ -47,13 +47,13 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ---
 
-### Fase B — Motor de reglas / insights  *(P1)*
+### Fase B — Motor de reglas / insights  *(✅ CERRADA 2026-09-11)*
 
-| WP | Contenido | Spec |
-|---|---|---|
-| **WP-KAI-INSIGHTS-WIRE** | Conectar los `DETECTORS` existentes (`features/insights/detectors.ts`) + `packages/finance/insights/*` (materiality, priority, reconcile) al motor proactivo de KAI, en vez de duplicar reglas. | §4 |
-| **WP-KAI-DETECTORS-6** | Los 6 detectores de insight que faltan (memoria `implementation-discovery-checkpoint`): `INS-SPEND-DELTA`, `INS-SPEND-PACE`, `INS-OBL-DUE`, `INS-REC-AMOUNT`, `INS-REC-DETECT`, `INS-ANOMALY-AMOUNT`. | §4, §12-insights-spike |
-| **WP-KAI-INSIGHTS-CRON** | Cron nocturno que genera insights por usuario (hoy la generación es lazy al abrir `/insights`). Copiar el loop de paginación del cron de notificaciones. | §21 |
+| WP | Contenido | Spec | Estado |
+|---|---|---|---|
+| **WP-KAI-INSIGHTS-WIRE** | Conectar los `DETECTORS` existentes (`features/insights/detectors.ts`) + `packages/finance/insights/*` (materiality, priority, reconcile) al motor proactivo de KAI, en vez de duplicar reglas. | §4 | ✅ DONE — `kai-ports.instance.ts`'s `getInsightsForProactive`/`getTopInsight` ya leían de `insightService.getQueue`. |
+| **WP-KAI-DETECTORS-6** | Los 6 detectores de insight que faltaban: `INS-SPEND-DELTA`, `INS-SPEND-PACE`, `INS-OBL-DUE`, `INS-REC-AMOUNT`, `INS-REC-DETECT`, `INS-ANOMALY-AMOUNT`. | §4, §12-insights-spike | ✅ DONE. Todos reusan lecturas que ya existían (deltas del propio `report.expenseByCategory`, `obligationReadModel`, `subscriptionRepository` con `priceHistory`, `recurringDetectionService.listSuggestions`, `activityQueries.listRecentActivity`) — cero queries nuevas. Materialidad/prioridad/cooldown por familia ya estaban definidos en `packages/finance/insights/*` desde antes; solo faltaban los detectores. Ojo: `INS-REC-DETECT` lee las sugerencias que el último scan (manual o cron) ya encontró — no vuelve a correr el detector de 400 días en cada refresh de insights, sería demasiado caro. 8 tests de integración en `tests/integration/insight-engine.test.ts` (2 nuevos, exercising INS-OBL-DUE e INS-REC-AMOUNT contra Postgres real). |
+| **WP-KAI-INSIGHTS-CRON** | Cron nocturno que genera insights por usuario. | §21 | ✅ DONE — `/api/cron/insights` ya existía de una pasada anterior. |
 
 ---
 

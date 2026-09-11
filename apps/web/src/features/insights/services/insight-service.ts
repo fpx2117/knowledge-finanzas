@@ -3,6 +3,8 @@ import {
   createBudgetRepository,
   createCategoryRepository,
   createInsightRepository,
+  createRecurringSeriesRepository,
+  createSubscriptionRepository,
   createTransactionRepository,
   db,
   type Database,
@@ -21,6 +23,8 @@ import { createReportService } from "@/features/reports/services/report-service"
 import { createBudgetService } from "@/features/budgets/services/budget-service";
 import { createGoalService } from "@/features/goals/services/goal-service";
 import { createDashboardService } from "@/features/dashboard/services/dashboard-service";
+import { createObligationReadModel } from "@/features/obligations/services/obligation-read-model";
+import { createRecurringDetectionService } from "@/features/transactions/services/recurring-detection-service";
 import {
   createAccountBalanceQueries,
   createActivityQueries,
@@ -90,12 +94,21 @@ export function createInsightService(database: Database = db, now: () => Date = 
     budgetQueries,
   });
   const goalService = createGoalService(database);
+  const activityQueries = createActivityQueries(database);
   const dashboard = createDashboardService({
     balances: createAccountBalanceQueries(database),
     monthly: createMonthlySummaryQueries(database),
-    activity: createActivityQueries(database),
+    activity: activityQueries,
     debts: createDebtSummaryQueries(database),
     scheduled: createUpcomingObligationQueries(database),
+  });
+  const obligationReadModel = createObligationReadModel(database);
+  const subscriptionRepository = createSubscriptionRepository(database);
+  const recurringDetectionService = createRecurringDetectionService({
+    transactions,
+    recurringSeries: createRecurringSeriesRepository(database),
+    categories: createCategoryRepository(database),
+    now,
   });
 
   async function buildContext(user: { id: string; timezone: string; baseCurrency: string }): Promise<DetectorContext> {
@@ -110,11 +123,19 @@ export function createInsightService(database: Database = db, now: () => Date = 
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const dayOfMonth = Number(today.slice(8, 10));
 
-    const [budgets, goals, summary, uncategorizedCount] = await Promise.all([
+    const [budgets, goals, summary, uncategorizedCount, obligations, subscriptions, recurringSuggestions, recentExpenses] = await Promise.all([
       budgetService.getBudgetOverview({ id: user.id, timezone: user.timezone }).catch(() => []),
       goalService.listGoals({ id: user.id, timezone: user.timezone }, today).catch(() => []),
       dashboard.getDashboardSummary({ userId: user.id, timezone: user.timezone, now: nowDate }),
       transactions.countUncategorizedForUser(user.id),
+      obligationReadModel
+        .getObligations({ userId: user.id, timezone: user.timezone, baseCurrency: user.baseCurrency, horizonDays: 30, now: nowDate })
+        .catch(() => ({ items: [] as Awaited<ReturnType<typeof obligationReadModel.getObligations>>["items"] })),
+      subscriptionRepository.listForUser(user.id, "ACTIVE").catch(() => []),
+      // Reads whatever the last scan (manual or cron) already found — this is not the place
+      // to re-run the 400-day recurring-detection scan on every insight refresh.
+      recurringDetectionService.listSuggestions(user.id).catch(() => []),
+      activityQueries.listRecentActivity(user.id, { from: new Date(`${periodRange.from}T00:00:00Z`), limit: 200 }).catch(() => []),
     ]);
 
     const projection = summary.projections.find((p) => p.currencyCode === user.baseCurrency);
@@ -122,6 +143,13 @@ export function createInsightService(database: Database = db, now: () => Date = 
       .map((m) => Number(m.expense))
       .filter((n) => n > 0)
       .reduce((sum, n, _i, arr) => sum + n / arr.length, 0);
+    // Same average, but over PAST completed months only — `report.months` ends with the
+    // current in-progress month, and a run-rate baseline can't include part of itself.
+    const priorMonthsExpense = report.months
+      .slice(0, -1)
+      .map((m) => Number(m.expense))
+      .filter((n) => n > 0);
+    const priorAvgExpense = priorMonthsExpense.length > 0 ? priorMonthsExpense.reduce((a, b) => a + b, 0) / priorMonthsExpense.length : 0;
 
     return {
       userId: user.id,
@@ -161,6 +189,52 @@ export function createInsightService(database: Database = db, now: () => Date = 
           }
         : null,
       uncategorizedCount,
+      categorySpendDeltas: report.expenseByCategory.map((slice) => ({
+        categoryId: slice.id,
+        categoryName: slice.name,
+        amount: slice.amount,
+        currencyCode: report.currencyCode,
+        delta: slice.delta ?? null,
+      })),
+      spendPace: {
+        spentSoFar: report.kpis.expense,
+        dayOfMonth,
+        daysInMonth,
+        priorMonthlyAverage: priorAvgExpense > 0 ? String(Math.round(priorAvgExpense)) : null,
+      },
+      upcomingObligations: obligations.items.map((item) => ({
+        id: item.sourceId,
+        title: item.title,
+        dueDate: item.dueDate,
+        remainingAmount: item.remainingAmount,
+        currencyCode: item.currencyCode,
+        daysUntilDue: item.daysUntilDue,
+        isOverdue: item.isOverdue,
+        href: item.href,
+      })),
+      subscriptions: subscriptions.map((s) => {
+        const history = Array.isArray(s.priceHistory) ? s.priceHistory : [];
+        const prior = [...history].reverse().find((h) => h.amount !== s.currentAmount);
+        return { id: s.id, label: s.label, currencyCode: s.currencyCode, currentAmount: s.currentAmount, previousAmount: prior?.amount ?? null };
+      }),
+      recurringSuggestions: recurringSuggestions.map((s) => ({
+        id: s.id,
+        label: s.label,
+        typicalAmount: s.typicalAmount,
+        currencyCode: s.currencyCode,
+        occurrenceCount: s.occurrenceCount,
+        confidence: s.confidence,
+      })),
+      recentExpenses: recentExpenses
+        .filter((r) => r.type === "EXPENSE" && r.currencyCode === user.baseCurrency)
+        .map((r) => ({
+          id: r.id,
+          description: r.description,
+          merchant: r.merchant,
+          amount: r.amount,
+          currencyCode: r.currencyCode,
+          occurredAt: r.occurredAt.toISOString(),
+        })),
     };
   }
 
