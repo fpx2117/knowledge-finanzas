@@ -1237,6 +1237,10 @@ export const kaiInteractions = pgTable("kai_interactions", {
   // WP-KAI-BUDGET-GUARD-FULL (spec §19 "reasonForLLM"): why the pipeline reached for the LLM —
   // unresolved | low-confidence | handler-error. Null for every deterministic answer.
   reasonForLlm: text("reason_for_llm"),
+  // WP-KAI-FEEDBACK-PERSIST (spec §12/§25): the 👍/👎 the user tapped on this answer. Null until
+  // rated. Feeds resolver tuning alongside `unresolvedText` — a downvoted deterministic answer
+  // is as informative as an UNRESOLVED phrasing.
+  feedback: text("feedback"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("kai_interactions_user_created_idx").on(table.userId, table.createdAt),

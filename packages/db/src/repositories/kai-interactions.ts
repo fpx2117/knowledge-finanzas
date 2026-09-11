@@ -35,13 +35,28 @@ export function createKaiInteractionRepository(database: Database) {
   }
 
   return {
-    async record(input: KaiInteractionInput): Promise<void> {
-      await database.insert(kaiInteractions).values({
-        ...input,
-        aiCostUsd: input.aiCostUsd.toString(),
-        unresolvedText: input.unresolvedText ?? null,
-        reasonForLlm: input.reasonForLlm ?? null,
-      });
+    /** Returns the new row's id — the client needs it to attach a 👍/👎 later. */
+    async record(input: KaiInteractionInput): Promise<string> {
+      const [row] = await database
+        .insert(kaiInteractions)
+        .values({
+          ...input,
+          aiCostUsd: input.aiCostUsd.toString(),
+          unresolvedText: input.unresolvedText ?? null,
+          reasonForLlm: input.reasonForLlm ?? null,
+        })
+        .returning({ id: kaiInteractions.id });
+      return row.id;
+    },
+
+    /** Sets the feedback on one interaction — scoped to `userId` so a client-supplied id can
+     * never rate someone else's row (spec 14 IDOR discipline). No-op (silently) if it doesn't
+     * belong to this user or doesn't exist. */
+    async setFeedback(id: string, userId: string, feedback: "up" | "down"): Promise<void> {
+      await database
+        .update(kaiInteractions)
+        .set({ feedback })
+        .where(and(eq(kaiInteractions.id, id), eq(kaiInteractions.userId, userId)));
     },
 
     /** Recent UNRESOLVED / LLM-fallback phrasings — the "intents faltantes" report (spec §25). */
@@ -100,6 +115,21 @@ export function createKaiInteractionRepository(database: Database) {
         .where(and(rangeWhere(range), sql`${kaiInteractions.reasonForLlm} is not null`))
         .groupBy(kaiInteractions.reasonForLlm)
         .orderBy(desc(sql`count(*)`));
+    },
+
+    /** 👍/👎 tally by intent, rated interactions only — a downvoted deterministic answer means
+     * the handler/template is wrong for that intent, not that the intent is missing. */
+    countFeedbackByIntent(range: KaiDateRange) {
+      return database
+        .select({
+          intentId: kaiInteractions.intentId,
+          up: sql<number>`count(*) filter (where ${kaiInteractions.feedback} = 'up')::int`,
+          down: sql<number>`count(*) filter (where ${kaiInteractions.feedback} = 'down')::int`,
+        })
+        .from(kaiInteractions)
+        .where(and(rangeWhere(range), sql`${kaiInteractions.feedback} is not null`))
+        .groupBy(kaiInteractions.intentId)
+        .orderBy(desc(sql`count(*) filter (where ${kaiInteractions.feedback} = 'down')`));
     },
 
     listForUser(userId: string, limit: number) {

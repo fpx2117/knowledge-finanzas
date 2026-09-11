@@ -32,7 +32,7 @@ import { openQuickAdd } from "@/features/capture/components/quick-add-root";
 import { quickVoidTransactionAction } from "@/features/capture/actions/quick-actions";
 import type { KaiAccess } from "../lib/kai-points.instance";
 import type { KaiProactiveMessage } from "@know-finanzas/kai";
-import { getKaiAccessAction, sendKaiMessageAction } from "../actions/kai-actions";
+import { getKaiAccessAction, kaiRateInteractionAction, sendKaiMessageAction } from "../actions/kai-actions";
 import {
   dismissKaiProactiveAction,
   actKaiProactiveAction,
@@ -72,7 +72,7 @@ const FAB_SIZE = 64;
 
 type Entry =
   | { role: "user"; text: string }
-  | { role: "assistant"; response: KaiResponse; intentId?: string; feedback?: "up" | "down" };
+  | { role: "assistant"; response: KaiResponse; intentId?: string; interactionId?: string | null; feedback?: "up" | "down" };
 
 const STATE_META: Record<KaiVisualState, { label: string; dot: string }> = {
   NEUTRAL: { label: "En línea", dot: "bg-[var(--color-kai-positive)]" },
@@ -241,7 +241,10 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       setPending(false);
       if (result.access) setAccess(result.access);
       if (result.ok) {
-        setEntries((current) => [...current, { role: "assistant", response: result.response, intentId: result.intentId }]);
+        setEntries((current) => [
+          ...current,
+          { role: "assistant", response: result.response, intentId: result.intentId, interactionId: result.interactionId },
+        ]);
         setFollowups(result.followups ?? []);
       } else {
         setBanner(result.error.message);
@@ -477,9 +480,16 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   );
 
   const rateEntry = useCallback((index: number, feedback: "up" | "down") => {
+    let interactionId: string | null | undefined;
     setEntries((current) =>
-      current.map((entry, i) => (i === index && entry.role === "assistant" ? { ...entry, feedback } : entry)),
+      current.map((entry, i) => {
+        if (i !== index || entry.role !== "assistant") return entry;
+        interactionId = entry.interactionId;
+        return { ...entry, feedback };
+      }),
     );
+    // Toggling twice quickly still just sets the latest value server-side — no need to debounce.
+    if (interactionId) void kaiRateInteractionAction(interactionId, feedback).catch(() => {});
   }, []);
 
   const canSend = !pending && !access.exhausted && draft.trim().length > 0;

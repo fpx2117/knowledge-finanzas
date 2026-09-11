@@ -104,4 +104,30 @@ describe("KAI interaction pipeline (integration)", () => {
     // KAI points: 1 (deterministic) + 5 (LLM) = 6.
     expect(await repo.consumedPointsForUser(userId, range)).toBe(6);
   });
+
+  // WP-KAI-FEEDBACK-PERSIST
+  it("persists 👍/👎 feedback, scoped to the owning user (IDOR-safe)", async () => {
+    const database = await seed();
+    const repo = createKaiInteractionRepository(database);
+    const otherUserId = "00000000-0000-0000-0000-0000000004a2";
+    await database.insert(users).values({ id: otherUserId, name: "Otro", email: "otro-kai@example.test", timezone, baseCurrency: "ARS" });
+
+    const id = await repo.record({
+      userId, intentId: "GET_MONTH_EXPENSES", resolutionSource: "DATABASE", weight: 1,
+      llmUsed: false, aiCostUsd: 0, latencyMs: 5, responseType: "KAI_METRIC", screenContext: null,
+    });
+
+    // A different user's id can never rate someone else's row.
+    await repo.setFeedback(id, otherUserId, "down");
+    let [row] = await repo.listForUser(userId, 1);
+    expect(row.feedback).toBeNull();
+
+    await repo.setFeedback(id, userId, "up");
+    [row] = await repo.listForUser(userId, 1);
+    expect(row.feedback).toBe("up");
+
+    const range = { from: new Date("2026-09-01"), to: new Date("2026-10-01") };
+    const byIntent = await repo.countFeedbackByIntent(range);
+    expect(byIntent).toEqual([{ intentId: "GET_MONTH_EXPENSES", up: 1, down: 0 }]);
+  });
 });

@@ -110,14 +110,14 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ### Fase G — Response types + UX  *(P2)*
 
-| WP | Contenido | Spec |
-|---|---|---|
-| **WP-KAI-CHART-TYPES** | Líneas, donut, sparkline (solo barras hoy). Reusar componentes de `features/reports`. | §12 |
-| **WP-KAI-FEEDBACK-PERSIST** | 👍👎 en respuestas → persistir en `kai_interactions` (`feedback`), usar para tuning. Hoy es solo UI. | §12, §25 |
-| **WP-KAI-ONBOARDING** | Intro la primera vez que se abre KAI; hacer visible el atajo (`J`). | §6 |
-| **WP-KAI-CONVERSATION-PERSIST** | Mantener la conversación al cerrar/reabrir (hoy se pierde — decisión v1, revisar). | — |
-| **WP-KAI-A11Y** | `aria-live` en las cards proactivas, manejo de foco, revisar la card + mascot flotante en anchos chicos. | §6 |
-| **WP-KAI-ATTACH** | El clip del input es decorativo → cablearlo (adjuntar comprobante → OCR) o sacarlo. | §12 |
+| WP | Contenido | Spec | Estado |
+|---|---|---|---|
+| **WP-KAI-CHART-TYPES** | Líneas, donut, sparkline (solo barras hoy). Reusar componentes de `features/reports`. | §12 | ❌ PENDIENTE. |
+| **WP-KAI-FEEDBACK-PERSIST** | 👍👎 en respuestas → persistir en `kai_interactions` (`feedback`), usar para tuning. | §12, §25 | ✅ DONE (2026-09-11) — `record()` devuelve el id de la fila; el cliente lo guarda por entrada y lo manda de vuelta al tocar 👍/👎 (`kaiRateInteractionAction`, best-effort, nunca bloquea la UI). `setFeedback` escopeado a `userId` (IDOR-safe: un id ajeno no toca nada). `kaiInteractionRepository.countFeedbackByIntent` + `pnpm kai:report` lo desglosa — un 👎 en un intent determinístico señala un handler/template a revisar, no un intent faltante. Migración 0056. Las "done messages" de las cards de confirmación (crear/anular/transferir…) no tienen fila de auditoría propia, así que sus 👍/👎 quedan solo en UI — no hay nada que persistir ahí. |
+| **WP-KAI-ONBOARDING** | Intro la primera vez que se abre KAI; hacer visible el atajo (`J`). | §6 | ❌ PENDIENTE. |
+| **WP-KAI-CONVERSATION-PERSIST** | Mantener la conversación al cerrar/reabrir (hoy se pierde — decisión v1, revisar). | — | ❌ PENDIENTE. |
+| **WP-KAI-A11Y** | `aria-live` en las cards proactivas, manejo de foco, revisar la card + mascot flotante en anchos chicos. | §6 | ❌ PENDIENTE. |
+| **WP-KAI-ATTACH** | El clip del input es decorativo → cablearlo (adjuntar comprobante → OCR) o sacarlo. | §12 | ❌ PENDIENTE. |
 
 ---
 

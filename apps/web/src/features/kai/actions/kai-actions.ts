@@ -30,7 +30,7 @@ const inputSchema = z.object({
 });
 
 export type KaiActionResult =
-  | { ok: true; response: KaiResponse; followups: KaiFollowup[]; intentId: string; access: KaiAccess | null }
+  | { ok: true; response: KaiResponse; followups: KaiFollowup[]; intentId: string; interactionId: string | null; access: KaiAccess | null }
   | { ok: false; error: { code: string; message: string }; access: KaiAccess | null };
 
 export async function sendKaiMessageAction(input: {
@@ -91,8 +91,9 @@ export async function sendKaiMessageAction(input: {
     // and the meter never moves. A failure here (e.g. migrations not applied) is logged, not
     // swallowed silently — the answer still returns.
     let recorded = true;
+    let interactionId: string | null = null;
     try {
-      await kaiInteractionRepository.record({
+      interactionId = await kaiInteractionRepository.record({
         userId: user.id,
         intentId: audit.intentId,
         resolutionSource: audit.resolutionSource,
@@ -117,7 +118,7 @@ export async function sendKaiMessageAction(input: {
     const nextAccess = recorded
       ? await getKaiAccess(user.id, user.timezone, now).catch(() => access)
       : access;
-    return { ok: true, response, followups, intentId: audit.intentId, access: nextAccess };
+    return { ok: true, response, followups, intentId: audit.intentId, interactionId, access: nextAccess };
   } catch {
     return {
       ok: false,
@@ -130,4 +131,15 @@ export async function sendKaiMessageAction(input: {
 export async function getKaiAccessAction(): Promise<KaiAccess> {
   const user = await requireCurrentUser();
   return getKaiAccess(user.id, user.timezone);
+}
+
+/**
+ * WP-KAI-FEEDBACK-PERSIST (spec §12/§25): the 👍/👎 the user tapped on an answer. Best-effort —
+ * a failure here never surfaces to the user, the thumb already flipped in the UI regardless.
+ */
+export async function kaiRateInteractionAction(interactionId: string, feedback: "up" | "down"): Promise<void> {
+  const user = await requireCurrentUser();
+  await kaiInteractionRepository.setFeedback(interactionId, user.id, feedback).catch((error) => {
+    console.error("[kai] no se pudo guardar el feedback", error);
+  });
 }

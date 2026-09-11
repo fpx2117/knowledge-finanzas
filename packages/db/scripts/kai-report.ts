@@ -27,11 +27,12 @@ async function main() {
   const from = new Date(to.getTime() - days * 86_400_000);
   const range = { from, to };
 
-  const [stats, byIntent, unresolved, byReason] = await Promise.all([
+  const [stats, byIntent, unresolved, byReason, byFeedback] = await Promise.all([
     repo.resolutionStats(range),
     repo.countByIntent(range),
     repo.recentUnresolved(range, 40),
     repo.countByReasonForLlm(range),
+    repo.countFeedbackByIntent(range),
   ]);
 
   console.log(`\n=== KAI report — últimos ${days} días ===\n`);
@@ -47,6 +48,13 @@ async function main() {
     console.log("\nPor qué se usó LLM:");
     for (const row of byReason) {
       console.log(`  ${String(row.reason).padEnd(16)} ${String(row.count).padStart(5)}`);
+    }
+  }
+
+  if (byFeedback.length > 0) {
+    console.log("\nFeedback 👍/👎 por intent — un 👎 en un intent determinístico es un handler/template a revisar:");
+    for (const row of byFeedback) {
+      console.log(`  ${String(row.intentId).padEnd(26)} 👍 ${String(row.up).padStart(3)}   👎 ${String(row.down).padStart(3)}`);
     }
   }
 
