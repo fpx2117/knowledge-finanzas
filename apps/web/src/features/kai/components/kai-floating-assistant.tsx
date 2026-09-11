@@ -102,10 +102,19 @@ const QUICK_ACTION_ICON: Partial<Record<KaiIntentId, LucideIcon>> = {
   GET_NET_CASHFLOW: BarChart3Icon,
 };
 
+// WP-KAI-ONBOARDING: a small pulsing ring on the FAB the very first time it's ever shown, and
+// one extra line in the greeting the first time the panel opens — both keyed off the same
+// per-browser flag, both gone for good the moment the user opens KAI once.
+const ONBOARDING_SEEN_KEY = "kai:onboarding-seen-v1";
+
 export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAccess }) {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // Captures whether onboarding was still pending *at the moment* the panel first opened, so the
+  // greeting can mention the shortcut once even though `needsOnboarding` flips to false right away.
+  const isFirstOpenRef = useRef(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -122,6 +131,29 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   const lastAssistant = [...entries].reverse().find((e): e is Extract<Entry, { role: "assistant" }> => e.role === "assistant");
   const visualState: KaiVisualState = pending ? "ANALYTICAL" : lastAssistant?.response.state ?? "NEUTRAL";
   const stateMeta = STATE_META[visualState];
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARDING_SEEN_KEY)) setNeedsOnboarding(true);
+    } catch {
+      /* private mode / blocked storage — the pulse just never shows, no functional loss */
+    }
+  }, []);
+
+  // The single entry point for "show the panel" (FAB tap, kai:open, the J shortcut) — clears the
+  // onboarding pulse and records whether this particular open was the first one, for the greeting.
+  const openKai = useCallback(() => {
+    isFirstOpenRef.current = needsOnboarding;
+    if (needsOnboarding) {
+      setNeedsOnboarding(false);
+      try {
+        localStorage.setItem(ONBOARDING_SEEN_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    }
+    setOpen(true);
+  }, [needsOnboarding]);
 
   useEffect(() => {
     if (!open) return;
@@ -182,9 +214,16 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     [],
   );
 
+  // Tracked in a ref (not just the `open` state) so the mount-once listener below can read the
+  // latest value without going stale or needing to resubscribe on every open/close.
+  const openStateRef = useRef(false);
+  useEffect(() => {
+    openStateRef.current = open;
+  }, [open]);
+
   // Global trigger — window event + the "J" shortcut (N = Quick Add, ⌘K = palette).
   useEffect(() => {
-    const openHandler = () => setOpen(true);
+    const openHandler = () => openKai();
     const keyHandler = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
@@ -193,7 +232,8 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       }
       if (event.key.toLowerCase() === "j") {
         event.preventDefault();
-        setOpen((current) => !current);
+        if (openStateRef.current) setOpen(false);
+        else openKai();
       }
     };
     window.addEventListener("kai:open", openHandler);
@@ -202,7 +242,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       window.removeEventListener("kai:open", openHandler);
       window.removeEventListener("keydown", keyHandler);
     };
-  }, []);
+  }, [openKai]);
 
   const submit = useCallback(
     async (payload: { message?: string; quickActionIntentId?: string; label: string }) => {
@@ -502,7 +542,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
             message={proactive}
             onOpen={() => {
               setProactive(null);
-              setOpen(true);
+              openKai();
             }}
             onDismiss={() => resolveProactive(dismissKaiProactiveAction)}
             onSnooze={() => resolveProactive(snoozeKaiProactiveAction)}
@@ -522,13 +562,14 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
           type="button"
           {...fab.dragHandlers}
           onClick={() => {
-            if (!fab.wasDragged()) setOpen(true);
+            if (!fab.wasDragged()) openKai();
           }}
           onPointerEnter={fab.wake}
           onFocus={fab.wake}
           style={fab.style}
           data-idle={fab.idle || undefined}
-          aria-label="Abrir KAI, tu asistente — mantené presionado para moverlo"
+          title="Abrir KAI — atajo: J"
+          aria-label="Abrir KAI, tu asistente — atajo J, mantené presionado para moverlo"
           className={cn(
             "group fixed z-[var(--z-popover)] size-14 touch-none cursor-grab select-none rounded-full transition-[transform,opacity] duration-300 ease-out active:cursor-grabbing focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/60 sm:size-16",
             !fab.isPositioned && FAB_DEFAULT_POS,
@@ -539,13 +580,19 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
               : "hover:scale-[1.06] active:scale-95",
           )}
         >
+          {needsOnboarding ? (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 rounded-full animate-ping bg-[var(--color-kai-neutral)]/40 [animation-duration:1.8s]"
+            />
+          ) : null}
           {/* eslint-disable-next-line @next/next/no-img-element -- tiny static brand asset, no next/image optimizer */}
           <img
             src={KAI_MASCOT_SRC[visualState]}
             alt=""
             draggable={false}
             className={cn(
-              "pointer-events-none size-full object-contain transition-[filter] duration-300 [filter:drop-shadow(0_8px_16px_rgb(16_24_47_/_0.30))] group-data-[idle]:[filter:drop-shadow(0_4px_8px_rgb(16_24_47_/_0.18))]",
+              "pointer-events-none relative size-full object-contain transition-[filter] duration-300 [filter:drop-shadow(0_8px_16px_rgb(16_24_47_/_0.30))] group-data-[idle]:[filter:drop-shadow(0_4px_8px_rgb(16_24_47_/_0.18))]",
               pending && "animate-pulse",
             )}
           />
@@ -611,8 +658,9 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
               <div className="flex items-start gap-2">
                 <KaiAvatar state="POSITIVE" size={26} className="mt-0.5" />
                 <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-secondary px-3 py-2 text-small text-foreground-secondary">
-                  ¡Hola! Soy KAI. Respondo con tus datos al instante — cada consulta usa 1 punto, un análisis con IA usa 5.
-                  {access.unlimited ? " Con tu plan son ilimitados." : ` Te quedan ${access.remaining ?? 0} este mes.`}
+                  ¡Hola! Soy KAI. Respondo con tus datos al instante — preguntame lo que quieras sobre tus finanzas.
+                  {access.unlimited ? " Con tu plan tenés consultas ilimitadas." : ` Este mes te quedan ${access.remaining ?? 0} consultas.`}
+                  {isFirstOpenRef.current ? " Tip: apretá J en cualquier pantalla para abrirme rápido." : ""}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 pl-8">
