@@ -40,7 +40,7 @@ import {
   muteKaiProactiveKindAction,
   snoozeKaiProactiveAction,
 } from "../actions/kai-proactive-actions";
-import { kaiCreateTransactionAction } from "../actions/kai-create-actions";
+import { kaiAllocateToGoalAction, kaiCreateTransactionAction, kaiVoidTransactionAction } from "../actions/kai-create-actions";
 import { MAX_KAI_MESSAGE_LENGTH } from "../lib/constants";
 import { KaiAlertCard } from "./kai-alert-card";
 import { KaiAvatar } from "./kai-avatar";
@@ -260,6 +260,45 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     [pending, router],
   );
 
+  const doneMessage = useCallback((body: string, route: string, label: string) => {
+    setEntries((current) => [
+      ...current,
+      { role: "assistant", response: { type: "KAI_CONFIRMATION", state: "POSITIVE", body, actions: [{ kind: "navigate", label, route }] } },
+    ]);
+    router.refresh();
+    window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
+  }, [router]);
+
+  const allocateFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiAllocateToGoalAction({ goalId: params.goalId, amount: params.amount ?? "" });
+      setPending(false);
+      if (result.ok) {
+        doneMessage(`Listo, aporté a tu meta ${params.goalName ?? ""}.`, "/goals", "Ver la meta");
+        toast.success("Aporte registrado", { description: `KAI sumó a ${params.goalName ?? "tu meta"}.` });
+      } else setBanner(result.error.message);
+    },
+    [pending, doneMessage],
+  );
+
+  const voidFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiVoidTransactionAction(params.transactionId);
+      setPending(false);
+      if (result.ok) {
+        doneMessage("Listo, anulé el movimiento.", "/transactions", "Ver movimientos");
+        toast.success("Movimiento anulado");
+      } else setBanner(result.error ?? "No pude anular el movimiento.");
+    },
+    [pending, doneMessage],
+  );
+
   const onAction = useCallback(
     (action: KaiAction) => {
       if (action.kind === "navigate" && action.route) {
@@ -278,11 +317,15 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         });
       } else if (action.kind === "confirm-create" && action.params) {
         void createFromCard(action.params);
+      } else if (action.kind === "confirm-goal-allocation" && action.params) {
+        void allocateFromCard(action.params);
+      } else if (action.kind === "confirm-void" && action.params) {
+        void voidFromCard(action.params);
       } else if (action.kind === "run-intent" && action.intentId) {
         void submit({ quickActionIntentId: action.intentId, label: action.label });
       }
     },
-    [router, submit, createFromCard],
+    [router, submit, createFromCard, allocateFromCard, voidFromCard],
   );
 
   const rateEntry = useCallback((index: number, feedback: "up" | "down") => {

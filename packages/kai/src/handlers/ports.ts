@@ -99,4 +99,21 @@ export interface KaiDataPorts {
   getBudgetStatus(): Promise<KaiBudgetStatus[]>;
   getGoalProgress(): Promise<KaiGoalProgress[]>;
   getTopInsight(): Promise<KaiTopInsight | null>;
+
+  /** Active goals, for resolving "aportá $X a la meta {nombre}". */
+  getGoalsForAllocation(): Promise<{ id: string; name: string; currencyCode: string }[]>;
+  /** Finds the movement KAI should offer to void — the last one, or one matching a merchant. */
+  findTransactionToVoid(criteria: {
+    mode: "last" | "merchant";
+    merchant?: string;
+    ofType?: "EXPENSE" | "INCOME";
+  }): Promise<{
+    id: string;
+    type: "EXPENSE" | "INCOME";
+    description: string;
+    merchant: string | null;
+    amount: string;
+    currencyCode: string;
+    occurredAt: string;
+  } | null>;
 }

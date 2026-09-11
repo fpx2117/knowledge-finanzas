@@ -256,6 +256,40 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
         }));
     },
 
+    async getGoalsForAllocation() {
+      const today = todayInTimezone(now, user.timezone);
+      const goals = await goalService.listGoals(user, today).catch(() => []);
+      return goals
+        .filter((g) => g.status === "ACTIVE")
+        .map((g) => ({ id: g.id, name: g.name, currencyCode: g.currencyCode }));
+    },
+
+    async findTransactionToVoid(criteria) {
+      const rows = await activityQueries.listRecentActivity(user.id, { limit: 60, includeVoided: false });
+      const q = criteria.merchant ? normalizeText(criteria.merchant) : "";
+      const hit = rows.find((row) => {
+        const type = row.type as string;
+        if (type !== "EXPENSE" && type !== "INCOME") return false;
+        if (criteria.ofType && type !== criteria.ofType) return false;
+        if (criteria.mode === "merchant" && q) {
+          const merchant = normalizeText((row.merchant as string | null) ?? "");
+          const desc = normalizeText((row.description as string | null) ?? "");
+          return merchant.includes(q) || desc.includes(q);
+        }
+        return true; // mode "last" — rows are newest-first
+      });
+      if (!hit) return null;
+      return {
+        id: hit.id as string,
+        type: hit.type as "EXPENSE" | "INCOME",
+        description: (hit.description as string | null) ?? "",
+        merchant: (hit.merchant as string | null) ?? null,
+        amount: (hit.amount as string) ?? "0",
+        currencyCode: hit.currencyCode as string,
+        occurredAt: new Date(hit.occurredAt as string | Date).toISOString(),
+      };
+    },
+
     async getTopInsight() {
       const queue = await insightService
         .getQueue(user)

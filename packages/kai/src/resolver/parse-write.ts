@@ -128,3 +128,57 @@ export function parseWriteIntent(normalized: string, raw: string): KaiWriteInten
 function stripAccents(value: string): string {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
+
+/**
+ * Action intents beyond create-a-movement (spec §11): moving money to a goal, undoing a
+ * movement. Checked before `parseWriteIntent` — more specific. Returns null if none match.
+ */
+export type KaiActionIntent =
+  | { kind: "ALLOCATE_TO_GOAL"; amount: string | null; goalName: string }
+  | { kind: "VOID_LAST"; ofType: "EXPENSE" | "INCOME" | null }
+  | { kind: "VOID_MERCHANT"; merchant: string };
+
+const ALLOCATE_VERB = /\b(aport[aáeé]\w*|mov[eé]\w*|mon[eé]\w*|pas[aá]\w*|guard[aá]\w*|transferi\w*|deposit[aá]\w*|sum[aá]\w* .*\bmeta\b)/;
+const VOID_VERB = /\b(anul[aá]\w*|borr[aá]\w*|elimin[aá]\w*|deshac[eé]\w*|dar de baja|da de baja)/;
+
+export function parseActionIntent(normalized: string, raw: string): KaiActionIntent | null {
+  // ── mover plata a una meta ───────────────────────────────────────────────
+  if (ALLOCATE_VERB.test(normalized) && /\b(meta|objetivo|ahorro)\b/.test(normalized)) {
+    const { amount } = parseAmount(raw.toLowerCase());
+    const nameMatch =
+      /\b(?:a|para|hacia|en|al)\s+(?:la\s+|mi\s+|el\s+)?(?:meta|objetivo|ahorro)(?:\s+de|\s+del|\s+para)?\s+(.+)$/.exec(normalized) ??
+      /\b(?:meta|objetivo|ahorro)(?:\s+de|\s+del)?\s+(.+)$/.exec(normalized);
+    const goalName = nameMatch ? cleanTail(nameMatch[1]) : "";
+    if (goalName || amount) return { kind: "ALLOCATE_TO_GOAL", amount, goalName };
+  }
+
+  // ── anular un movimiento ─────────────────────────────────────────────────
+  if (VOID_VERB.test(normalized)) {
+    if (/\bel? ?ultim[oa]\b/.test(normalized) || /\bmi ultim[oa]\b/.test(normalized)) {
+      const ofType = /\bgasto\b/.test(normalized) ? "EXPENSE" : /\bingreso\b/.test(normalized) ? "INCOME" : null;
+      return { kind: "VOID_LAST", ofType };
+    }
+    const m =
+      /\b(?:el |la )?(?:gasto|movimiento|ingreso|compra|pago|cargo)\s+(?:de |en |a )?(.+)$/.exec(normalized) ??
+      /\blo de\s+(.+)$/.exec(normalized);
+    if (m) {
+      const merchant = cleanTail(m[1]);
+      if (merchant.length >= 2) return { kind: "VOID_MERCHANT", merchant };
+    }
+    if (/\bgasto\b/.test(normalized) || /\bmovimiento\b/.test(normalized)) {
+      return { kind: "VOID_LAST", ofType: /\bgasto\b/.test(normalized) ? "EXPENSE" : null };
+    }
+  }
+
+  return null;
+}
+
+function cleanTail(s: string): string {
+  return s
+    .replace(/[.,;:!?]+$/, "")
+    .split(" ")
+    .filter((w) => w && !FILLER.has(w) && /[a-z0-9]/i.test(w))
+    .slice(0, 4)
+    .join(" ")
+    .trim();
+}

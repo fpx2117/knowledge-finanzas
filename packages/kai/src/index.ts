@@ -38,8 +38,8 @@ export { KAI_CONTEXT_REGISTRY, resolveScreenContext } from "./domain/kai-context
 export { normalizeText, resolveDateRange, previousMonthRange, shiftRangeBack } from "./resolver/normalize";
 export type { KaiDateRange, KaiDateRangeKind } from "./resolver/normalize";
 export { resolveIntent, isConfident } from "./resolver/intent-resolver";
-export { parseWriteIntent, parseAmount } from "./resolver/parse-write";
-export type { KaiWriteIntent } from "./resolver/parse-write";
+export { parseWriteIntent, parseActionIntent, parseAmount } from "./resolver/parse-write";
+export type { KaiWriteIntent, KaiActionIntent } from "./resolver/parse-write";
 export { KAI_INTENT_ALIASES, KAI_INTENT_KEYWORDS } from "./resolver/aliases";
 
 // Registry

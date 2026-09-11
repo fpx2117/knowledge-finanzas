@@ -33,6 +33,8 @@ function fakePorts(overrides: Partial<KaiDataPorts> = {}): KaiDataPorts {
       { name: "Viaje", status: "ON_TRACK", currentAmount: "250000", targetAmount: "1000000", currencyCode: "ARS", actualProgressRatio: 0.25, requiredMonthly: "75000" },
     ],
     getTopInsight: async () => null,
+    getGoalsForAllocation: async () => [{ id: "g1", name: "Viaje", currencyCode: "ARS" }],
+    findTransactionToVoid: async () => ({ id: "t1", type: "EXPENSE" as const, description: "Super", merchant: "Coto", amount: "40000", currencyCode: "ARS", occurredAt: "2026-09-09T12:00:00Z" }),
     ...overrides,
   };
 }
@@ -147,6 +149,27 @@ describe("resolveKaiInteraction", () => {
     expect(audit.intentId).toBe("GET_SPENDING_PROJECTION");
     expect(audit.resolutionSource).toBe("CALCULATOR");
     expect(response.body).toMatch(/45[0-9]\.\d{3}|450\.000/);
+  });
+
+  it("'aportá $10.000 a la meta Viaje' → confirmación de aporte", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "aportá $10.000 a la meta Viaje" }));
+    expect(audit.intentId).toBe("ALLOCATE_TO_GOAL");
+    expect(response.type).toBe("KAI_CONFIRMATION");
+    expect(response.body).toContain("Viaje");
+    expect(response.actions?.[0]).toMatchObject({ kind: "confirm-goal-allocation", params: { goalId: "g1", amount: "10000" } });
+  });
+
+  it("'anulá el último gasto' → confirmación de anulación", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "anulá el último gasto" }));
+    expect(audit.intentId).toBe("VOID_TRANSACTION");
+    expect(response.type).toBe("KAI_CONFIRMATION");
+    expect(response.body).toContain("Coto");
+    expect(response.actions?.[0]).toMatchObject({ kind: "confirm-void", params: { transactionId: "t1" } });
+  });
+
+  it("'borrá el gasto de Coto' → VOID_TRANSACTION modo merchant", async () => {
+    const { audit } = await resolveKaiInteraction(baseInput({ message: "borrá el gasto de Coto" }));
+    expect(audit.intentId).toBe("VOID_TRANSACTION");
   });
 
   it("'¿cuándo vence Netflix?' → GET_SUBSCRIPTION_NEXT", async () => {

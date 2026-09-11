@@ -6,7 +6,7 @@ import {
 } from "../domain/kai-intent";
 import { KAI_INTENT_ALIASES, KAI_INTENT_KEYWORDS } from "./aliases";
 import { normalizeText } from "./normalize";
-import { parseWriteIntent } from "./parse-write";
+import { parseActionIntent, parseWriteIntent } from "./parse-write";
 
 /**
  * Deterministic intent resolution (spec §15). Order of strategies, each cheaper and more
@@ -40,6 +40,28 @@ export function resolveIntent(
   // (spec §15 follow-up context). The orchestrator resolves the range from this same message.
   if (lastIntentId && isKaiIntentId(lastIntentId) && TEMPORAL_FOLLOWUP.test(normalized)) {
     return { id: lastIntentId, params: {}, confidence: 0.9, strategy: "keyword" };
+  }
+
+  // Action intents (mover plata a una meta, anular un movimiento) — most specific, first.
+  const action = parseActionIntent(normalized, rawMessage);
+  if (action) {
+    if (action.kind === "ALLOCATE_TO_GOAL") {
+      return {
+        id: "ALLOCATE_TO_GOAL",
+        params: { goalName: action.goalName, ...(action.amount ? { amount: action.amount } : {}) },
+        confidence: 0.95,
+        strategy: "regex",
+      };
+    }
+    return {
+      id: "VOID_TRANSACTION",
+      params:
+        action.kind === "VOID_MERCHANT"
+          ? { mode: "merchant", merchant: action.merchant }
+          : { mode: "last", ...(action.ofType ? { ofType: action.ofType } : {}) },
+      confidence: 0.9,
+      strategy: "regex",
+    };
   }
 
   // Write intents ("creá un gasto de YPF de $30.000") — checked before any read intent so a

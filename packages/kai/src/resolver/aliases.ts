@@ -121,10 +121,12 @@ export const KAI_INTENT_ALIASES: Record<KaiIntentId, string[]> = {
   ],
   GET_GOAL_PROGRESS: ["como viene mi meta", "progreso de mis metas", "como van mis metas", "cuanto me falta para la meta"],
   GET_INSIGHTS: ["algo que deba saber", "hay algo importante", "novedades", "que me recomendas"],
-  // Write intents are resolved by parseWriteIntent (parse-write.ts) before the alias table,
-  // so these lists stay empty — kept here only to satisfy the exhaustive Record type.
+  // Write / action intents are resolved by parse-write.ts before the alias table, so these
+  // lists stay empty — kept here only to satisfy the exhaustive Record type.
   CREATE_EXPENSE: [],
   CREATE_INCOME: [],
+  ALLOCATE_TO_GOAL: [],
+  VOID_TRANSACTION: [],
 };
 
 /**

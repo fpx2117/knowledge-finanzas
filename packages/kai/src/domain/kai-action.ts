@@ -8,6 +8,8 @@ export type KaiActionKind =
   | "open-quick-add"
   | "run-intent"
   | "confirm-create"
+  | "confirm-goal-allocation"
+  | "confirm-void"
   | "dismiss"
   | "remind-later";
 

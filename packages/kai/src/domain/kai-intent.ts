@@ -27,7 +27,9 @@ export type KaiIntentId =
   | "GET_SPENDING_PROJECTION"
   | "GET_SUBSCRIPTION_NEXT"
   | "CREATE_EXPENSE"
-  | "CREATE_INCOME";
+  | "CREATE_INCOME"
+  | "ALLOCATE_TO_GOAL"
+  | "VOID_TRANSACTION";
 
 /** Sentinel returned by the resolver when nothing deterministic matched. */
 export const UNRESOLVED_INTENT = "UNRESOLVED" as const;

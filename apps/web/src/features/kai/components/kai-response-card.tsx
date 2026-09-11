@@ -177,7 +177,10 @@ export function KaiResponseCard({
       {response.actions && response.actions.length > 0 ? (
         <div className="mt-1 flex flex-wrap gap-1.5">
           {response.actions.map((action, index) => {
-            const primary = action.kind === "confirm-create";
+            const primary =
+              action.kind === "confirm-create" ||
+              action.kind === "confirm-goal-allocation" ||
+              action.kind === "confirm-void";
             return (
               <button
                 key={index}

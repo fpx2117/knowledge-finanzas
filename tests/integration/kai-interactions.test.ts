@@ -58,6 +58,8 @@ function buildPorts(database: ReturnType<typeof getTestDatabase>["db"]): KaiData
     getBudgetStatus: empty,
     getGoalProgress: empty,
     getTopInsight: async () => null,
+    getGoalsForAllocation: async () => [],
+    findTransactionToVoid: async () => null,
   };
 }
 

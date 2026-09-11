@@ -18,6 +18,7 @@ import { mapErrorToUi } from "@/lib/errors/map-error-to-ui";
 import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { getTodayInTimezone, resolveOccurredAtISO } from "@/lib/date";
 import { createTransactionService } from "@/features/transactions/services/transaction-service";
+import { createGoalService } from "@/features/goals/services/goal-service";
 import {
   createExpenseTransactionSchema,
   createIncomeTransactionSchema,
@@ -96,5 +97,38 @@ export async function kaiCreateTransactionAction(input: z.input<typeof inputSche
   } catch (error) {
     const mapped = mapErrorToUi(error);
     return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
+  }
+}
+
+// ── Aportar a una meta / anular un movimiento (spec §11 write-actions-2) ──────
+
+const goalService = createGoalService();
+
+const allocateSchema = z.object({ goalId: z.string().min(1), amount: z.string().trim().min(1) });
+
+export type KaiAllocateResult =
+  | { ok: true; goalId: string }
+  | { ok: false; error: { code: string; message: string } };
+
+export async function kaiAllocateToGoalAction(input: z.input<typeof allocateSchema>): Promise<KaiAllocateResult> {
+  const user = await requireCurrentUser();
+  const parsed = allocateSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar el aporte." } };
+  try {
+    await goalService.contribute({ id: user.id }, parsed.data.goalId, parsed.data.amount, { note: "Aporte por KAI" });
+    return { ok: true, goalId: parsed.data.goalId };
+  } catch (error) {
+    const mapped = mapErrorToUi(error);
+    return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
+  }
+}
+
+export async function kaiVoidTransactionAction(transactionId: string): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireCurrentUser();
+  try {
+    await service.voidTransaction(user.id, String(transactionId));
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: mapErrorToUi(error).message };
   }
 }
