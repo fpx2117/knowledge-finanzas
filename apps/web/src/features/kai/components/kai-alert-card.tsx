@@ -66,14 +66,15 @@ export function KaiAlertCard({
   const total = chart ? Number(chart.total) : 0;
 
   return (
-    <div className="relative w-[min(360px,calc(100vw-2rem))]">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onOpen}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}
-        className="kai-rise flex flex-col rounded-[var(--radius-xl)] border border-border bg-card p-4 text-left shadow-[var(--shadow-floating)]"
-      >
+    <div
+      className="relative w-[min(360px,calc(100vw-2rem))]"
+      // spec §6 a11y: a screen reader hears the card the instant it appears, no focus change
+      // needed — same expectation as a toast. ALERT interrupts (assertive); everything else
+      // announces politely once the current sentence finishes.
+      role={message.state === "ALERT" ? "alert" : "status"}
+      aria-live={message.state === "ALERT" ? "assertive" : "polite"}
+    >
+      <div className="kai-rise flex flex-col rounded-[var(--radius-xl)] border border-border bg-card p-4 text-left shadow-[var(--shadow-floating)]">
         {/* header */}
         <div className="flex items-center gap-2">
           <KaiAvatar state={message.state} size={30} />
@@ -85,19 +86,20 @@ export function KaiAlertCard({
           <button
             type="button"
             aria-label="Descartar"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDismiss();
-            }}
+            onClick={onDismiss}
             className="ml-auto rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <XIcon className="size-4" />
           </button>
         </div>
 
-        {/* title + body */}
-        <h3 className="mt-3 text-h3 font-bold leading-snug text-foreground">{message.title}</h3>
-        <p className="mt-1.5 text-small leading-relaxed text-foreground-secondary">{message.body}</p>
+        {/* title + body — the tap target that opens KAI. A real <button>, not a div wearing
+            role="button", so it doesn't nest inside the explicit action buttons below (screen
+            readers and keyboard users would otherwise hit two overlapping interactive regions). */}
+        <button type="button" onClick={onOpen} className="mt-3 text-left">
+          <h3 className="text-h3 font-bold leading-snug text-foreground">{message.title}</h3>
+          <p className="mt-1.5 text-small leading-relaxed text-foreground-secondary">{message.body}</p>
+        </button>
 
         {/* optional bar breakdown */}
         {chart && chart.segments.length > 0 ? (
@@ -126,10 +128,7 @@ export function KaiAlertCard({
         <div className="mt-4 flex flex-col gap-2">
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigate(message.primary.route);
-            }}
+            onClick={() => onNavigate(message.primary.route)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand py-2.5 text-small font-semibold text-white transition-colors hover:bg-brand-hover"
           >
             {message.primary.label}
@@ -138,10 +137,7 @@ export function KaiAlertCard({
           {message.secondary ? (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNavigate(message.secondary!.route);
-              }}
+              onClick={() => onNavigate(message.secondary!.route)}
               className="inline-flex w-full items-center justify-center rounded-full border border-brand-border py-2.5 text-small font-semibold text-brand transition-colors hover:bg-brand-subtle"
             >
               {message.secondary.label}
@@ -157,24 +153,10 @@ export function KaiAlertCard({
 
         {/* frequency-cap controls (spec §9) — deliberately low-key */}
         <div className="mt-1.5 flex items-center gap-3 text-[0.68rem] text-muted-foreground/70">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSnooze();
-            }}
-            className="hover:text-foreground hover:underline"
-          >
+          <button type="button" onClick={onSnooze} className="hover:text-foreground hover:underline">
             Recordarme mañana
           </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMute();
-            }}
-            className="hover:text-foreground hover:underline"
-          >
+          <button type="button" onClick={onMute} className="hover:text-foreground hover:underline">
             Ocultar este tipo
           </button>
         </div>

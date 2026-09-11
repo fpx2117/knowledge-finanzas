@@ -8,7 +8,6 @@ import {
   CalendarClockIcon,
   LightbulbIcon,
   MinusIcon,
-  PaperclipIcon,
   SendHorizontalIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
@@ -107,6 +106,15 @@ const QUICK_ACTION_ICON: Partial<Record<KaiIntentId, LucideIcon>> = {
 // per-browser flag, both gone for good the moment the user opens KAI once.
 const ONBOARDING_SEEN_KEY = "kai:onboarding-seen-v1";
 
+// WP-KAI-CONVERSATION-PERSIST: per-browser, not per-account — closing and reopening KAI (or
+// this tab) keeps the conversation, but a short expiry keeps it from resurrecting stale
+// financial figures days later. Capped to the last N turns so localStorage never grows unbounded.
+const CONVERSATION_KEY = "kai:conversation-v1";
+const CONVERSATION_MAX_AGE_MS = 2 * 60 * 60_000; // 2h — long enough to survive a quick tab close, short enough that the numbers are still fresh
+const CONVERSATION_MAX_ENTRIES = 30;
+
+type StoredConversation = { entries: Entry[]; followups: KaiFollowup[]; savedAt: number };
+
 export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAccess }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -124,6 +132,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
   const [proactive, setProactive] = useState<KaiProactiveMessage | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fabButtonRef = useRef<HTMLButtonElement>(null);
 
   const fab = useDraggableFab(FAB_SIZE);
   const screenContext = resolveScreenContext(pathname);
@@ -139,6 +148,44 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       /* private mode / blocked storage — the pulse just never shows, no functional loss */
     }
   }, []);
+
+  // WP-KAI-CONVERSATION-PERSIST: restore the last conversation once on mount, unless it's past
+  // its expiry — a `hydratedRef` gate so the save effect right below doesn't immediately
+  // overwrite it with the still-empty initial state before this runs.
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CONVERSATION_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw) as StoredConversation;
+        if (Date.now() - stored.savedAt < CONVERSATION_MAX_AGE_MS && Array.isArray(stored.entries) && stored.entries.length > 0) {
+          setEntries(stored.entries);
+          setFollowups(stored.followups ?? []);
+        } else {
+          localStorage.removeItem(CONVERSATION_KEY);
+        }
+      }
+    } catch {
+      /* corrupt/blocked storage — start with an empty conversation, no functional loss */
+    } finally {
+      hydratedRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      if (entries.length === 0) {
+        localStorage.removeItem(CONVERSATION_KEY);
+        return;
+      }
+      const trimmed = entries.slice(-CONVERSATION_MAX_ENTRIES);
+      const stored: StoredConversation = { entries: trimmed, followups, savedAt: Date.now() };
+      localStorage.setItem(CONVERSATION_KEY, JSON.stringify(stored));
+    } catch {
+      /* private mode / quota exceeded — the conversation just won't survive a reload */
+    }
+  }, [entries, followups]);
 
   // The single entry point for "show the panel" (FAB tap, kai:open, the J shortcut) — clears the
   // onboarding pulse and records whether this particular open was the first one, for the greeting.
@@ -221,11 +268,16 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     openStateRef.current = open;
   }, [open]);
 
-  // Global trigger — window event + the "J" shortcut (N = Quick Add, ⌘K = palette).
+  // Global trigger — window event + the "J" shortcut (N = Quick Add, ⌘K = palette) + Escape to
+  // close (works even while typing in KAI's own input — only "j" respects the input guard).
   useEffect(() => {
     const openHandler = () => openKai();
     const keyHandler = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === "Escape" && openStateRef.current) {
+        setOpen(false);
+        return;
+      }
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable)) {
         return;
@@ -243,6 +295,15 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
       window.removeEventListener("keydown", keyHandler);
     };
   }, [openKai]);
+
+  // Focus-return (spec §6 a11y): closing KAI (X, Escape, J) hands focus back to the FAB rather
+  // than dropping it on `<body>`. Skipped on the initial mount (open starts false, nothing to
+  // return focus *from*) — only fires on an actual open→closed transition.
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (wasOpenRef.current && !open) fabButtonRef.current?.focus();
+    wasOpenRef.current = open;
+  }, [open]);
 
   const submit = useCallback(
     async (payload: { message?: string; quickActionIntentId?: string; label: string }) => {
@@ -559,6 +620,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         </div>
       ) : !open ? (
         <button
+          ref={fabButtonRef}
           type="button"
           {...fab.dragHandlers}
           onClick={() => {
@@ -601,6 +663,7 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
 
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="KAI, asistente financiero"
         inert={!open}
         className={cn(
@@ -789,7 +852,6 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
           }}
         >
           <div className="flex flex-1 items-center gap-1.5 rounded-full border border-input bg-background px-3 py-1.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
-            <PaperclipIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
             <textarea
               ref={inputRef}
               value={draft}
