@@ -6,9 +6,12 @@ import { z } from "zod";
 
 import {
   accountRepository,
+  budgetRepository,
   categoryMapRepository,
   categoryRepository,
   classificationRuleRepository,
+  createBudgetQueries,
+  db,
   merchantRepository,
   merchantUserDefaultRepository,
   transactionRepository,
@@ -19,8 +22,11 @@ import { requireCurrentUser } from "@/lib/auth/require-current-user";
 import { getTodayInTimezone, resolveOccurredAtISO } from "@/lib/date";
 import { createTransactionService } from "@/features/transactions/services/transaction-service";
 import { createGoalService } from "@/features/goals/services/goal-service";
+import { createBudgetService } from "@/features/budgets/services/budget-service";
 import { createDebtPaymentService } from "@/features/debts/services/debt-payment-service";
 import { createTransferService } from "@/features/transfers/services/transfer-service";
+import { createGoalSchema } from "@/features/goals/schemas/goal-schemas";
+import { createBudgetSchema } from "@/features/budgets/schemas/budget-schemas";
 import {
   createExpenseTransactionSchema,
   createIncomeTransactionSchema,
@@ -163,6 +169,53 @@ export async function kaiPayObligationAction(input: z.input<typeof payObligation
 
   try {
     await debtPaymentService.recordDebtPayment(user, { debtId, accountId: account.id, amount, commandId: randomUUID() });
+    return { ok: true };
+  } catch (error) {
+    const mapped = mapErrorToUi(error);
+    return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
+  }
+}
+
+// ── Crear una meta / un presupuesto por chat (spec §11 write-actions-2) ──────
+
+const budgetService = createBudgetService({
+  budgets: budgetRepository,
+  categories: categoryRepository,
+  budgetQueries: createBudgetQueries(db),
+});
+
+export type KaiCreateGoalResult = { ok: true } | { ok: false; error: { code: string; message: string } };
+
+export async function kaiCreateGoalAction(input: {
+  name: string;
+  targetAmount: string;
+  category: string;
+  currencyCode: string;
+}): Promise<KaiCreateGoalResult> {
+  const user = await requireCurrentUser();
+  const parsed = createGoalSchema.safeParse({ ...input, initialAmount: "0" });
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar la meta." } };
+  try {
+    await goalService.createGoal(user, parsed.data);
+    return { ok: true };
+  } catch (error) {
+    const mapped = mapErrorToUi(error);
+    return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
+  }
+}
+
+export type KaiCreateBudgetResult = { ok: true } | { ok: false; error: { code: string; message: string } };
+
+export async function kaiCreateBudgetAction(input: {
+  categoryId: string;
+  limitAmount: string;
+  currencyCode: string;
+}): Promise<KaiCreateBudgetResult> {
+  const user = await requireCurrentUser();
+  const parsed = createBudgetSchema.safeParse({ ...input, name: undefined });
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar el presupuesto." } };
+  try {
+    await budgetService.createBudget(user, parsed.data);
     return { ok: true };
   } catch (error) {
     const mapped = mapErrorToUi(error);

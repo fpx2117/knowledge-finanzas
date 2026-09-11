@@ -130,6 +130,8 @@ export const KAI_INTENT_ALIASES: Record<KaiIntentId, string[]> = {
   PAY_OBLIGATION: [],
   CREATE_TRANSFER: [],
   EDIT_TRANSACTION_CATEGORY: [],
+  CREATE_GOAL: [],
+  CREATE_BUDGET: [],
 };
 
 /**

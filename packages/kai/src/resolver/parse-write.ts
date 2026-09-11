@@ -108,18 +108,7 @@ export function parseWriteIntent(normalized: string, raw: string): KaiWriteInten
   const merchantFromNormalized = words.slice(0, 3).join(" ").trim();
 
   // Recover original casing from the raw message for a nicer label.
-  let merchant: string | null = null;
-  if (merchantFromNormalized) {
-    const rawWords = raw.split(/\s+/);
-    const first = merchantFromNormalized.split(" ")[0];
-    const matched = rawWords.find((w) => stripAccents(w.toLowerCase()).replace(/[^a-z0-9]/g, "") === first);
-    merchant = matched
-      ? rawWords
-          .slice(rawWords.indexOf(matched), rawWords.indexOf(matched) + merchantFromNormalized.split(" ").length)
-          .join(" ")
-          .replace(/[.,;:]+$/, "")
-      : merchantFromNormalized;
-  }
+  const merchant = merchantFromNormalized ? recoverCasing(merchantFromNormalized, raw) : null;
 
   const description = merchant || (kind === "CREATE_INCOME" ? "Ingreso" : "Gasto");
   return { kind, amount, currencyHint, description, merchant };
@@ -127,6 +116,23 @@ export function parseWriteIntent(normalized: string, raw: string): KaiWriteInten
 
 function stripAccents(value: string): string {
   return value.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Finds `normalizedPhrase` (lower-case, no accents) inside `raw` and returns it with the
+ * original casing — nicer than the all-lowercase result of `normalizeText` for a label that
+ * doesn't have a real record to correct it against (a brand-new goal name; a merchant/account
+ * that already exists gets its casing from the matched record instead).
+ */
+function recoverCasing(normalizedPhrase: string, raw: string): string {
+  const rawWords = raw.split(/\s+/);
+  const first = normalizedPhrase.split(" ")[0];
+  const matched = rawWords.find((w) => stripAccents(w.toLowerCase()).replace(/[^a-z0-9]/g, "") === first);
+  if (!matched) return normalizedPhrase;
+  return rawWords
+    .slice(rawWords.indexOf(matched), rawWords.indexOf(matched) + normalizedPhrase.split(" ").length)
+    .join(" ")
+    .replace(/[.,;:]+$/, "");
 }
 
 /**
@@ -139,7 +145,9 @@ export type KaiActionIntent =
   | { kind: "VOID_MERCHANT"; merchant: string }
   | { kind: "PAY_OBLIGATION"; obligationName: string }
   | { kind: "CREATE_TRANSFER"; amount: string | null; fromAccountName: string; toAccountName: string }
-  | { kind: "EDIT_TRANSACTION_CATEGORY"; mode: "last" | "merchant"; merchant?: string; categoryName: string };
+  | { kind: "EDIT_TRANSACTION_CATEGORY"; mode: "last" | "merchant"; merchant?: string; categoryName: string }
+  | { kind: "CREATE_GOAL"; name: string; amount: string | null; currencyHint: "USD" | null }
+  | { kind: "CREATE_BUDGET"; categoryName: string; amount: string | null; currencyHint: "USD" | null };
 
 const ALLOCATE_VERB = /\b(aport[aáeé]\w*|mov[eé]\w*|mon[eé]\w*|pas[aá]\w*|guard[aá]\w*|transferi\w*|deposit[aá]\w*|sum[aá]\w* .*\bmeta\b)/;
 const VOID_VERB = /\b(anul[aá]\w*|borr[aá]\w*|elimin[aá]\w*|deshac[eé]\w*|dar de baja|da de baja)/;
@@ -157,6 +165,17 @@ const OBLIGATION_NOUN = /\b(cuota|cuotas|tarjeta|prestamo|deuda|obligacion)\b/;
 const EDIT_CATEGORY_VERB = /\b(cambi[aá]\w*|corregi\w*|corrija\w*|actualiz[aá]\w*)\b/;
 const EDIT_CATEGORY_SHAPE =
   /\bcategoria\s+(?:del?\s+|de la\s+)?(?:gasto|movimiento|ingreso|compra)?\s*(?:de\s+)?(.*?)\s+a\s+(.+)$/;
+// "creá una meta …" / "creá un presupuesto …" — un verbo más acotado que CREATE_VERB (sin
+// meté/poné/sumá) para no pisar ALLOCATE_TO_GOAL, que comparte "sumá … meta" (spec §11:
+// crear es distinto de aportar a algo que ya existe).
+const CREATE_GOAL_OR_BUDGET_VERB = /\b(crea|cre[aá]\w*|creame|registr\w+|agreg\w+|carg\w+)\b/;
+const NEW_GOAL_SHAPE = /\b(?:una|un)\s+(?:meta|objetivo)\b/;
+const NEW_BUDGET_SHAPE = /\b(?:un|una)\s+presupuesto\b/;
+
+/** Cuts a captured name tail right before a trailing "de {monto}" clause ("comida de 200000" → "comida"). */
+function stripTrailingAmount(s: string): string {
+  return s.replace(/\s+de\s+\$?\d[\s\S]*$/, "").trim();
+}
 
 export function parseActionIntent(normalized: string, raw: string): KaiActionIntent | null {
   // ── transferir entre dos cuentas propias ─────────────────────────────────
@@ -197,6 +216,29 @@ export function parseActionIntent(normalized: string, raw: string): KaiActionInt
       /\b(?:meta|objetivo|ahorro)(?:\s+de|\s+del)?\s+(.+)$/.exec(normalized);
     const goalName = nameMatch ? cleanTail(nameMatch[1]) : "";
     if (goalName || amount) return { kind: "ALLOCATE_TO_GOAL", amount, goalName };
+  }
+
+  // ── crear una meta nueva ──────────────────────────────────────────────────
+  // Chequeado después de ALLOCATE_TO_GOAL: "sumá $X a mi meta" (aporte a una que ya existe)
+  // gana sobre "creá una meta" — CREATE_GOAL_OR_BUDGET_VERB además excluye "sumá"/"pasá".
+  if (CREATE_GOAL_OR_BUDGET_VERB.test(normalized) && NEW_GOAL_SHAPE.test(normalized)) {
+    const { amount, currencyHint } = parseAmount(raw.toLowerCase());
+    const nameMatch =
+      /\bpara\s+(?:la\s+|mi\s+|el\s+)?(.+)$/.exec(normalized) ??
+      /\b(?:meta|objetivo)\s+(?:de\s+|para\s+)?(.+)$/.exec(normalized);
+    const normalizedName = nameMatch ? cleanTail(stripTrailingAmount(nameMatch[1])) : "";
+    const name = normalizedName ? recoverCasing(normalizedName, raw) : "";
+    if (name) return { kind: "CREATE_GOAL", name, amount, currencyHint };
+  }
+
+  // ── crear un presupuesto nuevo ────────────────────────────────────────────
+  if (CREATE_GOAL_OR_BUDGET_VERB.test(normalized) && NEW_BUDGET_SHAPE.test(normalized)) {
+    const { amount, currencyHint } = parseAmount(raw.toLowerCase());
+    const nameMatch =
+      /\bpara\s+(?:la\s+|mi\s+|el\s+)?(?:categoria\s+de\s+)?(.+)$/.exec(normalized) ??
+      /\bpresupuesto\s+(?:de\s+|en\s+|para\s+)?(.+)$/.exec(normalized);
+    const categoryName = nameMatch ? cleanTail(stripTrailingAmount(nameMatch[1])) : "";
+    if (categoryName) return { kind: "CREATE_BUDGET", categoryName, amount, currencyHint };
   }
 
   // ── pagar la cuota de una obligación ─────────────────────────────────────

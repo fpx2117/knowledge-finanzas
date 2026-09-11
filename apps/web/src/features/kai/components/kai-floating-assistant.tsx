@@ -42,6 +42,8 @@ import {
 } from "../actions/kai-proactive-actions";
 import {
   kaiAllocateToGoalAction,
+  kaiCreateBudgetAction,
+  kaiCreateGoalAction,
   kaiCreateTransactionAction,
   kaiCreateTransferAction,
   kaiEditTransactionCategoryAction,
@@ -385,6 +387,45 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     [pending, doneMessage],
   );
 
+  const createGoalFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiCreateGoalAction({
+        name: params.name ?? "",
+        targetAmount: params.targetAmount ?? "",
+        category: params.category ?? "OTHER",
+        currencyCode: params.currencyCode ?? "",
+      });
+      setPending(false);
+      if (result.ok) {
+        doneMessage(`Listo, creé la meta ${params.name ?? ""}.`, "/goals", "Ver metas");
+        toast.success("Meta creada");
+      } else setBanner(result.error.message);
+    },
+    [pending, doneMessage],
+  );
+
+  const createBudgetFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiCreateBudgetAction({
+        categoryId: params.categoryId,
+        limitAmount: params.limitAmount ?? "",
+        currencyCode: params.currencyCode ?? "",
+      });
+      setPending(false);
+      if (result.ok) {
+        doneMessage(`Listo, creé el presupuesto de ${params.categoryName ?? ""}.`, "/budgets", "Ver presupuestos");
+        toast.success("Presupuesto creado");
+      } else setBanner(result.error.message);
+    },
+    [pending, doneMessage],
+  );
+
   const onAction = useCallback(
     (action: KaiAction) => {
       if (action.kind === "navigate" && action.route) {
@@ -413,11 +454,26 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         void transferFromCard(action.params);
       } else if (action.kind === "confirm-edit-category" && action.params) {
         void editCategoryFromCard(action.params);
+      } else if (action.kind === "confirm-create-goal" && action.params) {
+        void createGoalFromCard(action.params);
+      } else if (action.kind === "confirm-create-budget" && action.params) {
+        void createBudgetFromCard(action.params);
       } else if (action.kind === "run-intent" && action.intentId) {
         void submit({ quickActionIntentId: action.intentId, label: action.label });
       }
     },
-    [router, submit, createFromCard, allocateFromCard, voidFromCard, payFromCard, transferFromCard, editCategoryFromCard],
+    [
+      router,
+      submit,
+      createFromCard,
+      allocateFromCard,
+      voidFromCard,
+      payFromCard,
+      transferFromCard,
+      editCategoryFromCard,
+      createGoalFromCard,
+      createBudgetFromCard,
+    ],
   );
 
   const rateEntry = useCallback((index: number, feedback: "up" | "down") => {

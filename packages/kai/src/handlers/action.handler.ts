@@ -275,6 +275,117 @@ export const editTransactionCategory: KaiHandler = async ({ ports, params }) => 
   };
 };
 
+const GOAL_CATEGORY_KEYWORDS: { pattern: RegExp; category: string }[] = [
+  { pattern: /\b(viaje|vacacion\w*|luna de miel)\b/, category: "TRAVEL" },
+  { pattern: /\b(auto|moto|vehiculo|0km|coche)\b/, category: "VEHICLE" },
+  { pattern: /\b(casa|depto|departamento|hogar|vivienda)\b/, category: "HOME" },
+  { pattern: /\b(estudio\w*|curso|carrera|universidad|educacion)\b/, category: "EDUCATION" },
+  { pattern: /\b(emergencia\w*|fondo)\b/, category: "EMERGENCY_FUND" },
+  { pattern: /\b(inversion\w*|invertir)\b/, category: "INVESTMENT" },
+];
+
+/** Infers the goal category enum from the free-text name — KAI never asks for it. */
+function inferGoalCategory(name: string): string {
+  const q = normalizeText(name);
+  return GOAL_CATEGORY_KEYWORDS.find((k) => k.pattern.test(q))?.category ?? "OTHER";
+}
+
+/**
+ * "Creá una meta de $500.000 para Viaje" (spec §11). Name and target amount come straight
+ * from the message; the goal category is inferred from the name (KAI never asks for it) and
+ * the currency defaults to the user's base currency unless the message named USD.
+ */
+export const createGoal: KaiHandler = async ({ params, baseCurrency }) => {
+  const name = params.name;
+  if (!name) {
+    return { source: "TEMPLATE", response: { type: "KAI_TEXT", state: "NEUTRAL", body: "¿Cómo se llama la meta que querés crear?" } };
+  }
+  const amount = params.amount;
+  if (!amount) {
+    return {
+      source: "TEMPLATE",
+      response: {
+        type: "KAI_ACTION",
+        state: "NEUTRAL",
+        title: "Crear una meta",
+        body: `¿Cuál es el monto objetivo de "${name}"?`,
+        actions: [{ kind: "navigate", label: "Crear desde el formulario", route: "/goals/new" }],
+      },
+    };
+  }
+
+  const currencyCode = params.currencyHint === "USD" ? "USD" : baseCurrency;
+  const category = inferGoalCategory(name);
+  const confirmParams = { name, targetAmount: amount, category, currencyCode };
+  return {
+    source: "TEMPLATE",
+    response: {
+      type: "KAI_CONFIRMATION",
+      state: "NEUTRAL",
+      title: "Crear una meta",
+      body: `¿Creo la meta "${name}" con un objetivo de ${formatMoney(amount, currencyCode)}?`,
+      data: { pendingGoal: confirmParams },
+      actions: [
+        { kind: "confirm-create-goal", label: "Crear meta", params: confirmParams },
+        { kind: "navigate", label: "Ver metas", route: "/goals" },
+      ],
+    },
+  };
+};
+
+/**
+ * "Creá un presupuesto de $200.000 para Comida" (spec §11). Resolves the category by name
+ * among the user's own expense categories; the currency defaults to the base currency.
+ */
+export const createBudget: KaiHandler = async ({ ports, params, baseCurrency }) => {
+  const categories = await ports.getCategoriesForEdit("EXPENSE");
+  const q = normalizeText(params.categoryName ?? "");
+  const category = q ? categories.find((c) => normalizeText(c.name).includes(q) || q.includes(normalizeText(c.name))) : undefined;
+
+  if (!category) {
+    return {
+      source: "DATABASE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body: `No encontré la categoría "${params.categoryName ?? ""}" para el presupuesto. Tenés: ${categories.map((c) => c.name).join(", ")}.`,
+        actions: [{ kind: "navigate", label: "Ver categorías", route: "/settings/categories" }],
+      },
+    };
+  }
+
+  const amount = params.amount;
+  if (!amount) {
+    return {
+      source: "DATABASE",
+      response: {
+        type: "KAI_ACTION",
+        state: "NEUTRAL",
+        title: "Crear un presupuesto",
+        body: `¿Cuál es el límite mensual para ${category.name}?`,
+        actions: [{ kind: "navigate", label: "Crear desde el formulario", route: "/budgets/new" }],
+      },
+    };
+  }
+
+  const currencyCode = params.currencyHint === "USD" ? "USD" : baseCurrency;
+  const confirmParams = { categoryId: category.id, categoryName: category.name, limitAmount: amount, currencyCode };
+  return {
+    source: "DATABASE",
+    response: {
+      type: "KAI_CONFIRMATION",
+      state: "NEUTRAL",
+      title: "Crear un presupuesto",
+      body: `¿Creo un presupuesto de ${formatMoney(amount, currencyCode)} por mes para ${category.name}?`,
+      data: { pendingBudget: confirmParams },
+      actions: [
+        { kind: "confirm-create-budget", label: "Crear presupuesto", params: confirmParams },
+        { kind: "navigate", label: "Ver presupuestos", route: "/budgets" },
+      ],
+    },
+  };
+};
+
 /**
  * "Anulá el último gasto" / "borrá el gasto de YPF" (spec §11). Finds the movement, shows a
  * confirmation with exactly what will be voided.

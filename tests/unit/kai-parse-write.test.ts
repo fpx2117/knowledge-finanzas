@@ -127,3 +127,35 @@ describe("parseActionIntent — EDIT_TRANSACTION_CATEGORY", () => {
     expect(parseActionIntent(normalizeText("cambiá el monto a 5000"), "cambiá el monto a 5000")).toBeNull();
   });
 });
+
+describe("parseActionIntent — CREATE_GOAL / CREATE_BUDGET", () => {
+  it("recognises 'creá una meta de $500.000 para Viaje'", () => {
+    const raw = "creá una meta de $500.000 para Viaje";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result).toMatchObject({ kind: "CREATE_GOAL", name: "Viaje", amount: "500000" });
+  });
+
+  it("recognises 'creá un presupuesto de $200.000 para Comida'", () => {
+    const raw = "creá un presupuesto de $200.000 para Comida";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result).toMatchObject({ kind: "CREATE_BUDGET", categoryName: "comida", amount: "200000" });
+  });
+
+  it("strips a trailing amount clause from the name when the amount comes last", () => {
+    const raw = "creá un presupuesto para Comida de $200.000";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result).toMatchObject({ kind: "CREATE_BUDGET", categoryName: "comida", amount: "200000" });
+  });
+
+  it("'sumá $10.000 a mi meta Viaje' sigue siendo ALLOCATE_TO_GOAL, no CREATE_GOAL", () => {
+    const raw = "sumá $10.000 a mi meta Viaje";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result?.kind).toBe("ALLOCATE_TO_GOAL");
+  });
+
+  it("CREATE_GOAL funciona sin monto (KAI lo pregunta)", () => {
+    const raw = "creá una meta para Viaje";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result).toMatchObject({ kind: "CREATE_GOAL", name: "Viaje", amount: null });
+  });
+});

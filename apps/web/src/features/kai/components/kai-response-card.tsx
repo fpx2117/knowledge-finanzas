@@ -183,7 +183,9 @@ export function KaiResponseCard({
               action.kind === "confirm-void" ||
               action.kind === "confirm-pay-obligation" ||
               action.kind === "confirm-transfer" ||
-              action.kind === "confirm-edit-category";
+              action.kind === "confirm-edit-category" ||
+              action.kind === "confirm-create-goal" ||
+              action.kind === "confirm-create-budget";
             return (
               <button
                 key={index}

@@ -220,6 +220,28 @@ describe("resolveKaiInteraction", () => {
     expect(response.actions?.[0]).toMatchObject({ kind: "confirm-edit-category", params: { transactionId: "t1", categoryId: "c2" } });
   });
 
+  it("'creá una meta de $500.000 para Viaje' → confirmación de creación de meta", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "creá una meta de $500.000 para Viaje" }));
+    expect(audit.intentId).toBe("CREATE_GOAL");
+    expect(response.type).toBe("KAI_CONFIRMATION");
+    expect(response.body).toContain("Viaje");
+    expect(response.actions?.[0]).toMatchObject({ kind: "confirm-create-goal", params: { name: "Viaje", targetAmount: "500000", category: "TRAVEL" } });
+  });
+
+  it("'creá un presupuesto de $200.000 para Transporte' → confirmación de creación de presupuesto", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "creá un presupuesto de $200.000 para Transporte" }));
+    expect(audit.intentId).toBe("CREATE_BUDGET");
+    expect(response.type).toBe("KAI_CONFIRMATION");
+    expect(response.actions?.[0]).toMatchObject({ kind: "confirm-create-budget", params: { categoryId: "c2", limitAmount: "200000" } });
+  });
+
+  it("'creá una meta para Viaje' sin monto → KAI lo pregunta", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "creá una meta para Viaje" }));
+    expect(audit.intentId).toBe("CREATE_GOAL");
+    expect(response.type).toBe("KAI_ACTION");
+    expect(response.body).toContain("Viaje");
+  });
+
   it("'¿cuándo vence Netflix?' → GET_SUBSCRIPTION_NEXT", async () => {
     const { response, audit } = await resolveKaiInteraction(baseInput({ message: "¿cuándo vence Netflix?" }));
     expect(audit.intentId).toBe("GET_SUBSCRIPTION_NEXT");

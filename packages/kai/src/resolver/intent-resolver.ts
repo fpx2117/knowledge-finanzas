@@ -81,6 +81,26 @@ export function resolveIntent(
         strategy: "regex",
       };
     }
+    if (action.kind === "CREATE_GOAL") {
+      return {
+        id: "CREATE_GOAL",
+        params: { name: action.name, ...(action.amount ? { amount: action.amount } : {}), ...(action.currencyHint ? { currencyHint: action.currencyHint } : {}) },
+        confidence: 0.95,
+        strategy: "regex",
+      };
+    }
+    if (action.kind === "CREATE_BUDGET") {
+      return {
+        id: "CREATE_BUDGET",
+        params: {
+          categoryName: action.categoryName,
+          ...(action.amount ? { amount: action.amount } : {}),
+          ...(action.currencyHint ? { currencyHint: action.currencyHint } : {}),
+        },
+        confidence: 0.95,
+        strategy: "regex",
+      };
+    }
     return {
       id: "VOID_TRANSACTION",
       params:

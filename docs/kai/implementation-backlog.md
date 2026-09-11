@@ -16,7 +16,7 @@ llamadas a IA.** El KPI es `KAI_LOCAL_RESOLUTION_RATE` ≥ 80% → 90% (spec §2
 | Pipeline | `resolveKaiInteraction`: intent handler → estático → LLM fallback (último recurso, tras budget guard). Auditoría de `resolutionSource` en `kai_interactions`. | §2, §3, §24 |
 | Resolver | `normalizeText`, `resolveDateRange` (este mes / ayer / semana / mes pasado), `resolveIntent` (alias "frase más larga gana" + keyword/regex), `parseWriteIntent` (montos AR, slang). | §15 |
 | Intents lectura | ~18: gastos/ingresos/ahorro/resultado del mes, saldo, saldos por cuenta, disponible, categoría, top categorías (bar chart), mayor gasto, ayer, vencimientos (tabla), suscripciones (tabla), costo suscripciones, presupuesto, meta, insights. | §1, §14 |
-| Intents escritura | `CREATE_EXPENSE` / `CREATE_INCOME` (cuenta auto, toast con Deshacer), `ALLOCATE_TO_GOAL`, `VOID_TRANSACTION`, `PAY_OBLIGATION` (paga la próxima cuota de una deuda/tarjeta con la cuenta de esa moneda con más prioridad), `CREATE_TRANSFER` (resuelve ambas cuentas por nombre), `EDIT_TRANSACTION_CATEGORY` (metadata solamente — el monto nunca se edita, se anula y se rehace). Todos vía `KAI_CONFIRMATION`. | §11, §12 |
+| Intents escritura | `CREATE_EXPENSE` / `CREATE_INCOME` (cuenta auto, toast con Deshacer), `ALLOCATE_TO_GOAL`, `VOID_TRANSACTION`, `PAY_OBLIGATION`, `CREATE_TRANSFER`, `EDIT_TRANSACTION_CATEGORY` (metadata solamente — el monto nunca se edita, se anula y se rehace), `CREATE_GOAL`, `CREATE_BUDGET` (categoría inferida/resuelta por nombre; si falta el monto, KAI lo pregunta y espera la respuesta antes de confirmar). Todos vía `KAI_CONFIRMATION`. | §11, §12 |
 | Estático | Registro Nivel 0: saludos, ayuda, navegación, FAQ, "¿qué es esta pantalla?" por contexto. | §3, §10 |
 | Respuestas | `KAI_METRIC`, `KAI_CHART` (barras), `KAI_TABLE`, `KAI_CONFIRMATION`, `KAI_INSIGHT`, `KAI_NAVIGATION`, `KAI_ACTION`, `KAI_TEXT`, `KAI_ERROR`. | §12 |
 | Follow-ups | `KAI_FOLLOWUPS` por intent → chips clicables tras cada respuesta. | §16 |
@@ -57,7 +57,7 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ---
 
-### Fase C — Catálogo determinístico  *(P1 — sube el KPI)*
+### Fase C — Catálogo determinístico  *(WP-KAI-WRITE-ACTIONS-2 cerrado 2026-09-11; quedan WP-KAI-CALCULATORS y WP-KAI-FORM, ambos cosméticos/UX, no bloquean seguir a la Fase B)*
 
 > Auditoría 2026-09-11: esta tabla decía "no existe" para varias cosas que ya se habían hecho
 > en pasadas anteriores (temporal, taxonomía, comercio, comparación) — quedó desactualizada,
@@ -70,7 +70,7 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 | **WP-KAI-INTENTS-MERCHANT** | "¿cuánto gasté en {comercio}?" con cantidad de movimientos. | §1 | ✅ DONE — `getMerchantExpenses` (con `count`). |
 | **WP-KAI-INTENTS-COMPARISON** | `KAI_COMPARISON` emitido y renderizado. "¿gasté más que el mes pasado?". | §12 | ✅ DONE — `GET_EXPENSE_COMPARISON` + renderer en `kai-response-card.tsx`. |
 | **WP-KAI-CALCULATORS** | `calculateExpenseTrend`, `calculateHistoricalAverage`, `calculateProjectedMonthEnd`, `calculateSpendingVariation`, `calculateInstallmentCommitment`, `calculateUpcomingCommitments` como funciones nombradas y testeadas en `packages/finance`/`packages/kai`. | §3 | ❌ PENDIENTE — la capacidad existe (run-rate en `GET_SPENDING_PROJECTION`, variación en `GET_EXPENSE_COMPARISON`) pero inline en el handler, no como calculadora reusable/testeable por separado. Cosmético/testabilidad, no bloquea nada. |
-| **WP-KAI-WRITE-ACTIONS-2** | Por chat: aporte a meta, anular movimiento, pagar una cuota/obligación, transferencia, **editar movimiento**, crear presupuesto o meta. | §11 | ⚠️ PARCIAL — aporte a meta ✅, anular ✅, pagar cuota ✅, transferencia ✅, **editar categoría ✅ (agregado 2026-09-11: intent `EDIT_TRANSACTION_CATEGORY`, "cambiá la categoría de {movimiento} a {categoría}"; el monto NO es editable por diseño — el servicio de transacciones solo permite metadata, un monto se corrige anulando y creando de nuevo)**. Falta: crear presupuesto/meta por chat. |
+| **WP-KAI-WRITE-ACTIONS-2** | Por chat: aporte a meta, anular movimiento, pagar una cuota/obligación, transferencia, editar movimiento, **crear presupuesto o meta**. | §11 | ✅ DONE (2026-09-11) — aporte a meta, anular, pagar cuota, transferencia, editar categoría, **crear meta** (`CREATE_GOAL`: "creá una meta de $X para {nombre}", categoría inferida por keyword, si falta el monto KAI lo pregunta y espera la respuesta) y **crear presupuesto** (`CREATE_BUDGET`: "creá un presupuesto de $X para {categoría}", igual mecánica). El monto de un movimiento sigue sin ser editable por chat — es una decisión de diseño del propio ledger, no una limitación de KAI. |
 | **WP-KAI-FORM** | Tipo `KAI_FORM` (definido, nunca producido) + mini-formularios inline en la card. | §12 | ❌ PENDIENTE. |
 
 ---
