@@ -57,24 +57,33 @@ export function parseAmount(text: string): { amount: string | null; currencyHint
 }
 
 export function parseWriteIntent(normalized: string, raw: string): KaiWriteIntent | null {
-  const hasCreateVerb = CREATE_VERB.test(normalized);
-  const hasNumber = /\d/.test(normalized);
-  const isExpense =
-    (hasCreateVerb && EXPENSE_NOUN.test(normalized)) ||
-    (SPENT_VERB.test(normalized) && hasNumber) ||
-    (SPENT_COLLOQUIAL.test(normalized) && hasNumber) ||
-    /\b(un|una)?\s*(gasto|compra|pago) de\b/.test(normalized);
-  const isIncome =
-    (hasCreateVerb && INCOME_NOUN.test(normalized)) ||
-    (EARNED_VERB.test(normalized) && hasNumber) ||
-    /\b(un|una)?\s*(ingreso|cobro) de\b/.test(normalized);
-
-  if (!isExpense && !isIncome) return null;
-  const kind = isIncome && !isExpense ? "CREATE_INCOME" : "CREATE_EXPENSE";
+  // A number followed by veces / días / meses / % / lugares / cuotas is a count, not money —
+  // "gasté 3 veces", "cuánto gasté los últimos 3 meses" are NOT write commands.
+  const numberIsCount = /\b\d{1,3}\s*(veces?|dias?|semanas?|meses|anos?|%|por ?ciento|lugares?|cuotas?|productos?)\b/.test(normalized);
 
   // Parse the amount from the raw text — `normalized` has stripped the "." and "," that
   // Argentine number formatting relies on ("$30.000").
   const { amount, currencyHint } = parseAmount(raw.toLowerCase());
+  // Treat it as a real amount only if it's ≥ 1000 or the text carries a currency marker
+  // (below AR$1000 buys nothing; a bare "50" is almost always "50%" / "50 veces").
+  const hasMoney =
+    !numberIsCount &&
+    amount !== null &&
+    (Number(amount) >= 1000 || /(\$|usd|u\$s|us\$|pesos?|mangos?|mil|millon|luca|palo)/i.test(raw));
+
+  const hasCreateVerb = CREATE_VERB.test(normalized);
+  const isExpense =
+    (hasCreateVerb && EXPENSE_NOUN.test(normalized)) ||
+    (SPENT_VERB.test(normalized) && hasMoney) ||
+    (SPENT_COLLOQUIAL.test(normalized) && hasMoney) ||
+    /\b(un|una)?\s*(gasto|compra|pago) de\b/.test(normalized);
+  const isIncome =
+    (hasCreateVerb && INCOME_NOUN.test(normalized)) ||
+    (EARNED_VERB.test(normalized) && hasMoney) ||
+    /\b(un|una)?\s*(ingreso|cobro) de\b/.test(normalized);
+
+  if (!isExpense && !isIncome) return null;
+  const kind = isIncome && !isExpense ? "CREATE_INCOME" : "CREATE_EXPENSE";
 
   // Merchant/description: drop verbs, nouns and the amount, then take the tail after "en"/"de".
   let rest = normalized

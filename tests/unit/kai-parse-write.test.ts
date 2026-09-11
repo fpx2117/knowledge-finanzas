@@ -55,4 +55,15 @@ describe("parseWriteIntent", () => {
     expect(parseWriteIntent(normalizeText("cuánto gasté en comida"), "cuánto gasté en comida")).toBeNull();
     expect(parseWriteIntent(normalizeText("mis gastos"), "mis gastos")).toBeNull();
   });
+
+  it("does NOT fire when the number is a count, not money", () => {
+    for (const q of ["cuánto gasté los últimos 3 meses", "gasté 3 veces esta semana", "cuánto gasté en total", "gasté 50% de mi sueldo"]) {
+      expect(parseWriteIntent(normalizeText(q), q)).toBeNull();
+    }
+  });
+
+  it("still fires when there IS a real amount", () => {
+    expect(parseWriteIntent(normalizeText("gasté $50 en el kiosco"), "gasté $50 en el kiosco")?.kind).toBe("CREATE_EXPENSE");
+    expect(parseWriteIntent(normalizeText("gasté 5000 en el super"), "gasté 5000 en el super")?.kind).toBe("CREATE_EXPENSE");
+  });
 });

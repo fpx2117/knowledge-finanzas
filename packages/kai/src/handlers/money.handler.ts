@@ -1,5 +1,5 @@
 import { formatMoney, formatMoneyList, formatPercent } from "../templates/format";
-import { shiftRangeBack, type KaiDateRange } from "../resolver/normalize";
+import { resolveDateRange, shiftRangeBack, type KaiDateRange } from "../resolver/normalize";
 import type { KaiMetricValue } from "../domain/kai-response";
 import type { KaiHandler } from "./types";
 
@@ -286,14 +286,29 @@ export const getLargestExpense: KaiHandler = async ({ ports, range }) => {
 
 export const getYesterdayExpenses = getMonthExpenses;
 
-export const getExpenseComparison: KaiHandler = async ({ ports, range, baseCurrency }) => {
-  const prev = shiftRangeBack(range);
+export const getExpenseComparison: KaiHandler = async ({ ports, range, baseCurrency, now, timezone }) => {
+  // The user names a period as the *baseline* ("¿gasté más que el mes pasado?"). Compare the
+  // current period of that same kind against the previous one — not whatever `range` resolved to.
+  const kind = range.kind === "quarter" ? "quarter" : range.kind === "year" ? "year" : "month";
+  const currentRange = resolveDateRange(
+    kind === "quarter" ? "este trimestre" : kind === "year" ? "este ano" : "este mes",
+    now,
+    timezone,
+  );
+  const previousRange = resolveDateRange(
+    kind === "quarter" ? "el trimestre pasado" : kind === "year" ? "el ano pasado" : "el mes pasado",
+    now,
+    timezone,
+  );
+  const prev = { label: previousRange.label };
+
   const [current, previous] = await Promise.all([
-    ports.getMonthlySummary({ from: range.from, to: range.to }),
-    ports.getMonthlySummary({ from: prev.from, to: prev.to }),
+    ports.getMonthlySummary({ from: currentRange.from, to: currentRange.to }),
+    ports.getMonthlySummary({ from: previousRange.from, to: previousRange.to }),
   ]);
   const cur = current.find((r) => r.currencyCode === baseCurrency) ?? current[0];
   const pre = previous.find((r) => r.currencyCode === baseCurrency) ?? previous[0];
+  range = currentRange;
 
   if (!cur || !pre || Number(pre.expense) === 0) {
     return {
@@ -302,7 +317,7 @@ export const getExpenseComparison: KaiHandler = async ({ ports, range, baseCurre
         type: "KAI_TEXT",
         state: "ANALYTICAL",
         body: cur
-          ? `${range.label[0].toUpperCase()}${range.label.slice(1)} gastaste ${formatMoney(cur.expense, cur.currencyCode)}. No tengo con qué compararlo en ${prev.label}.`
+          ? `${range.label[0].toUpperCase()}${range.label.slice(1)} gastaste ${formatMoney(cur.expense, cur.currencyCode)}. Todavía no tengo gastos en ${prev.label} para comparar.`
           : `No tengo gastos registrados para ${range.label}.`,
       },
     };
