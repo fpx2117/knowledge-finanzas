@@ -79,11 +79,12 @@ export type { KaiDeliveryState, KaiFrequencyCap, SelectProactiveResult } from ".
 export type { KaiProactiveMessage, KaiProactiveAction, KaiProactiveKind } from "./domain/kai-proactive";
 
 // Orchestrator
-export { resolveKaiInteraction } from "./orchestrator/resolve-kai-interaction";
+export { resolveKaiInteraction, classifyLlmComplexity, KAI_LLM_COMPLEXITY_WEIGHT } from "./orchestrator/resolve-kai-interaction";
 export type {
   ResolveKaiInteractionInput,
   ResolveKaiInteractionResult,
   KaiLlmFallback,
   KaiLlmFallbackArgs,
+  KaiLlmComplexity,
   KaiHistoryTurn,
 } from "./orchestrator/resolve-kai-interaction";

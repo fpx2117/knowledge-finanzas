@@ -11,11 +11,33 @@ import { resolveFollowups, type KaiFollowup } from "../registry/followups";
 
 export type KaiHistoryTurn = { role: "user" | "assistant"; content: string };
 
+export type KaiLlmComplexity = "simple" | "complex";
+
 export type KaiLlmFallbackArgs = {
   message: string;
   history: KaiHistoryTurn[];
   /** Why the deterministic pipeline didn't resolve it — for telemetry (spec §19 reasonForLLM). */
   reason: "unresolved" | "low-confidence" | "handler-error";
+  /** WP-KAI-LLM-COMPLEX (spec §17): "complex" picks a stronger model and costs more KAI points —
+   * a genuine reasoning/explanation question, not just an unmatched data lookup. */
+  complexity: KaiLlmComplexity;
+};
+
+// A real "why/should I/what do you think" question, not just a phrasing the resolver missed.
+// Deliberately narrow — false positives cost the user more KAI points for no reason, so this
+// only fires on clear reasoning language, not on message length alone (a long but ordinary
+// question like "¿cuánto gasté en el super y en la farmacia este mes?" stays "simple").
+const COMPLEX_TRIGGERS =
+  /\b(por que|porque|deberia|conviene|convendria|me conviene|que me recomendas|que harias|ayudame a decidir|como puedo|que opinas|explicame por que|analiza|compara mi|tiene sentido)\b/;
+
+export function classifyLlmComplexity(message: string): KaiLlmComplexity {
+  return COMPLEX_TRIGGERS.test(normalizeText(message)) ? "complex" : "simple";
+}
+
+/** KAI points an LLM fallback costs — complex reasoning questions cost more (spec §17/§19). */
+export const KAI_LLM_COMPLEXITY_WEIGHT: Record<KaiLlmComplexity, number> = {
+  simple: KAI_POINT_WEIGHTS.LLM,
+  complex: 10,
 };
 
 export type KaiLlmFallback = (args: KaiLlmFallbackArgs) => Promise<{ response: KaiResponse; aiCostUsd: number }>;
@@ -146,16 +168,18 @@ async function runFallback(
     );
   }
 
+  const complexity = classifyLlmComplexity(input.message);
   try {
     const { response, aiCostUsd } = await input.llmFallback({
       message: input.message,
       history: input.history,
       reason,
+      complexity,
     });
     return finish(response, {
       intentId,
       resolutionSource: "LLM",
-      weight: KAI_POINT_WEIGHTS.LLM,
+      weight: KAI_LLM_COMPLEXITY_WEIGHT[complexity],
       llmUsed: true,
       aiCostUsd,
       latencyMs: elapsed(),

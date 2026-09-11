@@ -22,6 +22,27 @@ describe("parseAmount", () => {
   it("returns null when there is no amount", () => {
     expect(parseAmount("un gasto en el super").amount).toBeNull();
   });
+
+  it.each([
+    ["mil quinientos", "1500"],
+    ["dos mil trescientos", "2300"],
+    ["treinta y cinco mil", "35000"],
+    ["cien mil", "100000"],
+    ["quinientos", "500"],
+    ["un millón", "1000000"],
+    ["dos millones quinientos mil", "2500000"],
+  ])("parses the spelled-out amount %j → %s", (text, expected) => {
+    expect(parseAmount(text).amount).toBe(expected);
+  });
+
+  it("a bare 'un'/'una' is the article, not an amount of 1", () => {
+    expect(parseAmount("un gasto en el super").amount).toBeNull();
+    expect(parseAmount("una meta de ahorro").amount).toBeNull();
+  });
+
+  it("digits still win over words when both are present", () => {
+    expect(parseAmount("$30.000 (treinta mil)").amount).toBe("30000");
+  });
 });
 
 describe("parseWriteIntent", () => {

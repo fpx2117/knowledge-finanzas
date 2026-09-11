@@ -29,7 +29,84 @@ const FILLER = new Set([
   "cobro", "hoy", "ayer", "ahora", "algo", "cosas", "cosa",
 ]);
 
-/** Parses "$30.000", "30.000", "30000", "30 mil", "1,5 millones", "30k", "usd 50", "us$ 50". */
+// WP-KAI-RESOLVER-FUZZY (spec §15): amounts spelled out in words — "gasté mil quinientos en el
+// super", "pagué dos mil trescientos". Spanish number words, 0–999,999,999 (comfortably past any
+// real expense). Keys are already accent-stripped — matched against an accent-stripped copy of
+// the text, never the returned amount itself.
+const WORD_UNITS: Record<string, number> = {
+  cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9,
+  diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15,
+  dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19,
+  veinte: 20, veintiun: 21, veintiuno: 21, veintidos: 22, veintitres: 23, veinticuatro: 24,
+  veinticinco: 25, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
+};
+const WORD_TENS: Record<string, number> = {
+  treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90,
+};
+const WORD_HUNDREDS: Record<string, number> = {
+  cien: 100, ciento: 100, doscientos: 200, trescientos: 300, cuatrocientos: 400,
+  quinientos: 500, seiscientos: 600, setecientos: 700, ochocientos: 800, novecientos: 900,
+};
+const WORD_TOKEN = new RegExp(
+  `\\b(${[...Object.keys(WORD_UNITS), ...Object.keys(WORD_TENS), ...Object.keys(WORD_HUNDREDS), "mil", "millon", "millones", "y"].join("|")})\\b`,
+  "g",
+);
+
+/** Evaluates a contiguous run of Spanish number-word tokens (already matched by WORD_TOKEN). */
+function evaluateNumberWords(tokens: string[]): number | null {
+  // A lone "un"/"una"/"uno" is almost always the indefinite article ("un gasto", "una meta"),
+  // never a spelled-out amount by itself — only count it as 1 when it's part of a longer run
+  // ("veintiún mil" already matches as its own compound key, so this only excludes the bare word).
+  if (tokens.length === 1 && ["un", "una", "uno"].includes(tokens[0])) return null;
+  let total = 0;
+  let current = 0;
+  let sawAny = false;
+  for (const token of tokens) {
+    if (token === "y") continue; // "treinta y cinco" — pure connector, no value of its own
+    if (token in WORD_HUNDREDS) {
+      current += WORD_HUNDREDS[token];
+    } else if (token in WORD_TENS) {
+      current += WORD_TENS[token];
+    } else if (token in WORD_UNITS) {
+      current += WORD_UNITS[token];
+    } else if (token === "mil") {
+      total += (current || 1) * 1_000;
+      current = 0;
+    } else if (token.startsWith("millon")) {
+      total += (current || 1) * 1_000_000;
+      current = 0;
+    } else {
+      continue;
+    }
+    sawAny = true;
+  }
+  return sawAny ? total + current : null;
+}
+
+/** Finds the first written-out number in `text` (accent-stripped internally) and its value. */
+function parseWrittenAmount(text: string): number | null {
+  const clean = stripAccents(text.toLowerCase());
+  WORD_TOKEN.lastIndex = 0;
+  const tokens: string[] = [];
+  let lastEnd = -1;
+  let match: RegExpExecArray | null;
+  while ((match = WORD_TOKEN.exec(clean))) {
+    // Only chain tokens that are directly adjacent (allowing for the single space between
+    // words) — a stray "cinco" way later in an unrelated clause shouldn't glue onto an earlier
+    // "mil". A gap ends the current run and starts a new one.
+    if (lastEnd !== -1 && match.index - lastEnd > 1) {
+      const value = evaluateNumberWords(tokens);
+      if (value !== null && value > 0) return value;
+      tokens.length = 0;
+    }
+    tokens.push(match[1]);
+    lastEnd = match.index + match[1].length;
+  }
+  const value = evaluateNumberWords(tokens);
+  return value !== null && value > 0 ? value : null;
+}
+
+/** Parses "$30.000", "30.000", "30000", "30 mil", "1,5 millones", "30k", "mil quinientos", "usd 50". */
 export function parseAmount(text: string): { amount: string | null; currencyHint: "USD" | null } {
   const currencyHint = /(\busd\b|u\$s|us\$|d[oó]lar\w*)/.test(text) ? ("USD" as const) : null;
 
@@ -52,6 +129,10 @@ export function parseAmount(text: string): { amount: string | null; currencyHint
     const value = Number(raw);
     if (Number.isFinite(value) && value > 0) return { amount: String(value), currencyHint };
   }
+
+  // No digits at all — try it spelled out ("mil quinientos").
+  const written = parseWrittenAmount(text);
+  if (written !== null) return { amount: String(written), currencyHint };
 
   return { amount: null, currencyHint };
 }

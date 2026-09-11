@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   resolveKaiInteraction,
+  classifyLlmComplexity,
+  KAI_LLM_COMPLEXITY_WEIGHT,
   type KaiDataPorts,
   type ResolveKaiInteractionInput,
 } from "@know-finanzas/kai";
@@ -293,6 +295,17 @@ describe("resolveKaiInteraction", () => {
     expect(audit.aiCostUsd).toBeCloseTo(0.0012);
     expect(response.body).toBe("respuesta IA");
     expect(audit.reasonForLlm).toBe("unresolved");
+    // "por qué" is reasoning language (spec §17 WP-KAI-LLM-COMPLEX) — costs 10, not 5.
+    expect(audit.weight).toBe(10);
+    expect(input.llmFallback).toHaveBeenCalledWith(expect.objectContaining({ complexity: "complex" }));
+  });
+
+  it("an ordinary unresolved phrasing (no reasoning language) stays a simple, 5-point LLM call", async () => {
+    const input = baseInput({ message: "contame algo random sobre mi cuenta bancaria" });
+    const { audit } = await resolveKaiInteraction(input);
+    expect(audit.resolutionSource).toBe("LLM");
+    expect(audit.weight).toBe(5);
+    expect(input.llmFallback).toHaveBeenCalledWith(expect.objectContaining({ complexity: "simple" }));
   });
 
   it("returns KAI_ERROR and never calls the LLM when the budget guard throws", async () => {
@@ -354,5 +367,30 @@ describe("resolveKaiInteraction", () => {
     expect(audit.resolutionSource).toBe("LLM");
     expect(input.llmFallback).toHaveBeenCalledTimes(1);
     expect(audit.reasonForLlm).toBe("handler-error");
+  });
+});
+
+describe("classifyLlmComplexity (spec §17 WP-KAI-LLM-COMPLEX)", () => {
+  it.each([
+    "¿por qué gasté tanto este mes?",
+    "¿me conviene pagar la tarjeta antes de fin de mes?",
+    "¿qué me recomendás para ahorrar más?",
+    "no sé si tiene sentido seguir pagando esta suscripción",
+    "ayudame a decidir si compro el auto ahora o espero",
+  ])("'%s' is complex", (message) => {
+    expect(classifyLlmComplexity(message)).toBe("complex");
+  });
+
+  it.each([
+    "contame un chiste",
+    "¿cómo estás?",
+    "decime algo interesante sobre mis finanzas",
+  ])("'%s' is simple", (message) => {
+    expect(classifyLlmComplexity(message)).toBe("simple");
+  });
+
+  it("complex costs 10 KAI points, simple costs the standard LLM weight (5)", () => {
+    expect(KAI_LLM_COMPLEXITY_WEIGHT.complex).toBe(10);
+    expect(KAI_LLM_COMPLEXITY_WEIGHT.simple).toBe(5);
   });
 });

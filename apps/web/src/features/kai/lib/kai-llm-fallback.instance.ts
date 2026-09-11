@@ -19,7 +19,7 @@ import type { KaiLlmFallback } from "@know-finanzas/kai";
  * (`buildAssistantSnapshot`), never raw transactions (spec §18).
  */
 export function createKaiLlmFallback(user: CurrentUser, operationId: string): KaiLlmFallback {
-  return async ({ message, history }) => {
+  return async ({ message, history, complexity }) => {
     if (!env.AI_ENABLED) {
       throw new Error("El análisis con IA no está disponible en este momento. Puedo responder igual con tus datos.");
     }
@@ -29,8 +29,18 @@ export function createKaiLlmFallback(user: CurrentUser, operationId: string): Ka
     }
 
     const snapshot = await buildAssistantSnapshot(user.id, user.timezone);
-    // FREE runs on the fast model; TRIAL/PRO get the balanced default.
-    const role = access === "FREE" || access === "EXPIRED_READ_ONLY" ? ("FAST" as const) : undefined;
+    // FREE/EXPIRED stay on the fast model regardless of complexity — cost control for the tier
+    // that isn't paying for KAI points. Otherwise: a genuine reasoning question (spec §17
+    // WP-KAI-LLM-COMPLEX, weighted 10 points instead of 5) gets the REASONING model — but only
+    // when one is actually configured; AI_MODEL_REASONING is optional (unset in a fresh deploy
+    // until someone picks a model for it), and resolveModel() throws AI_MODEL_UNAVAILABLE for an
+    // unconfigured role rather than degrading, so an unset env var must never reach it.
+    const role =
+      access === "FREE" || access === "EXPIRED_READ_ONLY"
+        ? ("FAST" as const)
+        : complexity === "complex" && env.AI_MODEL_REASONING
+          ? ("REASONING" as const)
+          : undefined;
 
     const { reply } = await runWithGenerationContext(
       { userId: user.id, capability: "assistant.query.kai", operationId, creditsCharged: 0 },

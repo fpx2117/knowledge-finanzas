@@ -75,24 +75,24 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ---
 
-### Fase D — Resolver de lenguaje natural  *(P2)*
+### Fase D — Resolver de lenguaje natural  *(revisada 2026-09-11 — 2 de 3 cerrados)*
 
-| WP | Contenido | Spec |
-|---|---|---|
-| **WP-KAI-RESOLVER-CONTEXT** | Follow-up conversacional real: "¿y el mes pasado?" toma el intent anterior y le cambia el rango (hoy manda una frase canned). Guardar `lastIntent` + params. | §15 |
-| **WP-KAI-RESOLVER-FUZZY** | Tolerancia a typos, command parser estructurado (paso 7 de §15), normalización de números escritos ("mil quinientos"). | §15 |
-| **WP-KAI-RESOLVER-TUNING** | Loggear cada `UNRESOLVED` con el texto → reporte "intents faltantes" → ajustar aliases/umbral con datos reales. | §25 |
+| WP | Contenido | Spec | Estado |
+|---|---|---|---|
+| **WP-KAI-RESOLVER-CONTEXT** | Follow-up conversacional real: "¿y el mes pasado?" toma el intent anterior y le cambia el rango. Guardar `lastIntent` + params. | §15 | ✅ DONE — la fila decía "hoy manda una frase canned" pero ya estaba implementado (`TEMPORAL_FOLLOWUP` en `intent-resolver.ts`, con tests desde antes de esta sesión). Fila desactualizada, no el código. |
+| **WP-KAI-RESOLVER-FUZZY** | Tolerancia a typos, command parser estructurado (paso 7 de §15), normalización de números escritos ("mil quinientos"). | §15 | ⚠️ PARCIAL (2026-09-11) — **normalización de números escritos: DONE** (`parseWrittenAmount` en `parse-write.ts`, 0–999.999.999, "mil quinientos" / "dos millones quinientos mil" / etc., con guarda explícita para que un "un"/"una" suelto no se lea como el número 1 — son casi siempre el artículo, no una cantidad; 9 tests nuevos). **Tolerancia a typos: no tocado** — un matcher fuzzy (Levenshtein) contra la tabla de alias agregaría falsos positivos reales sin datos de uso para calibrar el umbral; con `KAI_LOCAL_RESOLUTION_RATE` en 100% y 0 frases sin resolver hasta ahora, no hay señal de que haga falta todavía. Se retoma cuando `pnpm kai:report` muestre typos recurrentes en `recentUnresolved`. |
+| **WP-KAI-RESOLVER-TUNING** | Loggear cada `UNRESOLVED` con el texto → reporte "intents faltantes" → ajustar aliases/umbral con datos reales. | §25 | ⚠️ LA HERRAMIENTA YA EXISTE, el ajuste en sí no se puede hacer todavía — `unresolvedText` + `reasonForLlm` + `pnpm kai:report` (con desglose "por qué se usó LLM" y frases sin resolver) están listos desde antes de esta sesión. Lo que falta es literalmente **usarlos con datos reales de producción** — hoy hay 0 filas sin resolver porque el uso real todavía no empezó. No hay nada de código pendiente acá. |
 
 ---
 
-### Fase E — Capa LLM  *(P2 — recién cuando el catálogo esté maduro)*
+### Fase E — Capa LLM  *(revisada 2026-09-11 — 1 de 4 cerrado, 1 ya cubierto de antes, 2 necesitan una decisión de producto/infra)*
 
-| WP | Contenido | Spec |
-|---|---|---|
-| **WP-KAI-LLM-COMPLEX** | `assistant.query.complex` (peso 10) para preguntas de razonamiento real; el resolver decide simple vs complejo. | §17 |
-| **WP-KAI-LLM-MIN-CONTEXT** | Builder de `minimumRequiredContext` por tipo de pregunta (hoy manda el snapshot entero). "¿por qué subieron mis gastos?" → solo `currentExpenses / previousExpenses / categoryVariations / largestChanges`. | §18 |
-| **WP-KAI-LLM-EXPLAIN** | Enganchar la capability `insight-explanation` existente → botón "Explicame el detalle" en cards e insights. | §17 |
-| **WP-KAI-LLM-STREAMING** | Respuesta en streaming en el panel (hoy espera la respuesta completa). | §6 processing |
+| WP | Contenido | Spec | Estado |
+|---|---|---|---|
+| **WP-KAI-LLM-COMPLEX** | Peso más alto para preguntas de razonamiento real; el resolver decide simple vs complejo. | §17 | ✅ DONE (2026-09-11) — `classifyLlmComplexity` en el orchestrator: lenguaje de razonamiento explícito ("por qué", "conviene", "qué me recomendás", "ayudame a decidir"…) → 10 puntos KAI + modelo `REASONING` (deliberadamente acotado a frases claras, no a la longitud del mensaje — un falso positivo le cobra de más al usuario por nada). Simple sigue en 5 puntos + modelo `BALANCED`. FREE/EXPIRED se quedan en `FAST` sin importar la complejidad (control de costo). Guardado contra `AI_MODEL_REASONING` sin configurar (sería `AI_MODEL_UNAVAILABLE` en un deploy nuevo — cae a `BALANCED`). 8 tests nuevos. |
+| **WP-KAI-LLM-MIN-CONTEXT** | Builder de `minimumRequiredContext` por tipo de pregunta (hoy manda el snapshot entero). | §18 | ⚠️ YA SUSTANCIALMENTE CUBIERTO, no lo toqué — auditado 2026-09-11: `buildAssistantSnapshot` ya es un resumen chico y pre-computado (saldos, mes actual, deuda, próximas obligaciones, dólar blue — no transacciones crudas), no el volcado que el WP describe como problema. Construir builders por-tipo-de-pregunta encima de un snapshot que ya es chico ahorraría poco y es una decisión de diseño (cómo categorizar preguntas) sin un problema de costo medido que la justifique todavía. |
+| **WP-KAI-LLM-EXPLAIN** | Enganchar la capability `insight-explanation` existente → botón "Explicame el detalle" en cards e insights. | §17 | ⚠️ ALCANZABLE HOY, no está en el chat mismo — la card `KAI_INSIGHT` de KAI ya tiene "Ver detalle" → `/insights/{id}`, donde el botón "Explicar" (con `insight-explanation`, ya existe y funciona) ya está. Un botón que muestre la explicación **sin salir del chat** es una feature nueva, no una conexión: `insight-explanation` hoy se cobra con el pool de créditos de IA viejo (`executeAICapability`), no con puntos KAI — meterlo en el chat manteniendo "KAI tiene un solo medidor" (puntos, no créditos) es una decisión de monetización, no la tomo sola. |
+| **WP-KAI-LLM-STREAMING** | Respuesta en streaming en el panel (hoy espera la respuesta completa). | §6 processing | ❌ PENDIENTE — necesita infra nueva: `sendKaiMessageAction` es un Server Action (`"use server"`), que no puede stream-ear una respuesta parcial a un cliente; requeriría un Route Handler con `ReadableStream` en paralelo (como `/api/kai/proactive/stream`, pero para la respuesta del LLM) y cablear el cliente para consumirlo con `EventSource`/`fetch` + reader en vez de `await`. Es un cambio de arquitectura del transporte, no un ajuste del componente — no lo empecé sin que Diego confirme que vale la pena el cambio (la mayoría de las respuestas de KAI son deterministas e instantáneas; streaming solo importa para el ~1% que cae al LLM). |
 
 ---
 
