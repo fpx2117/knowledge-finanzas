@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mapMerchantAutocompleteSuggestions } from "../../apps/web/src/features/capture/lib/merchant-autocomplete";
 
 const merchants = [
-  { merchantId: "merchant-1", canonicalName: "Carrefour", defaultTaxonomyNodeId: "node-super" },
+  { merchantId: "merchant-1", canonicalName: "Carrefour", defaultTaxonomyNodeId: "node-super", domain: null },
 ];
 
 describe("mapMerchantAutocompleteSuggestions", () => {
@@ -11,7 +11,7 @@ describe("mapMerchantAutocompleteSuggestions", () => {
     expect(mapMerchantAutocompleteSuggestions(merchants, [
       { taxonomyNodeId: "node-super", userCategoryId: "cat-super", confidence: "0.900" },
     ])).toEqual([
-      { id: "merchant-1", name: "Carrefour", categoryId: "cat-super" },
+      { id: "merchant-1", name: "Carrefour", categoryId: "cat-super", domain: null },
     ]);
   });
 
