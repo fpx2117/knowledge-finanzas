@@ -141,6 +141,7 @@ async function runFallback(
         latencyMs: elapsed(),
         responseType: "KAI_ERROR",
         screenContext: screen,
+        reasonForLlm: reason,
       },
     );
   }
@@ -160,6 +161,7 @@ async function runFallback(
       latencyMs: elapsed(),
       responseType: response.type,
       screenContext: screen,
+      reasonForLlm: reason,
     });
   } catch (error) {
     return finish(
@@ -181,6 +183,7 @@ async function runFallback(
         latencyMs: elapsed(),
         responseType: "KAI_ERROR",
         screenContext: screen,
+        reasonForLlm: reason,
       },
     );
   }

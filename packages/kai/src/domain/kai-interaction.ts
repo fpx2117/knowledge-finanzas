@@ -46,6 +46,12 @@ export type KaiInteractionAudit = {
   latencyMs: number;
   responseType: KaiResponseType;
   screenContext: string | null;
+  /**
+   * Why the deterministic pipeline reached for the LLM (spec §19 "reasonForLLM") — only set
+   * when the LLM branch was even attempted (budget-blocked, failed, or succeeded); null for
+   * every deterministic answer.
+   */
+  reasonForLlm?: "unresolved" | "low-confidence" | "handler-error" | null;
 };
 
 /** A deterministic answer never touches the LLM and costs 1 KAI point. */

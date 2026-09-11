@@ -27,10 +27,11 @@ async function main() {
   const from = new Date(to.getTime() - days * 86_400_000);
   const range = { from, to };
 
-  const [stats, byIntent, unresolved] = await Promise.all([
+  const [stats, byIntent, unresolved, byReason] = await Promise.all([
     repo.resolutionStats(range),
     repo.countByIntent(range),
     repo.recentUnresolved(range, 40),
+    repo.countByReasonForLlm(range),
   ]);
 
   console.log(`\n=== KAI report — últimos ${days} días ===\n`);
@@ -40,6 +41,13 @@ async function main() {
   console.log("Por intent / fuente:");
   for (const row of byIntent) {
     console.log(`  ${String(row.intentId).padEnd(26)} ${String(row.resolutionSource).padEnd(11)} ${String(row.count).padStart(5)}`);
+  }
+
+  if (byReason.length > 0) {
+    console.log("\nPor qué se usó LLM:");
+    for (const row of byReason) {
+      console.log(`  ${String(row.reason).padEnd(16)} ${String(row.count).padStart(5)}`);
+    }
   }
 
   console.log(`\nFrases sin resolver (últimas ${unresolved.length}) — candidatas a intent nuevo:`);

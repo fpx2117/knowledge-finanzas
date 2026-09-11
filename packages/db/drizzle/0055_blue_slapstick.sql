@@ -1,0 +1,1 @@
+ALTER TABLE "kai_interactions" ADD COLUMN "reason_for_llm" text;

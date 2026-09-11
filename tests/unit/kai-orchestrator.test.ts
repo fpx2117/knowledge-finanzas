@@ -292,6 +292,7 @@ describe("resolveKaiInteraction", () => {
     expect(audit.llmUsed).toBe(true);
     expect(audit.aiCostUsd).toBeCloseTo(0.0012);
     expect(response.body).toBe("respuesta IA");
+    expect(audit.reasonForLlm).toBe("unresolved");
   });
 
   it("returns KAI_ERROR and never calls the LLM when the budget guard throws", async () => {
@@ -308,6 +309,7 @@ describe("resolveKaiInteraction", () => {
     expect(response.body).toContain("límite diario");
     expect(audit.llmUsed).toBe(false);
     expect(llmFallback).not.toHaveBeenCalled();
+    expect(audit.reasonForLlm).toBe("unresolved");
   });
 
   it("turns 'creá un gasto de YPF de $30.000' into a confirmation, no LLM, no DB", async () => {
@@ -351,5 +353,6 @@ describe("resolveKaiInteraction", () => {
     const { audit } = await resolveKaiInteraction(input);
     expect(audit.resolutionSource).toBe("LLM");
     expect(input.llmFallback).toHaveBeenCalledTimes(1);
+    expect(audit.reasonForLlm).toBe("handler-error");
   });
 });

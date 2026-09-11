@@ -15,6 +15,8 @@ export type KaiInteractionInput = {
   screenContext: string | null;
   /** Truncated user phrasing — only for UNRESOLVED / LLM rows (spec §25). */
   unresolvedText?: string | null;
+  /** Why the pipeline reached for the LLM — spec §19 "reasonForLLM". Null for a local answer. */
+  reasonForLlm?: string | null;
 };
 
 export type KaiDateRange = { from: Date; to: Date };
@@ -38,6 +40,7 @@ export function createKaiInteractionRepository(database: Database) {
         ...input,
         aiCostUsd: input.aiCostUsd.toString(),
         unresolvedText: input.unresolvedText ?? null,
+        reasonForLlm: input.reasonForLlm ?? null,
       });
     },
 
@@ -84,6 +87,18 @@ export function createKaiInteractionRepository(database: Database) {
         .from(kaiInteractions)
         .where(rangeWhere(range))
         .groupBy(kaiInteractions.intentId, kaiInteractions.resolutionSource)
+        .orderBy(desc(sql`count(*)`));
+    },
+
+    /** Why the LLM was reached, when it was (spec §19 "reasonForLLM") — helps tell "the catalogue
+     * is missing an intent" (unresolved) apart from "the resolver picked wrong" (low-confidence)
+     * apart from "a handler broke" (handler-error). */
+    countByReasonForLlm(range: KaiDateRange) {
+      return database
+        .select({ reason: kaiInteractions.reasonForLlm, count: sql<number>`count(*)::int` })
+        .from(kaiInteractions)
+        .where(and(rangeWhere(range), sql`${kaiInteractions.reasonForLlm} is not null`))
+        .groupBy(kaiInteractions.reasonForLlm)
         .orderBy(desc(sql`count(*)`));
     },
 

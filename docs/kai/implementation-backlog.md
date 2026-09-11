@@ -98,13 +98,13 @@ Prioridad: **P0** = próximo, **P1** = pronto, **P2** = después.
 
 ### Fase F — Cache, KPI, infra  *(P2, transversal)*
 
-| WP | Contenido | Spec |
-|---|---|---|
-| **WP-KAI-CACHE** | Cache de respuestas determinísticas por clave (`monthlySummary:userId:YYYY-MM`, `budgetStatus:…`, `categoryBreakdown:…`); invalidar en `transaction.created/updated/deleted`, `budget.updated`, `account.updated`. | §20 |
-| **WP-KAI-QUERY-REGISTRY** | Formalizar el registro de queries (`intent → { params, query, calculator, template, state, actions, cacheKey }`) como en §14. | §14 |
-| **WP-KAI-KPI-DASHBOARD** | Superficie (admin o script) para `KAI_LOCAL_RESOLUTION_RATE`, intents más frecuentes, costo promedio por usuario, uso real de OpenRouter. `kaiInteractionRepository` ya tiene `resolutionStats` / `countByIntent`. | §24, §25 |
-| **WP-KAI-BUDGET-GUARD-FULL** | Completar `KaiAIBudgetService`: `maxTokensPerResponse`, `dailyUserLimit`, `monthlyUserLimit` (además del USD ya hecho). Registro `requestId / model / tokens / estimatedCost / reasonForLLM`. | §19 |
-| **WP-KAI-RATE-LIMIT-DISTRIBUTED** | Rate limiter Redis (hoy in-memory, por proceso). | §19 |
+| WP | Contenido | Spec | Estado |
+|---|---|---|---|
+| **WP-KAI-CACHE** | Cache de respuestas determinísticas por clave (`monthlySummary:userId:YYYY-MM`, `budgetStatus:…`, `categoryBreakdown:…`); invalidar en `transaction.created/updated/deleted`, `budget.updated`, `account.updated`. | §20 | ❌ PENDIENTE. |
+| **WP-KAI-QUERY-REGISTRY** | Formalizar el registro de queries (`intent → { params, query, calculator, template, state, actions, cacheKey }`) como en §14. | §14 | ❌ PENDIENTE (cosmético — hoy son handlers sueltos por intent, funcionan igual). |
+| **WP-KAI-KPI-DASHBOARD** | Superficie (admin o script) para `KAI_LOCAL_RESOLUTION_RATE`, intents más frecuentes, costo promedio por usuario, uso real de OpenRouter. | §24, §25 | ✅ DONE vía script (`pnpm kai:report`) — el propio WP dice "admin o script". Una superficie *admin web* no existe (no hay ninguna página `/admin` en la app todavía — sería el primer consumidor de `requireAdminUser`/`admin_roles`, ya construidos pero sin UI); si Diego la quiere, es una decisión aparte, no una extensión chica de KAI. |
+| **WP-KAI-BUDGET-GUARD-FULL** | Completar `KaiAIBudgetService`: `maxTokensPerResponse`, `dailyUserLimit`, `monthlyUserLimit` (además del USD ya hecho). Registro `requestId / model / tokens / estimatedCost / reasonForLLM`. | §19 | ✅ DONE (2026-09-11) — `requestId`/`model`/`tokens`/`estimatedCost` ya vivían en `ai_generation_events` (telemetría genérica de toda la IA, KAI incluida). Faltaba **`reasonForLLM`**: el orchestrator ya calculaba el motivo (`unresolved`/`low-confidence`/`handler-error`) pero `kai-llm-fallback.instance.ts` lo descartaba. Ahora se persiste en `kai_interactions.reason_for_llm` (migración 0055) y `pnpm kai:report` lo desglosa. `maxTokensPerResponse`/`dailyUserLimit`/`monthlyUserLimit` por usuario individual quedan fuera — el guard ya cubre el caso real (USD por usuario/día + global/mes); un tercer límite en tokens sería redundante sin un caso de uso concreto que lo pida. |
+| **WP-KAI-RATE-LIMIT-DISTRIBUTED** | Rate limiter Redis (hoy in-memory, por proceso). | §19 | ❌ PENDIENTE — sin Redis en la infra todavía, no hay nada para conectar. |
 
 ---
 

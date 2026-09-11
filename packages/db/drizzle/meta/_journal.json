@@ -386,6 +386,13 @@
       "when": 1789087399910,
       "tag": "0054_zippy_ultragirl",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1789148215807,
+      "tag": "0055_blue_slapstick",
+      "breakpoints": true
     }
   ]
 }

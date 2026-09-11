@@ -1234,6 +1234,9 @@ export const kaiInteractions = pgTable("kai_interactions", {
   // Only set for UNRESOLVED / LLM-fallback rows — the truncated user phrasing, to find the
   // deterministic intents that are still missing (spec §25 "intents faltantes"). Null otherwise.
   unresolvedText: text("unresolved_text"),
+  // WP-KAI-BUDGET-GUARD-FULL (spec §19 "reasonForLLM"): why the pipeline reached for the LLM —
+  // unresolved | low-confidence | handler-error. Null for every deterministic answer.
+  reasonForLlm: text("reason_for_llm"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("kai_interactions_user_created_idx").on(table.userId, table.createdAt),

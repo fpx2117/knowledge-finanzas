@@ -107,6 +107,7 @@ export async function sendKaiMessageAction(input: {
           (audit.resolutionSource === "LLM" || audit.intentId === "UNRESOLVED") && message
             ? message.slice(0, 120)
             : null,
+        reasonForLlm: audit.reasonForLlm ?? null,
       });
     } catch (error) {
       recorded = false;
