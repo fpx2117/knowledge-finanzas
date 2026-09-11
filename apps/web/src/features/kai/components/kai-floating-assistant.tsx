@@ -40,7 +40,7 @@ import {
   muteKaiProactiveKindAction,
   snoozeKaiProactiveAction,
 } from "../actions/kai-proactive-actions";
-import { kaiAllocateToGoalAction, kaiCreateTransactionAction, kaiPayObligationAction, kaiVoidTransactionAction } from "../actions/kai-create-actions";
+import { kaiAllocateToGoalAction, kaiCreateTransactionAction, kaiCreateTransferAction, kaiPayObligationAction, kaiVoidTransactionAction } from "../actions/kai-create-actions";
 import { MAX_KAI_MESSAGE_LENGTH } from "../lib/constants";
 import { useDraggableFab } from "../lib/use-draggable-fab";
 import { KaiAlertCard } from "./kai-alert-card";
@@ -343,6 +343,22 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
     [pending, doneMessage],
   );
 
+  const transferFromCard = useCallback(
+    async (params: Record<string, string>) => {
+      if (pending) return;
+      setPending(true);
+      setBanner(null);
+      const result = await kaiCreateTransferAction({ fromAccountId: params.fromAccountId, toAccountId: params.toAccountId, amount: params.amount ?? "" });
+      setPending(false);
+      if (result.ok) {
+        doneMessage("Listo, hice la transferencia.", "/accounts", "Ver cuentas");
+        toast.success("Transferencia registrada");
+        window.dispatchEvent(new CustomEvent("kai:refresh-proactive"));
+      } else setBanner(result.error.message);
+    },
+    [pending, doneMessage],
+  );
+
   const onAction = useCallback(
     (action: KaiAction) => {
       if (action.kind === "navigate" && action.route) {
@@ -367,11 +383,13 @@ export function KaiFloatingAssistant({ initialAccess }: { initialAccess: KaiAcce
         void voidFromCard(action.params);
       } else if (action.kind === "confirm-pay-obligation" && action.params) {
         void payFromCard(action.params);
+      } else if (action.kind === "confirm-transfer" && action.params) {
+        void transferFromCard(action.params);
       } else if (action.kind === "run-intent" && action.intentId) {
         void submit({ quickActionIntentId: action.intentId, label: action.label });
       }
     },
-    [router, submit, createFromCard, allocateFromCard, voidFromCard, payFromCard],
+    [router, submit, createFromCard, allocateFromCard, voidFromCard, payFromCard, transferFromCard],
   );
 
   const rateEntry = useCallback((index: number, feedback: "up" | "down") => {

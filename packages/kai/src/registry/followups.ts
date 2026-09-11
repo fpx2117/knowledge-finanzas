@@ -126,6 +126,10 @@ const BY_INTENT: Partial<Record<KaiIntentId, KaiFollowup[]>> = {
     q("¿Qué vence esta semana?", "GET_UPCOMING_PAYMENTS"),
     q("¿Cuánto tengo disponible?", "GET_AVAILABLE_MONEY"),
   ],
+  CREATE_TRANSFER: [
+    q("¿Cuáles son mis saldos?", "GET_ACCOUNT_BALANCES"),
+    q("¿Cuánto tengo disponible?", "GET_AVAILABLE_MONEY"),
+  ],
 };
 
 /** Follow-ups for whatever KAI just answered. `intentId` is the audit id (may be STATIC/UNRESOLVED). */

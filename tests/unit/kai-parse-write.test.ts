@@ -85,3 +85,27 @@ describe("parseActionIntent — PAY_OBLIGATION", () => {
     expect(parseActionIntent(normalizeText("pagué el super"), "pagué el super")).toBeNull();
   });
 });
+
+describe("parseActionIntent — CREATE_TRANSFER", () => {
+  it("recognises 'transferí $10.000 de mi banco a mi billetera'", () => {
+    const raw = "transferí $10.000 de mi banco a mi billetera";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result).toMatchObject({ kind: "CREATE_TRANSFER", amount: "10000", fromAccountName: "banco", toAccountName: "billetera" });
+  });
+
+  it("recognises 'pasá 5000 de la cuenta corriente a la caja de ahorro'", () => {
+    const raw = "pasá 5000 de la cuenta corriente a la caja de ahorro";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result?.kind).toBe("CREATE_TRANSFER");
+  });
+
+  it("does NOT fire when it's an allocation to a goal (shares the verb 'moné/pasá')", () => {
+    const raw = "moné 5000 a mi meta del auto";
+    const result = parseActionIntent(normalizeText(raw), raw);
+    expect(result?.kind).toBe("ALLOCATE_TO_GOAL");
+  });
+
+  it("returns null without amount when there's no clear 'de X a Y' shape", () => {
+    expect(parseActionIntent(normalizeText("moví la reunión"), "moví la reunión")).toBeNull();
+  });
+});

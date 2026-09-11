@@ -37,6 +37,10 @@ function fakePorts(overrides: Partial<KaiDataPorts> = {}): KaiDataPorts {
     getObligationsForPayment: async () => [
       { id: "d1", name: "Auto", currencyCode: "ARS", nextInstallmentAmount: "60000", nextDueOn: "2026-09-20" },
     ],
+    getAccountsForTransfer: async () => [
+      { id: "a1", name: "Banco", currencyCode: "ARS" },
+      { id: "a2", name: "Billetera", currencyCode: "ARS" },
+    ],
     getInsightsForProactive: async () => [],
     findTransactionToVoid: async () => ({ id: "t1", type: "EXPENSE" as const, description: "Super", merchant: "Coto", amount: "40000", currencyCode: "ARS", occurredAt: "2026-09-09T12:00:00Z" }),
     ...overrides,
@@ -190,6 +194,18 @@ describe("resolveKaiInteraction", () => {
   it("'pagué luz $5000' sigue siendo CREATE_EXPENSE (sin 'cuota' no es una obligación)", async () => {
     const { audit } = await resolveKaiInteraction(baseInput({ message: "pagué luz $5000" }));
     expect(audit.intentId).toBe("CREATE_EXPENSE");
+  });
+
+  it("'transferí $10.000 de mi banco a mi billetera' → confirmación de transferencia", async () => {
+    const { response, audit } = await resolveKaiInteraction(baseInput({ message: "transferí $10.000 de mi banco a mi billetera" }));
+    expect(audit.intentId).toBe("CREATE_TRANSFER");
+    expect(response.type).toBe("KAI_CONFIRMATION");
+    expect(response.body).toContain("Banco");
+    expect(response.body).toContain("Billetera");
+    expect(response.actions?.[0]).toMatchObject({
+      kind: "confirm-transfer",
+      params: { fromAccountId: "a1", toAccountId: "a2", amount: "10000" },
+    });
   });
 
   it("'¿cuándo vence Netflix?' → GET_SUBSCRIPTION_NEXT", async () => {

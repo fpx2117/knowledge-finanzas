@@ -11,6 +11,7 @@ export type KaiActionKind =
   | "confirm-goal-allocation"
   | "confirm-void"
   | "confirm-pay-obligation"
+  | "confirm-transfer"
   | "dismiss"
   | "remind-later";
 

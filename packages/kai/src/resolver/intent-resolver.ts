@@ -61,6 +61,18 @@ export function resolveIntent(
         strategy: "regex",
       };
     }
+    if (action.kind === "CREATE_TRANSFER") {
+      return {
+        id: "CREATE_TRANSFER",
+        params: {
+          fromAccountName: action.fromAccountName,
+          toAccountName: action.toAccountName,
+          ...(action.amount ? { amount: action.amount } : {}),
+        },
+        confidence: 0.95,
+        strategy: "regex",
+      };
+    }
     return {
       id: "VOID_TRANSACTION",
       params:

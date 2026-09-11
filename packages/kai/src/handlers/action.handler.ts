@@ -141,6 +141,82 @@ export const payObligation: KaiHandler = async ({ ports, params }) => {
 };
 
 /**
+ * "Transferí $10.000 de mi banco a mi billetera" (spec §11). Resolves both accounts by name,
+ * shows a confirmation. Currency-mismatch is left to the write action's own validation — the
+ * card only claims what it can already tell (the amount, in the source account's currency).
+ */
+export const createTransfer: KaiHandler = async ({ ports, params }) => {
+  const accounts = await ports.getAccountsForTransfer();
+  if (accounts.length < 2) {
+    return {
+      source: "TEMPLATE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body: "Necesitás al menos dos cuentas para transferir entre ellas.",
+        actions: [{ kind: "navigate", label: "Ver cuentas", route: "/accounts" }],
+      },
+    };
+  }
+
+  const matchAccount = (nameQuery: string | undefined) => {
+    const q = normalizeText(nameQuery ?? "");
+    return q ? accounts.find((a) => normalizeText(a.name).includes(q) || q.includes(normalizeText(a.name))) : undefined;
+  };
+  const from = matchAccount(params.fromAccountName);
+  const to = matchAccount(params.toAccountName);
+
+  if (!from || !to) {
+    return {
+      source: "TEMPLATE",
+      response: {
+        type: "KAI_TEXT",
+        state: "NEUTRAL",
+        body: `No identifiqué ${!from ? `la cuenta de origen ("${params.fromAccountName ?? ""}")` : `la cuenta de destino ("${params.toAccountName ?? ""}")`}. Tenés: ${accounts.map((a) => a.name).join(", ")}.`,
+        actions: [{ kind: "navigate", label: "Ver cuentas", route: "/accounts" }],
+      },
+    };
+  }
+
+  if (from.id === to.id) {
+    return {
+      source: "TEMPLATE",
+      response: { type: "KAI_TEXT", state: "NEUTRAL", body: "El origen y el destino no pueden ser la misma cuenta." },
+    };
+  }
+
+  const amount = params.amount;
+  if (!amount) {
+    return {
+      source: "TEMPLATE",
+      response: {
+        type: "KAI_ACTION",
+        state: "NEUTRAL",
+        title: "Transferir entre cuentas",
+        body: `¿Cuánto querés transferir de ${from.name} a ${to.name}?`,
+        actions: [{ kind: "navigate", label: "Abrir transferencia", route: "/transactions/transfers/new" }],
+      },
+    };
+  }
+
+  const confirmParams = { fromAccountId: from.id, toAccountId: to.id, amount, currencyCode: from.currencyCode };
+  return {
+    source: "TEMPLATE",
+    response: {
+      type: "KAI_CONFIRMATION",
+      state: "NEUTRAL",
+      title: "Transferir entre cuentas",
+      body: `¿Transfiero ${formatMoney(amount, from.currencyCode)} de ${from.name} a ${to.name}?`,
+      data: { pendingTransfer: confirmParams },
+      actions: [
+        { kind: "confirm-transfer", label: "Confirmar", params: confirmParams },
+        { kind: "navigate", label: "Ver cuentas", route: "/accounts" },
+      ],
+    },
+  };
+};
+
+/**
  * "Anulá el último gasto" / "borrá el gasto de YPF" (spec §11). Finds the movement, shows a
  * confirmation with exactly what will be voided.
  */

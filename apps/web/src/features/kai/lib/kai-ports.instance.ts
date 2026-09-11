@@ -1,4 +1,5 @@
 import {
+  accountRepository,
   budgetRepository,
   categoryRepository,
   createAccountBalanceQueries,
@@ -270,6 +271,11 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
       return goals
         .filter((g) => g.status === "ACTIVE")
         .map((g) => ({ id: g.id, name: g.name, currencyCode: g.currencyCode }));
+    },
+
+    async getAccountsForTransfer() {
+      const rows = await accountRepository.listForUser(user.id);
+      return rows.map((a) => ({ id: a.id, name: a.name, currencyCode: a.currencyCode }));
     },
 
     async getObligationsForPayment() {

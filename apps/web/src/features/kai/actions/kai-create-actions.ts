@@ -20,6 +20,7 @@ import { getTodayInTimezone, resolveOccurredAtISO } from "@/lib/date";
 import { createTransactionService } from "@/features/transactions/services/transaction-service";
 import { createGoalService } from "@/features/goals/services/goal-service";
 import { createDebtPaymentService } from "@/features/debts/services/debt-payment-service";
+import { createTransferService } from "@/features/transfers/services/transfer-service";
 import {
   createExpenseTransactionSchema,
   createIncomeTransactionSchema,
@@ -162,6 +163,30 @@ export async function kaiPayObligationAction(input: z.input<typeof payObligation
 
   try {
     await debtPaymentService.recordDebtPayment(user, { debtId, accountId: account.id, amount, commandId: randomUUID() });
+    return { ok: true };
+  } catch (error) {
+    const mapped = mapErrorToUi(error);
+    return { ok: false, error: { code: mapped.code ?? "INTERNAL_ERROR", message: mapped.message } };
+  }
+}
+
+// ── Transferir entre cuentas por chat (spec §11 write-actions-2) ────────────
+
+const transferService = createTransferService();
+
+const createTransferChatSchema = z.object({ fromAccountId: z.string().min(1), toAccountId: z.string().min(1), amount: z.string().trim().min(1) });
+
+export type KaiTransferResult = { ok: true } | { ok: false; error: { code: string; message: string } };
+
+export async function kaiCreateTransferAction(input: z.input<typeof createTransferChatSchema>): Promise<KaiTransferResult> {
+  const user = await requireCurrentUser();
+  const parsed = createTransferChatSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar la transferencia." } };
+  const { fromAccountId, toAccountId, amount } = parsed.data;
+
+  const occurredAt = resolveOccurredAtISO(getTodayInTimezone(user.timezone), user.timezone);
+  try {
+    await transferService.createTransfer(user, { fromAccountId, toAccountId, amount, occurredAt, commandId: randomUUID() });
     return { ok: true };
   } catch (error) {
     const mapped = mapErrorToUi(error);

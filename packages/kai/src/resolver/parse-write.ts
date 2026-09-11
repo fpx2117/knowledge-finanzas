@@ -137,16 +137,36 @@ export type KaiActionIntent =
   | { kind: "ALLOCATE_TO_GOAL"; amount: string | null; goalName: string }
   | { kind: "VOID_LAST"; ofType: "EXPENSE" | "INCOME" | null }
   | { kind: "VOID_MERCHANT"; merchant: string }
-  | { kind: "PAY_OBLIGATION"; obligationName: string };
+  | { kind: "PAY_OBLIGATION"; obligationName: string }
+  | { kind: "CREATE_TRANSFER"; amount: string | null; fromAccountName: string; toAccountName: string };
 
 const ALLOCATE_VERB = /\b(aport[aáeé]\w*|mov[eé]\w*|mon[eé]\w*|pas[aá]\w*|guard[aá]\w*|transferi\w*|deposit[aá]\w*|sum[aá]\w* .*\bmeta\b)/;
 const VOID_VERB = /\b(anul[aá]\w*|borr[aá]\w*|elimin[aá]\w*|deshac[eé]\w*|dar de baja|da de baja)/;
+// Mismos verbos de "mover plata" que ALLOCATE_VERB, pero sin meta/objetivo/ahorro y con
+// estructura "de {cuenta} a {cuenta}" — una transferencia entre cuentas propias, no un aporte.
+const TRANSFER_VERB = /\b(transferi\w*|pas[aá]\w*|mov[eé]\w*)\b/;
+const TRANSFER_SHAPE = /\bde\s+(?:la\s+|el\s+|mi\s+)?(.+?)\s+(?:a|hacia|al)\s+(?:la\s+|el\s+|mi\s+)?(.+)$/;
 // "cuota" al lado del verbo de pago distingue "pagué la cuota del auto" (una obligación) de
 // "pagué luz $5.000" (un gasto nuevo, spec §11 CREATE_EXPENSE) — sin monto que confundir.
 const PAY_OBLIGATION_VERB = /\b(pagu[eé]\w*|pag[aá]\w*|abon[eé]\w*|abon[aá]\w*)\b/;
 const OBLIGATION_NOUN = /\b(cuota|cuotas|tarjeta|prestamo|deuda|obligacion)\b/;
 
 export function parseActionIntent(normalized: string, raw: string): KaiActionIntent | null {
+  // ── transferir entre dos cuentas propias ─────────────────────────────────
+  // Chequeado antes de ALLOCATE_TO_GOAL: comparte verbos ("pasá", "moné", "transferí"). Solo
+  // "meta"/"objetivo" se excluyen acá — "ahorro" no, porque "caja de ahorro" es un nombre de
+  // cuenta habitual en Argentina y la forma "de {cuenta} a {cuenta}" ya es lo bastante
+  // específica como para no confundirse con un aporte a una meta (que nunca la usa).
+  if (TRANSFER_VERB.test(normalized) && !/\b(meta|objetivo)\b/.test(normalized)) {
+    const shape = TRANSFER_SHAPE.exec(normalized);
+    if (shape) {
+      const { amount } = parseAmount(raw.toLowerCase());
+      const fromAccountName = cleanTail(shape[1]);
+      const toAccountName = cleanTail(shape[2]);
+      if (fromAccountName && toAccountName) return { kind: "CREATE_TRANSFER", amount, fromAccountName, toAccountName };
+    }
+  }
+
   // ── mover plata a una meta ───────────────────────────────────────────────
   if (ALLOCATE_VERB.test(normalized) && /\b(meta|objetivo|ahorro)\b/.test(normalized)) {
     const { amount } = parseAmount(raw.toLowerCase());

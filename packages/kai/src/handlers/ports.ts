@@ -126,6 +126,8 @@ export interface KaiDataPorts {
   getGoalsForAllocation(): Promise<{ id: string; name: string; currencyCode: string }[]>;
   /** Obligaciones (deudas/cuotas) activas, para resolver "pagué la cuota de {nombre}". */
   getObligationsForPayment(): Promise<KaiObligationForPayment[]>;
+  /** Cuentas del usuario, para resolver "transferí $X de {cuenta} a {cuenta}". */
+  getAccountsForTransfer(): Promise<{ id: string; name: string; currencyCode: string }[]>;
   /** Finds the movement KAI should offer to void — the last one, or one matching a merchant. */
   findTransactionToVoid(criteria: {
     mode: "last" | "merchant";
