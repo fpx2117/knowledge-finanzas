@@ -27,6 +27,7 @@ import { createDebtPaymentService } from "@/features/debts/services/debt-payment
 import { createTransferService } from "@/features/transfers/services/transfer-service";
 import { createGoalSchema } from "@/features/goals/schemas/goal-schemas";
 import { createBudgetSchema } from "@/features/budgets/schemas/budget-schemas";
+import { invalidateKaiCacheForUser } from "../lib/kai-response-cache";
 import {
   createExpenseTransactionSchema,
   createIncomeTransactionSchema,
@@ -101,6 +102,7 @@ export async function kaiCreateTransactionAction(input: z.input<typeof inputSche
         ? await service.createIncomeTransaction(user.id, createIncomeTransactionSchema.parse(raw), user.timezone)
         : await service.createExpenseTransaction(user.id, createExpenseTransactionSchema.parse(raw), user.timezone);
     const row = created as { id: string; amount: string; currencyCode: string };
+    invalidateKaiCacheForUser(user.id);
     return { ok: true, transactionId: row.id, type, amount: row.amount, currencyCode: row.currencyCode };
   } catch (error) {
     const mapped = mapErrorToUi(error);
@@ -124,6 +126,7 @@ export async function kaiAllocateToGoalAction(input: z.input<typeof allocateSche
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar el aporte." } };
   try {
     await goalService.contribute({ id: user.id }, parsed.data.goalId, parsed.data.amount, { note: "Aporte por KAI" });
+    invalidateKaiCacheForUser(user.id);
     return { ok: true, goalId: parsed.data.goalId };
   } catch (error) {
     const mapped = mapErrorToUi(error);
@@ -135,6 +138,7 @@ export async function kaiVoidTransactionAction(transactionId: string): Promise<{
   const user = await requireCurrentUser();
   try {
     await service.voidTransaction(user.id, String(transactionId));
+    invalidateKaiCacheForUser(user.id);
     return { ok: true };
   } catch (error) {
     return { ok: false, error: mapErrorToUi(error).message };
@@ -169,6 +173,7 @@ export async function kaiPayObligationAction(input: z.input<typeof payObligation
 
   try {
     await debtPaymentService.recordDebtPayment(user, { debtId, accountId: account.id, amount, commandId: randomUUID() });
+    invalidateKaiCacheForUser(user.id);
     return { ok: true };
   } catch (error) {
     const mapped = mapErrorToUi(error);
@@ -197,6 +202,7 @@ export async function kaiCreateGoalAction(input: {
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar la meta." } };
   try {
     await goalService.createGoal(user, parsed.data);
+    invalidateKaiCacheForUser(user.id);
     return { ok: true };
   } catch (error) {
     const mapped = mapErrorToUi(error);
@@ -216,6 +222,7 @@ export async function kaiCreateBudgetAction(input: {
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: "No pude interpretar el presupuesto." } };
   try {
     await budgetService.createBudget(user, parsed.data);
+    invalidateKaiCacheForUser(user.id);
     return { ok: true };
   } catch (error) {
     const mapped = mapErrorToUi(error);
@@ -240,6 +247,7 @@ export async function kaiEditTransactionCategoryAction(input: z.input<typeof edi
   const { transactionId, categoryId, description } = parsed.data;
   try {
     await service.editTransaction(user.id, transactionId, { description, categoryId });
+    invalidateKaiCacheForUser(user.id);
     return { ok: true };
   } catch (error) {
     const mapped = mapErrorToUi(error);
@@ -264,6 +272,7 @@ export async function kaiCreateTransferAction(input: z.input<typeof createTransf
   const occurredAt = resolveOccurredAtISO(getTodayInTimezone(user.timezone), user.timezone);
   try {
     await transferService.createTransfer(user, { fromAccountId, toAccountId, amount, occurredAt, commandId: randomUUID() });
+    invalidateKaiCacheForUser(user.id);
     return { ok: true };
   } catch (error) {
     const mapped = mapErrorToUi(error);

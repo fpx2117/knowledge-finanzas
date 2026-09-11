@@ -17,6 +17,7 @@ import {
   todayInTimezone,
 } from "@know-finanzas/finance";
 import { normalizeText, type KaiDataPorts, type KaiDateRangeInput } from "@know-finanzas/kai";
+import { withKaiPortsCache } from "./kai-response-cache";
 
 import type { CurrentUser } from "@/lib/auth/require-current-user";
 import { resolveCategoryQuery } from "./resolve-category-query";
@@ -62,7 +63,7 @@ function daysBetween(fromISO: string, toISO: string): number {
  * dashboard, reports and obligations views (spec §1: deterministic, auditable).
  */
 export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
-  return {
+  const raw: KaiDataPorts = {
     async getMonthlySummary(range: KaiDateRangeInput) {
       const rows = await monthlySummaryQueries.getMonthlyIncomeExpense(user.id, { from: range.from, to: range.to });
       return rows.map((row) => {
@@ -355,4 +356,8 @@ export function buildKaiPorts(user: CurrentUser, now: Date): KaiDataPorts {
       });
     },
   };
+
+  // WP-KAI-CACHE (spec §20): memoise the read-heavy methods for a short window — see
+  // kai-response-cache.ts for what's cached, what isn't, and why.
+  return withKaiPortsCache(user.id, raw);
 }
